@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from sie.api.routes import audit, crawl, system, web
+from sie.api.routes import audit, content, crawl, system, web
 from sie.config import Settings, get_settings
 from sie.domain.services.audit_service import AuditService
+from sie.domain.services.content_service import ContentService
 from sie.domain.services.crawl_service import CrawlService
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
@@ -66,6 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.fetcher = fetcher
         app.state.audit_service = AuditService(repo, Bs4PageParser())
+        app.state.content_service = ContentService(repo, Bs4PageParser())
 
         logger.info("startup complete")
         yield
@@ -83,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.include_router(audit.router)
+    app.include_router(content.router)
     app.include_router(crawl.router)
     app.include_router(system.router)
     app.include_router(web.router)

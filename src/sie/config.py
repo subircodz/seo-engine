@@ -45,6 +45,21 @@ class AuditSettings(BaseModel):
     threshold_thin_page: int = 2
 
 
+class ContentSettings(BaseModel):
+    """Content Intelligence engine tuning."""
+
+    min_word_count: int = Field(default=300, ge=0)
+    thin_content_threshold: int = Field(default=150, ge=0)
+    duplicate_similarity_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    near_duplicate_threshold: float = Field(default=0.70, ge=0.0, le=1.0)
+    keyword_stuffing_threshold: float = Field(default=0.05, ge=0.0, le=1.0)
+    max_keywords: int = Field(default=50, ge=1)
+    enable_readability: bool = True
+    enable_keywords: bool = True
+    enable_comparison: bool = True
+    stopwords_language: str = "en"
+
+
 class Settings(BaseSettings):
     """Root configuration object. Construct directly (with overrides) in tests."""
 
@@ -71,6 +86,7 @@ class Settings(BaseSettings):
 
     crawler: CrawlerSettings = Field(default_factory=CrawlerSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
+    content: ContentSettings = Field(default_factory=ContentSettings)
 
     @property
     def is_production(self) -> bool:

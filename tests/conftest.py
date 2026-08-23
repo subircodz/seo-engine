@@ -34,3 +34,9 @@ async def harness(test_settings):
 @pytest.fixture
 async def client(harness):
     return harness.client
+
+
+@pytest.fixture
+async def app_client(harness):
+    """Alias for client for backward compatibility."""
+    return harness.client

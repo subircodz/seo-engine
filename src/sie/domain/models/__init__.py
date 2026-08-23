@@ -1,5 +1,22 @@
 """Domain models (immutable value objects)."""
 
+from sie.domain.models.content import (
+    ContentAnalysisConfig,
+    ContentComparison,
+    ContentMetrics,
+    ContentQualityReport,
+    ContentType,
+    DuplicateStatus,
+    FreshnessAnalysis,
+    HeadingAnalysis,
+    ImageAnalysis,
+    KeywordDensity,
+    LinkAnalysis,
+    MultimediaAnalysis,
+    QualityTier,
+    ReadabilityMetrics,
+    StructuredDataAnalysis,
+)
 from sie.domain.models.crawl import (
     CrawlPageRecord,
     CrawlPolicy,
@@ -12,6 +29,11 @@ from sie.domain.models.events import CrawlEvent, CrawlFinished, ErrorOccurred, P
 from sie.domain.models.page import FetchedPage, RenderedPage
 
 __all__ = [
+    "ContentAnalysisConfig",
+    "ContentComparison",
+    "ContentMetrics",
+    "ContentQualityReport",
+    "ContentType",
     "CrawlEvent",
     "CrawlFinished",
     "CrawlPageRecord",
@@ -20,8 +42,18 @@ __all__ = [
     "CrawlStats",
     "CrawlStatus",
     "CrawlTarget",
+    "DuplicateStatus",
     "ErrorOccurred",
     "FetchedPage",
+    "FreshnessAnalysis",
+    "HeadingAnalysis",
+    "ImageAnalysis",
+    "KeywordDensity",
+    "LinkAnalysis",
+    "MultimediaAnalysis",
     "PageFetchCompleted",
+    "QualityTier",
+    "ReadabilityMetrics",
     "RenderedPage",
+    "StructuredDataAnalysis",
 ]

@@ -542,8 +542,8 @@ class InternalLinksTooFewRule:
                 rule_code=self.code,
                 page_url=page.url,
                 severity=self.severity,
-message=f"Only {len(page.internal_links)} internal link(s) on this page",
-                 recommendation="Add more internal links (minimum 5) to related content.",
+                message=f"Only {len(page.internal_links)} internal link(s) on this page",
+                recommendation="Add more internal links (minimum 5) to related content.",
             )
         return None
 
@@ -555,14 +555,14 @@ class InternalLinksTooManyRule:
     needs_context = False
     _MAX = 100
 
-    def check(self, page: PageDOM, context: AuditContext | None) -> AuditFinding | None:
+    def check(self, page: PageDOM, context: AuditContext | None = None) -> AuditFinding | None:
         if len(page.internal_links) > self._MAX:
             return AuditFinding(
                 rule_code=self.code,
                 page_url=page.url,
                 severity=self.severity,
-                message=f"{len(page.internal_links)} internal links on this page (maximum 100)",
-                recommendation="Reduce the number of internal links; focus on the most important ones.",
+                message=f"{len(page.internal_links)} internal links on this page (max 100)",
+                recommendation="Reduce internal links; focus on the most important ones.",
             )
         return None
 
@@ -582,7 +582,7 @@ class UrlExcessiveParamsRule:
                 page_url=page.url,
                 severity=self.severity,
                 message=f"URL has {param_count} query parameters (max 3 recommended)",
-                recommendation="Simplify the URL structure; use path segments instead of parameters.",
+                recommendation="Use path segments instead of params",
             )
         return None
 

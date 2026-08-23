@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Protocol
 
+from sie.domain.models.content import ContentComparison, ContentMetrics, ContentQualityReport
 from sie.domain.models.crawl import CrawlPageRecord, CrawlRunRecord, CrawlStatus
 
 
@@ -37,3 +38,19 @@ class CrawlRunRepository(Protocol):
     ) -> tuple[int, list[CrawlRunRecord]]:
         """Return ``(total_runs, runs)`` ordered by start time descending."""
         ...
+
+    # ── Content Intelligence ──────────────────────────────────────────────────
+
+    async def save_content_metrics(self, run_id: str, metrics: list[ContentMetrics]) -> None: ...
+
+    async def get_content_metrics(self, run_id: str) -> list[ContentMetrics]: ...
+
+    async def save_content_comparisons(
+        self, run_id: str, comparisons: list[ContentComparison]
+    ) -> None: ...
+
+    async def get_content_comparisons(self, run_id: str) -> list[ContentComparison]: ...
+
+    async def save_quality_report(self, run_id: str, report: ContentQualityReport) -> None: ...
+
+    async def get_quality_report(self, run_id: str) -> ContentQualityReport | None: ...

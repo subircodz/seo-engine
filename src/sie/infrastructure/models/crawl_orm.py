@@ -5,6 +5,11 @@ from datetime import datetime
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from sie.infrastructure.models.content_orm import (
+    ContentComparisonRow,
+    ContentMetricsRow,
+    ContentQualityReportRow,
+)
 from sie.infrastructure.persistence.database import Base
 
 
@@ -25,6 +30,21 @@ class CrawlRunRow(Base):
         back_populates="run",
         cascade="all, delete-orphan",
         order_by="CrawlPageRow.id",
+    )
+
+    # Phase 4: Content Intelligence relationships
+    content_metrics: Mapped[list["ContentMetricsRow"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
+    content_comparisons: Mapped[list["ContentComparisonRow"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
+    content_quality_report: Mapped["ContentQualityReportRow | None"] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
 
 
