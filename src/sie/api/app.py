@@ -1,16 +1,18 @@
-"""FastAPI application factory -- the Phase 2 composition root."""
+"""FastAPI application factory -- the Phase 3 composition root."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from sie.api.routes import crawl, system, web
+from sie.api.routes import audit, crawl, system, web
 from sie.config import Settings, get_settings
+from sie.domain.services.audit_service import AuditService
 from sie.domain.services.crawl_service import CrawlService
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 from sie.infrastructure.fetching.retrying_fetcher import RetryingFetcher
+from sie.infrastructure.parsing.html_parser import Bs4PageParser
 from sie.infrastructure.persistence.database import Database
 from sie.infrastructure.persistence.migrations import run_migrations
 from sie.infrastructure.persistence.repositories import SqlAlchemyCrawlRunRepository
@@ -58,8 +60,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             visited_cache_size=cs.visited_cache_size,
         )
         repo = SqlAlchemyCrawlRunRepository(app.state.database.session_factory)
-        app.state.crawl_service = CrawlService(engine, repo, handlers=[_log_event_factory()])
+        app.state.crawled_pages = {}  # run_id -> list[FetchedPage]
+        app.state.crawl_service = CrawlService(
+            engine, repo, handlers=[_log_event_factory()], pages_store=app.state.crawled_pages
+        )
         app.state.fetcher = fetcher
+        app.state.audit_service = AuditService(repo, Bs4PageParser())
 
         logger.info("startup complete")
         yield
@@ -76,6 +82,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
+    app.include_router(audit.router)
     app.include_router(crawl.router)
     app.include_router(system.router)
     app.include_router(web.router)

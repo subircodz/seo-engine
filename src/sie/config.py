@@ -32,6 +32,19 @@ class CrawlerSettings(BaseModel):
     retry_backoff_seconds: float = Field(default=0.5, gt=0)
 
 
+class AuditSettings(BaseModel):
+    """Technical SEO + link-graph engine tuning."""
+
+    enable_p0_rules: bool = True
+    enable_p1_rules: bool = True
+    enable_p2_rules: bool = False
+    max_depth_for_link_analysis: int = Field(default=10, ge=1)
+    pagerank_damping: float = Field(default=0.85, gt=0, lt=1)
+    max_iterations: int = Field(default=100, ge=1)
+    threshold_dead_end: int = 0
+    threshold_thin_page: int = 2
+
+
 class Settings(BaseSettings):
     """Root configuration object. Construct directly (with overrides) in tests."""
 
@@ -57,6 +70,7 @@ class Settings(BaseSettings):
     auto_migrate: bool = True
 
     crawler: CrawlerSettings = Field(default_factory=CrawlerSettings)
+    audit: AuditSettings = Field(default_factory=AuditSettings)
 
     @property
     def is_production(self) -> bool:

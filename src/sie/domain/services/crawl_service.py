@@ -42,10 +42,12 @@ class CrawlService:
         crawler: Crawler,
         repository: CrawlRunRepository,
         handlers: Sequence[Callable[[CrawlEvent], Awaitable[None]]] = (),
+        pages_store: dict[str, list[FetchedPage]] | None = None,
     ) -> None:
         self._crawler = crawler
         self._repository = repository
         self._handlers: list[Callable[[CrawlEvent], Awaitable[None]]] = list(handlers)
+        self._pages_store = pages_store or {}
         self._tasks: dict[str, asyncio.Task] = {}
         self._stops: dict[str, asyncio.Event] = {}
         self._active_run_id: str | None = None
@@ -161,12 +163,14 @@ class CrawlService:
         error: str | None = None
         stored = 0
         errors = 0
+        run_pages: list[FetchedPage] = []
         try:
             async with aclosing(stream) as pages:
                 async for page in pages:
                     if stop.is_set():
                         final_status = CrawlStatus.ABORTED
                         break
+                    run_pages.append(page)
                     await self._repository.add_page(
                         run_id,
                         CrawlPageRecord(
@@ -202,6 +206,7 @@ class CrawlService:
             error = f"{type(exc).__name__}: {exc}"
             await self._emit(ErrorOccurred(run_id=run_id, url=seed_url, reason=error))
         finally:
+            self._pages_store[run_id] = run_pages
             await self._repository.finish_run(
                 run_id,
                 status=final_status,
