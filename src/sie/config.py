@@ -1,0 +1,69 @@
+"""Application settings.
+
+All runtime configuration comes from the environment (optionally via a local
+``.env`` file). Every variable is prefixed with ``SIE_``; nested models use
+``__`` as the delimiter (e.g. ``SIE_CRAWLER__MAX_PAGES``).
+"""
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from sie import __version__
+
+EnvironmentName = Literal["development", "test", "production"]
+
+
+class CrawlerSettings(BaseModel):
+    """Politeness and scope defaults consumed by the Crawler Engine."""
+
+    user_agent: str = "Mozilla/5.0 (compatible; SEOIntelligenceEngine/0.1)"
+    request_timeout_seconds: float = Field(default=20.0, gt=0)
+    max_concurrent_requests: int = Field(default=10, ge=1)
+    rate_limit_per_host: float = Field(default=1.0, gt=0)
+    respect_robots_txt: bool = True
+    follow_cross_origin: bool = False
+    max_pages: int = Field(default=1000, ge=1)
+    depth_limit: int = Field(default=5, ge=0)
+    visited_cache_size: int = Field(default=100_000, ge=100)
+    max_retries: int = Field(default=2, ge=0)
+    retry_backoff_seconds: float = Field(default=0.5, gt=0)
+
+
+class Settings(BaseSettings):
+    """Root configuration object. Construct directly (with overrides) in tests."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="SIE_",
+        env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    app_name: str = "SEO Intelligence Engine"
+    version: str = __version__
+    environment: EnvironmentName = "development"
+    debug: bool = True
+    log_level: str = "INFO"
+
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+    database_url: str = "sqlite+aiosqlite:///./sie.db"
+
+    auto_migrate: bool = True
+
+    crawler: CrawlerSettings = Field(default_factory=CrawlerSettings)
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Process-wide settings singleton; tests construct ``Settings`` directly instead."""
+    return Settings()

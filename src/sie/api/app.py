@@ -1,0 +1,82 @@
+"""FastAPI application factory -- the Phase 2 composition root."""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from sie.api.routes import crawl, system, web
+from sie.config import Settings, get_settings
+from sie.domain.services.crawl_service import CrawlService
+from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
+from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
+from sie.infrastructure.fetching.retrying_fetcher import RetryingFetcher
+from sie.infrastructure.persistence.database import Database
+from sie.infrastructure.persistence.migrations import run_migrations
+from sie.infrastructure.persistence.repositories import SqlAlchemyCrawlRunRepository
+from sie.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
+
+
+def _log_event_factory():
+    def _log(event):
+        logger.info("crawl event: %s", event)
+
+    return _log
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    setup_logging(settings.log_level)
+    logger.info(
+        "configuring %s v%s (%s)", settings.app_name, settings.version, settings.environment
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app.state.settings = settings
+        app.state.database = Database(settings.database_url)
+        logger.info("database driver: %s", settings.database_url.split("://")[0])
+
+        if settings.auto_migrate:
+            run_migrations(settings.database_url)
+
+        cs = settings.crawler
+        fetcher = RetryingFetcher(
+            HttpxFetcher(user_agent=cs.user_agent, timeout_seconds=cs.request_timeout_seconds),
+            max_retries=cs.max_retries,
+            base_delay_seconds=cs.retry_backoff_seconds,
+        )
+        engine = HttpxCrawlerEngine(
+            fetcher=fetcher,
+            user_agent=cs.user_agent,
+            max_concurrency=cs.max_concurrent_requests,
+            rate_limit_per_host=cs.rate_limit_per_host,
+            respect_robots_txt=cs.respect_robots_txt,
+            follow_cross_origin=cs.follow_cross_origin,
+            visited_cache_size=cs.visited_cache_size,
+        )
+        repo = SqlAlchemyCrawlRunRepository(app.state.database.session_factory)
+        app.state.crawl_service = CrawlService(engine, repo, handlers=[_log_event_factory()])
+        app.state.fetcher = fetcher
+
+        logger.info("startup complete")
+        yield
+
+        await app.state.crawl_service.shutdown()
+        await fetcher.close()
+        await app.state.database.dispose()
+        logger.info("shutdown complete")
+
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.version,
+        lifespan=lifespan,
+        docs_url=None if settings.is_production else "/docs",
+        redoc_url=None,
+    )
+    app.include_router(crawl.router)
+    app.include_router(system.router)
+    app.include_router(web.router)
+    return app
