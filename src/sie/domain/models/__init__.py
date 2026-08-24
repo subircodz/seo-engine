@@ -35,8 +35,18 @@ from sie.domain.models.diagnosis import (
 )
 from sie.domain.models.events import CrawlEvent, CrawlFinished, ErrorOccurred, PageFetchCompleted
 from sie.domain.models.page import FetchedPage, RenderedPage
+from sie.domain.models.search import (
+    CompetitorRanking,
+    RankingObservation,
+    SearchDataset,
+    SearchDevice,
+    SearchIntent,
+    SearchKeyword,
+    SearchQuery,
+)
 
 __all__ = [
+    "CompetitorRanking",
     "ContentAnalysisConfig",
     "ContentComparison",
     "ContentMetrics",
@@ -67,7 +77,13 @@ __all__ = [
     "MultimediaAnalysis",
     "PageFetchCompleted",
     "QualityTier",
+    "RankingObservation",
     "ReadabilityMetrics",
     "RenderedPage",
+    "SearchDataset",
+    "SearchDevice",
+    "SearchIntent",
+    "SearchKeyword",
+    "SearchQuery",
     "StructuredDataAnalysis",
 ]
