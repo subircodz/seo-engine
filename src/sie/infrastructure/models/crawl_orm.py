@@ -10,6 +10,7 @@ from sie.infrastructure.models.content_orm import (
     ContentMetricsRow,
     ContentQualityReportRow,
 )
+from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
 from sie.infrastructure.persistence.database import Base
 
 
@@ -42,6 +43,13 @@ class CrawlRunRow(Base):
         cascade="all, delete-orphan",
     )
     content_quality_report: Mapped["ContentQualityReportRow | None"] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+
+    # Phase 5: Diagnosis relationship
+    diagnosis_result: Mapped["DiagnosisResultRow | None"] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
         uselist=False,

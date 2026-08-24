@@ -25,6 +25,14 @@ from sie.domain.models.crawl import (
     CrawlStatus,
     CrawlTarget,
 )
+from sie.domain.models.diagnosis import (
+    DiagnosisCategory,
+    DiagnosisEvidence,
+    DiagnosisIssue,
+    DiagnosisPriority,
+    DiagnosisResult,
+    DiagnosisSeverity,
+)
 from sie.domain.models.events import CrawlEvent, CrawlFinished, ErrorOccurred, PageFetchCompleted
 from sie.domain.models.page import FetchedPage, RenderedPage
 
@@ -42,6 +50,12 @@ __all__ = [
     "CrawlStats",
     "CrawlStatus",
     "CrawlTarget",
+    "DiagnosisCategory",
+    "DiagnosisEvidence",
+    "DiagnosisIssue",
+    "DiagnosisPriority",
+    "DiagnosisResult",
+    "DiagnosisSeverity",
     "DuplicateStatus",
     "ErrorOccurred",
     "FetchedPage",

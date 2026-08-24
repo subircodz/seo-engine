@@ -2,6 +2,7 @@
 
 from sie.domain.engines.content_comparison import compare_content, find_duplicate_groups
 from sie.domain.engines.content_intelligence import analyze_content, analyze_content_batch
+from sie.domain.engines.diagnosis import run_diagnosis
 from sie.domain.engines.link_graph import (
     build_architecture_report,
     build_link_graph,
@@ -17,5 +18,6 @@ __all__ = [
     "compare_content",
     "compute_pagerank",
     "find_duplicate_groups",
+    "run_diagnosis",
     "run_technical_audit",
 ]

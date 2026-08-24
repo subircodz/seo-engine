@@ -6,6 +6,7 @@ from sie.infrastructure.models.content_orm import (
     ContentQualityReportRow,
 )
 from sie.infrastructure.models.crawl_orm import CrawlPageRow, CrawlRunRow
+from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
 
 __all__ = [
     "ContentComparisonRow",
@@ -13,4 +14,5 @@ __all__ = [
     "ContentQualityReportRow",
     "CrawlPageRow",
     "CrawlRunRow",
+    "DiagnosisResultRow",
 ]

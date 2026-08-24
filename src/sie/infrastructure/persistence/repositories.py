@@ -493,3 +493,102 @@ class SqlAlchemyCrawlRunRepository:
             duplicate_status=DuplicateStatus(row.duplicate_status),
             compared_at=row.compared_at.replace(tzinfo=UTC),
         )
+
+    # ── Diagnosis persistence ────────────────────────────────────────────────
+
+    async def save_diagnosis_result(self, run_id: str, result) -> None:
+        from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
+
+        issues_data = [
+            {
+                "rule_code": i.rule_code,
+                "category": i.category.value,
+                "severity": i.severity.value,
+                "priority": i.priority.value,
+                "affected_url": i.affected_url,
+                "explanation": i.explanation,
+                "recommendation": i.recommendation,
+                "evidence": [
+                    {
+                        "metric_name": e.metric_name,
+                        "metric_value": e.metric_value,
+                        "threshold": e.threshold,
+                        "description": e.description,
+                        "source_url": e.source_url,
+                    }
+                    for e in i.evidence
+                ],
+                "confidence": i.confidence,
+                "source_engine": i.source_engine,
+                "detected_at": i.detected_at.isoformat(),
+            }
+            for i in result.issues
+        ]
+
+        async with self._sf() as session:
+            session.add(
+                DiagnosisResultRow(
+                    run_id=run_id,
+                    total_issues=result.total_issues,
+                    issues_by_priority=result.issues_by_priority,
+                    issues_by_severity=result.issues_by_severity,
+                    issues_by_category=result.issues_by_category,
+                    issues=issues_data,
+                    top_affected_pages=list(result.top_affected_pages),
+                    generated_at=_naive(result.generated_at),
+                )
+            )
+            await session.commit()
+
+    async def get_diagnosis_result(self, run_id: str):
+        from sie.domain.models.diagnosis import (
+            DiagnosisCategory,
+            DiagnosisEvidence,
+            DiagnosisIssue,
+            DiagnosisPriority,
+            DiagnosisResult,
+            DiagnosisSeverity,
+        )
+        from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
+
+        async with self._sf() as session:
+            stmt = select(DiagnosisResultRow).where(DiagnosisResultRow.run_id == run_id)
+            row = (await session.execute(stmt)).scalar_one_or_none()
+            if row is None:
+                return None
+
+        issues = tuple(
+            DiagnosisIssue(
+                rule_code=d["rule_code"],
+                category=DiagnosisCategory(d["category"]),
+                severity=DiagnosisSeverity(d["severity"]),
+                priority=DiagnosisPriority(d["priority"]),
+                affected_url=d["affected_url"],
+                explanation=d["explanation"],
+                recommendation=d["recommendation"],
+                evidence=tuple(
+                    DiagnosisEvidence(
+                        metric_name=e["metric_name"],
+                        metric_value=e.get("metric_value"),
+                        threshold=e.get("threshold"),
+                        description=e.get("description", ""),
+                        source_url=e.get("source_url", ""),
+                    )
+                    for e in d.get("evidence", [])
+                ),
+                confidence=d.get("confidence", 1.0),
+                source_engine=d.get("source_engine", ""),
+            )
+            for d in row.issues
+        )
+
+        return DiagnosisResult(
+            run_id=row.run_id,
+            total_issues=row.total_issues,
+            issues_by_priority=row.issues_by_priority,
+            issues_by_severity=row.issues_by_severity,
+            issues_by_category=row.issues_by_category,
+            issues=issues,
+            top_affected_pages=tuple(row.top_affected_pages),
+            generated_at=_to_aware(row.generated_at) or row.generated_at.replace(tzinfo=UTC),
+        )

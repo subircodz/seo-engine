@@ -5,6 +5,7 @@ from typing import Protocol
 
 from sie.domain.models.content import ContentComparison, ContentMetrics, ContentQualityReport
 from sie.domain.models.crawl import CrawlPageRecord, CrawlRunRecord, CrawlStatus
+from sie.domain.models.diagnosis import DiagnosisResult
 
 
 class CrawlRunRepository(Protocol):
@@ -54,3 +55,9 @@ class CrawlRunRepository(Protocol):
     async def save_quality_report(self, run_id: str, report: ContentQualityReport) -> None: ...
 
     async def get_quality_report(self, run_id: str) -> ContentQualityReport | None: ...
+
+    # ── SEO Diagnosis ─────────────────────────────────────────────────────────
+
+    async def save_diagnosis_result(self, run_id: str, result: DiagnosisResult) -> None: ...
+
+    async def get_diagnosis_result(self, run_id: str) -> DiagnosisResult | None: ...
