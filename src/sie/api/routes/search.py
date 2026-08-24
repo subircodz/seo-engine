@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Body, UploadFile
+from fastapi import APIRouter, Body, Query, Request, UploadFile
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 
 from sie.domain.models.search import SearchDataset
 from sie.domain.models.search_import import SearchImportResult
 from sie.domain.models.search_validation import (
+    SEVERITY_ERROR,
     DatasetValidationResult,
     SearchDatasetContent,
 )
@@ -26,6 +29,7 @@ dataset_svc = SearchDatasetService()
 
 _DEFAULT_DATASET_NAME = "api-import"
 _DEFAULT_DATASET_ID_PREFIX = "ds"
+_DEFAULT_LIST_LIMIT = 50
 
 
 def _make_dataset_id() -> str:
@@ -86,6 +90,67 @@ class DatasetRequest(BaseModel):
     dataset_id: str | None = Field(default=None, description="Optional dataset identifier")
     name: str = Field(default=_DEFAULT_DATASET_NAME, description="Human-readable dataset name")
     source: str = Field(default="api-import", description="Data provenance label")
+
+
+# ── Phase 6F dataset response models ──────────────────────────────────────
+
+
+class SearchKeywordResponse(BaseModel):
+    keyword: str
+    normalized_keyword: str | None = None
+    search_intent: str
+
+
+class RankingObservationResponse(BaseModel):
+    keyword: str
+    target_url: str
+    position: int
+    source: str
+    search_engine: str = "google"
+    country: str = "us"
+    language: str = "en"
+    device: str = "desktop"
+    observed_at: datetime
+
+
+class CompetitorRankingResponse(BaseModel):
+    keyword: str
+    competitor_domain: str
+    competitor_url: str
+    position: int
+    observed_at: datetime
+
+
+class SearchDatasetResponse(BaseModel):
+    """Full dataset with all stored content (metadata + records)."""
+
+    dataset_id: str
+    name: str
+    source: str
+    created_at: datetime
+    total_keywords: int
+    total_observations: int
+    keywords: list[SearchKeywordResponse]
+    observations: list[RankingObservationResponse]
+    competitor_rankings: list[CompetitorRankingResponse]
+
+
+class SearchDatasetSummary(BaseModel):
+    """Metadata-only view used for listing (no record payload loaded)."""
+
+    dataset_id: str
+    name: str
+    source: str
+    created_at: datetime
+    total_keywords: int
+    total_observations: int
+
+
+class SearchDatasetListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    datasets: list[SearchDatasetSummary]
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -154,6 +219,65 @@ def _build_dataset(
         source="api-import",
         total_keywords=len(result.keywords),
         total_observations=len(result.observations),
+    )
+
+
+# ── Phase 6F serializers ──────────────────────────────────────────────────
+
+
+def _dataset_to_response(
+    dataset: SearchDataset, content: SearchDatasetContent
+) -> SearchDatasetResponse:
+    return SearchDatasetResponse(
+        dataset_id=dataset.dataset_id,
+        name=dataset.name,
+        source=dataset.source,
+        created_at=dataset.created_at,
+        total_keywords=len(content.keywords),
+        total_observations=len(content.observations),
+        keywords=[
+            SearchKeywordResponse(
+                keyword=kw.keyword,
+                normalized_keyword=kw.normalized_keyword,
+                search_intent=str(kw.search_intent.value),
+            )
+            for kw in content.keywords
+        ],
+        observations=[
+            RankingObservationResponse(
+                keyword=obs.keyword,
+                target_url=obs.target_url,
+                position=obs.position,
+                source=obs.source,
+                search_engine=obs.search_engine,
+                country=obs.country,
+                language=obs.language,
+                device=str(obs.device.value),
+                observed_at=obs.observed_at,
+            )
+            for obs in content.observations
+        ],
+        competitor_rankings=[
+            CompetitorRankingResponse(
+                keyword=comp.keyword,
+                competitor_domain=comp.competitor_domain,
+                competitor_url=comp.competitor_url,
+                position=comp.position,
+                observed_at=comp.observed_at,
+            )
+            for comp in content.competitor_rankings
+        ],
+    )
+
+
+def _dataset_to_summary(dataset: SearchDataset) -> SearchDatasetSummary:
+    return SearchDatasetSummary(
+        dataset_id=dataset.dataset_id,
+        name=dataset.name,
+        source=dataset.source,
+        created_at=dataset.created_at,
+        total_keywords=dataset.total_keywords,
+        total_observations=dataset.total_observations,
     )
 
 
@@ -284,3 +408,107 @@ async def normalize_dataset(
         observation_deduplicated=normalized_obs_count != len(normalized_content.observations),
         competitor_deduplicated=normalized_comp_count != competitor_count,
     )
+
+
+# ── Phase 6F: dataset CRUD (persisted via repository) ─────────────────────
+
+
+@router.post("/datasets", response_model=SearchDatasetResponse, status_code=201)
+async def create_search_dataset(body: DatasetRequest, request: Request) -> SearchDatasetResponse:
+    """Import, validate, normalize, and persist a search dataset."""
+    repo = request.app.state.repository
+    if not body.records:
+        raise HTTPException(status_code=422, detail="records list must not be empty")
+
+    import_result, content = _import_and_build_content(body.records, source=body.source)
+    if import_result.has_errors:
+        # Rejected records are reported — never silently discarded.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Records contain import errors; fix input before creating a dataset",
+                "error_count": import_result.rejected_rows,
+                "errors": [
+                    {"row_index": e.row_index, "reason": e.reason, "field": e.field}
+                    for e in import_result.errors
+                ],
+            },
+        )
+
+    dataset = _build_dataset(import_result, dataset_id=body.dataset_id, name=body.name)
+
+    validation = dataset_svc.validate_content(dataset, content)
+    if not validation.valid:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Dataset validation failed",
+                "issues": [
+                    {
+                        "code": issue.code,
+                        "severity": issue.severity,
+                        "message": issue.message,
+                        "keyword": issue.keyword,
+                        "url": issue.url,
+                    }
+                    for issue in validation.issues
+                    if issue.severity == SEVERITY_ERROR
+                ],
+            },
+        )
+
+    normalized_content = dataset_svc.normalize_content(content)
+    normalized_dataset = dataset_svc.normalize_dataset(dataset, content=normalized_content)
+
+    try:
+        await repo.save_search_dataset(
+            normalized_dataset,
+            keywords=normalized_content.keywords,
+            observations=normalized_content.observations,
+            competitor_rankings=normalized_content.competitor_rankings,
+        )
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Dataset with id '{normalized_dataset.dataset_id}' already exists",
+        ) from None
+
+    return _dataset_to_response(normalized_dataset, normalized_content)
+
+
+@router.get("/datasets", response_model=SearchDatasetListResponse)
+async def list_search_datasets(
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=200)] = _DEFAULT_LIST_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> SearchDatasetListResponse:
+    """List datasets (metadata only) ordered by creation time descending."""
+    repo = request.app.state.repository
+    total, datasets = await repo.list_search_datasets(limit=limit, offset=offset)
+    return SearchDatasetListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        datasets=[_dataset_to_summary(ds) for ds in datasets],
+    )
+
+
+@router.get("/datasets/{dataset_id}", response_model=SearchDatasetResponse)
+async def get_search_dataset(dataset_id: str, request: Request) -> SearchDatasetResponse:
+    """Retrieve one persisted dataset with its full record payload."""
+    repo = request.app.state.repository
+    result = await repo.get_search_dataset(dataset_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
+    dataset, content = result
+    return _dataset_to_response(dataset, content)
+
+
+@router.delete("/datasets/{dataset_id}")
+async def delete_search_dataset(dataset_id: str, request: Request) -> dict[str, object]:
+    """Delete a dataset and all associated records (cascade)."""
+    repo = request.app.state.repository
+    deleted = await repo.delete_search_dataset(dataset_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
+    return {"deleted": True, "dataset_id": dataset_id}
