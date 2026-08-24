@@ -1036,3 +1036,213 @@ class SqlAlchemyCrawlRunRepository:
             for r in rows
         ]
         return total, observations
+
+    # ── AIO observation persistence ─────────────────────────────────────
+
+    async def save_aio_observations(
+        self, dataset_id: str, observations: tuple
+    ) -> int:
+        """Save AIO observations for a dataset. Returns count saved."""
+        from sie.infrastructure.models.search_aio_geo_orm import AIOverviewObservationRow
+
+        async with self._sf() as session:
+            for obs in observations:
+                citations_data = None
+                if obs.citations:
+                    citations_data = [
+                        {
+                            "domain": c.domain,
+                            "url": c.url,
+                            "position": c.position,
+                            "source_type": c.source_type.value,
+                            "title": c.title,
+                        }
+                        for c in obs.citations
+                    ]
+
+                session.add(
+                    AIOverviewObservationRow(
+                        dataset_id=dataset_id,
+                        keyword=obs.keyword,
+                        ai_type=obs.ai_type.value,
+                        present=obs.present,
+                        target_cited=obs.target_cited,
+                        target_domain=obs.target_domain,
+                        citation_count=obs.citation_count,
+                        citations=citations_data,
+                        competitor_cited_domains=list(obs.competitor_cited_domains)
+                        if obs.competitor_cited_domains
+                        else None,
+                        observed_at=_naive(obs.observed_at),
+                        source=obs.source,
+                    )
+                )
+            await session.commit()
+        return len(observations)
+
+    async def list_aio_observations(
+        self, dataset_id: str, *, limit: int = 50, offset: int = 0
+    ):
+        """List AIO observations for a dataset."""
+        from sie.domain.models.search_aio import (
+            AIOCitation,
+            AIOverviewObservation,
+            AIOverviewType,
+            CitationSource,
+        )
+        from sie.infrastructure.models.search_aio_geo_orm import AIOverviewObservationRow
+
+        async with self._sf() as session:
+            count_stmt = select(func.count(AIOverviewObservationRow.id)).where(
+                AIOverviewObservationRow.dataset_id == dataset_id
+            )
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(AIOverviewObservationRow)
+                .where(AIOverviewObservationRow.dataset_id == dataset_id)
+                .order_by(AIOverviewObservationRow.id)
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        observations = []
+        for r in rows:
+            citations = ()
+            if r.citations:
+                citations = tuple(
+                    AIOCitation(
+                        domain=c["domain"],
+                        url=c.get("url", ""),
+                        position=c.get("position", 0),
+                        source_type=CitationSource(c.get("source_type", "web_page")),
+                        title=c.get("title", ""),
+                    )
+                    for c in r.citations
+                )
+
+            observations.append(
+                AIOverviewObservation(
+                    keyword=r.keyword,
+                    ai_type=AIOverviewType(r.ai_type),
+                    present=bool(r.present),
+                    target_cited=bool(r.target_cited),
+                    target_domain=r.target_domain,
+                    citation_count=r.citation_count,
+                    citations=citations,
+                    competitor_cited_domains=tuple(r.competitor_cited_domains)
+                    if r.competitor_cited_domains
+                    else (),
+                    observed_at=_to_aware(r.observed_at) or r.observed_at.replace(tzinfo=UTC),
+                    source=r.source,
+                )
+            )
+        return total, observations
+
+    # ── GEO observation persistence ─────────────────────────────────────
+
+    async def save_geo_observations(
+        self, dataset_id: str, observations: tuple
+    ) -> int:
+        """Save GEO observations for a dataset. Returns count saved."""
+        from sie.infrastructure.models.search_aio_geo_orm import GEOObservationRow
+
+        async with self._sf() as session:
+            for obs in observations:
+                entity_data = None
+                if obs.entity_mentions:
+                    entity_data = [
+                        {
+                            "text": e.text,
+                            "entity_type": e.entity_type.value,
+                            "is_target": e.is_target,
+                            "domain": e.domain,
+                        }
+                        for e in obs.entity_mentions
+                    ]
+
+                session.add(
+                    GEOObservationRow(
+                        dataset_id=dataset_id,
+                        keyword=obs.keyword,
+                        engine_type=obs.engine_type.value,
+                        target_mentioned=obs.target_mentioned,
+                        target_domain=obs.target_domain,
+                        mention_count=obs.mention_count,
+                        entity_mentions=entity_data,
+                        competitor_domains=list(obs.competitor_domains)
+                        if obs.competitor_domains
+                        else None,
+                        citation_urls=list(obs.citation_urls)
+                        if obs.citation_urls
+                        else None,
+                        answer_length=obs.answer_length,
+                        observed_at=_naive(obs.observed_at),
+                        source=obs.source,
+                    )
+                )
+            await session.commit()
+        return len(observations)
+
+    async def list_geo_observations(
+        self, dataset_id: str, *, limit: int = 50, offset: int = 0
+    ):
+        """List GEO observations for a dataset."""
+        from sie.domain.models.search_geo import (
+            EntityMention,
+            EntityType,
+            GenerativeEngineType,
+            GEOObservation,
+        )
+        from sie.infrastructure.models.search_aio_geo_orm import GEOObservationRow
+
+        async with self._sf() as session:
+            count_stmt = select(func.count(GEOObservationRow.id)).where(
+                GEOObservationRow.dataset_id == dataset_id
+            )
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(GEOObservationRow)
+                .where(GEOObservationRow.dataset_id == dataset_id)
+                .order_by(GEOObservationRow.id)
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        observations = []
+        for r in rows:
+            entity_mentions = ()
+            if r.entity_mentions:
+                entity_mentions = tuple(
+                    EntityMention(
+                        text=e["text"],
+                        entity_type=EntityType(e.get("entity_type", "other")),
+                        is_target=e.get("is_target", False),
+                        domain=e.get("domain", ""),
+                    )
+                    for e in r.entity_mentions
+                )
+
+            observations.append(
+                GEOObservation(
+                    keyword=r.keyword,
+                    engine_type=GenerativeEngineType(r.engine_type),
+                    target_mentioned=bool(r.target_mentioned),
+                    target_domain=r.target_domain,
+                    mention_count=r.mention_count,
+                    entity_mentions=entity_mentions,
+                    competitor_domains=tuple(r.competitor_domains)
+                    if r.competitor_domains
+                    else (),
+                    citation_urls=tuple(r.citation_urls)
+                    if r.citation_urls
+                    else (),
+                    answer_length=r.answer_length,
+                    observed_at=_to_aware(r.observed_at) or r.observed_at.replace(tzinfo=UTC),
+                    source=r.source,
+                )
+            )
+        return total, observations
