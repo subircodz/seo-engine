@@ -1,6 +1,9 @@
 """Settings loading and precedence."""
 
-from sie.config import CrawlerSettings, Settings
+import pytest
+from pydantic import ValidationError
+
+from sie.config import CrawlerSettings, SearchProviderSettings, Settings
 
 
 def test_defaults_are_safe() -> None:
@@ -33,3 +36,96 @@ def test_crawler_politeness_defaults_are_sane() -> None:
     assert crawler.respect_robots_txt is True
     assert crawler.follow_cross_origin is False
     assert crawler.max_retries >= 0
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# SearchProviderSettings
+# ════════════════════════════════════════════════════════════════════════════
+
+
+class TestSearchProviderSettings:
+    def test_defaults(self) -> None:
+        sp = SearchProviderSettings()
+
+        assert sp.enabled is False
+        assert sp.provider_name == "mock"
+        assert sp.base_url == ""
+        assert sp.api_key == ""
+        assert sp.timeout_seconds == 30.0
+
+    def test_enabled_flag(self) -> None:
+        sp = SearchProviderSettings(enabled=True)
+        assert sp.enabled is True
+
+    def test_provider_name(self) -> None:
+        sp = SearchProviderSettings(provider_name="serpapi")
+        assert sp.provider_name == "serpapi"
+
+    def test_base_url(self) -> None:
+        sp = SearchProviderSettings(base_url="https://api.example.com")
+        assert sp.base_url == "https://api.example.com"
+
+    def test_optional_api_key_is_empty_string(self) -> None:
+        sp = SearchProviderSettings()
+        assert sp.api_key == ""
+
+    def test_api_key_can_be_set(self) -> None:
+        sp = SearchProviderSettings(api_key="sk-test-key")
+        assert sp.api_key == "sk-test-key"
+
+    def test_timeout_positive(self) -> None:
+        sp = SearchProviderSettings(timeout_seconds=10.0)
+        assert sp.timeout_seconds == 10.0
+
+    def test_timeout_must_be_positive(self) -> None:
+        with pytest.raises(ValidationError):
+            SearchProviderSettings(timeout_seconds=0)
+
+    def test_timeout_rejects_negative(self) -> None:
+        with pytest.raises(ValidationError):
+            SearchProviderSettings(timeout_seconds=-1.0)
+
+
+class TestSearchProviderSettingsOnRoot:
+    def test_settings_has_search_provider(self) -> None:
+        settings = Settings(_env_file=None)
+        assert hasattr(settings, "search_provider")
+        assert isinstance(settings.search_provider, SearchProviderSettings)
+
+    def test_search_provider_disabled_by_default(self) -> None:
+        settings = Settings(_env_file=None)
+        assert settings.search_provider.enabled is False
+
+    def test_env_override_search_provider_enabled(self, monkeypatch) -> None:
+        monkeypatch.setenv("SIE_SEARCH_PROVIDER__ENABLED", "true")
+        settings = Settings(_env_file=None)
+        assert settings.search_provider.enabled is True
+
+    def test_env_override_search_provider_name(self, monkeypatch) -> None:
+        monkeypatch.setenv("SIE_SEARCH_PROVIDER__PROVIDER_NAME", "dataforseo")
+        settings = Settings(_env_file=None)
+        assert settings.search_provider.provider_name == "dataforseo"
+
+    def test_env_override_search_provider_base_url(self, monkeypatch) -> None:
+        monkeypatch.setenv("SIE_SEARCH_PROVIDER__BASE_URL", "https://api.dataforseo.com")
+        settings = Settings(_env_file=None)
+        assert settings.search_provider.base_url == "https://api.dataforseo.com"
+
+    def test_env_override_search_provider_timeout(self, monkeypatch) -> None:
+        monkeypatch.setenv("SIE_SEARCH_PROVIDER__TIMEOUT_SECONDS", "15.5")
+        settings = Settings(_env_file=None)
+        assert settings.search_provider.timeout_seconds == 15.5
+
+
+class TestSearchProviderApiKeyNotExposed:
+    def test_api_key_not_in_repr(self) -> None:
+        """API key must not leak through default repr."""
+        sp = SearchProviderSettings(api_key="super-secret-key-12345")
+        r = repr(sp)
+        assert "super-secret-key-12345" not in r
+
+    def test_api_key_not_in_str(self) -> None:
+        """API key must not leak through str()."""
+        sp = SearchProviderSettings(api_key="super-secret-key-12345")
+        s = str(sp)
+        assert "super-secret-key-12345" not in s

@@ -77,6 +77,46 @@ class LLMSettings(BaseModel):
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
 
 
+class SearchProviderSettings(BaseModel):
+    """Search provider configuration.
+
+    All values are read from environment variables prefixed with
+    ``SIE_SEARCH_PROVIDER__``.  The provider is disabled by default;
+    set ``enabled=true`` and provide ``provider_name`` to activate
+    search-ranking collection via an external provider.
+
+    When disabled, the application falls back to the in-memory
+    ``MockSearchProvider`` (no network I/O, useful for development
+    and testing).
+
+    ``api_key`` is optional — some providers (local services,
+    OpenAI-compatible gateways, internal APIs) do not require one.
+    When omitted or empty, the provider implementation must handle
+    authentication-free operation gracefully.
+    """
+
+    enabled: bool = False
+    provider_name: str = "mock"
+    base_url: str = ""
+    api_key: str = ""
+    timeout_seconds: float = Field(default=30.0, gt=0)
+
+    def __repr__(self) -> str:
+        """Mask the API key to prevent accidental secret leakage in logs."""
+        key_display = "'***'" if self.api_key else "''"
+        return (
+            f"SearchProviderSettings(enabled={self.enabled!r}, "
+            f"provider_name={self.provider_name!r}, "
+            f"base_url={self.base_url!r}, "
+            f"api_key={key_display}, "
+            f"timeout_seconds={self.timeout_seconds!r})"
+        )
+
+    def __str__(self) -> str:
+        """Mask the API key to prevent accidental secret leakage in logs."""
+        return self.__repr__()
+
+
 class Settings(BaseSettings):
     """Root configuration object. Construct directly (with overrides) in tests."""
 
@@ -105,6 +145,7 @@ class Settings(BaseSettings):
     audit: AuditSettings = Field(default_factory=AuditSettings)
     content: ContentSettings = Field(default_factory=ContentSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
+    search_provider: SearchProviderSettings = Field(default_factory=SearchProviderSettings)
 
     @property
     def is_production(self) -> bool:

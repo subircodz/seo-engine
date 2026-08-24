@@ -98,10 +98,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.repository = repo
 
-        # Phase 6I: mock search provider for collection endpoints
+        # Search provider — conditionally created based on configuration
         from sie.infrastructure.search.mock_provider import MockSearchProvider
 
-        app.state.search_provider = MockSearchProvider()
+        sp_cfg = settings.search_provider
+        if sp_cfg.enabled:
+            # Real provider implementations will be added in future phases.
+            # For now, log the configuration boundary without creating a vendor client.
+            logger.info(
+                "Search provider enabled: name=%s base_url=%s",
+                sp_cfg.provider_name,
+                sp_cfg.base_url,
+            )
+            # Placeholder: future phases will instantiate the appropriate provider
+            # based on sp_cfg.provider_name.  Until a real implementation exists,
+            # fall back to MockSearchProvider to preserve existing behaviour.
+            app.state.search_provider = MockSearchProvider()
+        else:
+            logger.info("Search provider disabled (set SIE_SEARCH_PROVIDER__ENABLED=true)")
+            app.state.search_provider = MockSearchProvider()
 
         logger.info("startup complete")
         yield
