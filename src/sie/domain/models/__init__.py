@@ -50,6 +50,10 @@ from sie.domain.models.search_result import (
     SearchResult,
     SearchResultItem,
 )
+from sie.domain.models.search_serp import (
+    SearchSERPFeature,
+    SERPFeatureType,
+)
 from sie.domain.models.search_validation import (
     DatasetValidationIssue,
     DatasetValidationResult,
@@ -93,6 +97,7 @@ __all__ = [
     "RankingObservation",
     "ReadabilityMetrics",
     "RenderedPage",
+    "SERPFeatureType",
     "SearchCollectionResult",
     "SearchDataset",
     "SearchDatasetContent",
@@ -104,5 +109,6 @@ __all__ = [
     "SearchRecordError",
     "SearchResult",
     "SearchResultItem",
+    "SearchSERPFeature",
     "StructuredDataAnalysis",
 ]

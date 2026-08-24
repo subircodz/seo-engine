@@ -36,12 +36,14 @@ from sie.domain.models.search_analytics import (
     KeywordRankingMetrics,
     SearchAnalyticsResult,
 )
+from sie.domain.models.search_serp import SERPFeatureType
 
 __all__ = [
     "analyze_search_dataset",
     "calculate_competitor_metrics",
     "calculate_dataset_metrics",
     "calculate_keyword_metrics",
+    "calculate_serp_feature_metrics",
     "calculate_visibility_score",
 ]
 
@@ -165,6 +167,22 @@ def calculate_dataset_metrics(
     keywords_with_rankings = len(latest)
     keywords_not_ranking = max(dataset.total_keywords - keywords_with_rankings, 0)
 
+    # Derive target domain from observations for ownership detection
+    target_domain = _derive_target_domain(observations)
+
+    (
+        total_occurrences,
+        obs_with_features,
+        fs_count,
+        paa_count,
+        fs_owned,
+        paa_owned,
+        kw_fs,
+        kw_paa,
+    ) = _serp_feature_metrics_for_dataset(observations, target_domain)
+
+    serp_features_by_type = calculate_serp_feature_metrics(observations, target_domain)
+
     return DatasetSearchMetrics(
         dataset_id=dataset.dataset_id,
         total_keywords=dataset.total_keywords,
@@ -178,6 +196,138 @@ def calculate_dataset_metrics(
         top_20_count=top_20,
         top_50_count=top_50,
         visibility_score=calculate_visibility_score(observations),
+        total_serp_feature_occurrences=total_occurrences,
+        serp_features_by_type=serp_features_by_type,
+        observations_with_serp_features=obs_with_features,
+        featured_snippet_occurrences=fs_count,
+        people_also_ask_occurrences=paa_count,
+        featured_snippet_owned_by_target=fs_owned,
+        people_also_ask_owned_by_target=paa_owned,
+        keywords_with_featured_snippet=kw_fs,
+        keywords_with_people_also_ask=kw_paa,
+    )
+
+
+def _derive_target_domain(
+    observations: tuple[RankingObservation, ...],
+) -> str | None:
+    """Derive a target domain from the observations' normalized keyword URLs.
+
+    Returns the most common bare domain among target_urls, or None if
+    observations are empty.
+    """
+    if not observations:
+        return None
+    domains = [_extract_domain_from_url(obs.target_url) for obs in observations]
+    from collections import Counter
+
+    return Counter(domains).most_common(1)[0][0]
+
+
+def _extract_domain_from_url(url: str) -> str:
+    """Extract bare, casefolded hostname from URL, stripping www."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    host = (parsed.netloc or "").split(":")[0].casefold()
+    if host.startswith("www."):
+        host = host[4:]
+    return host
+
+
+def calculate_serp_feature_metrics(
+    observations: tuple[RankingObservation, ...],
+    target_domain: str | None = None,
+) -> dict[str, int]:
+    """Count SERP feature occurrences across all observations.
+
+    Returns a dict mapping feature_type.value to count.
+    Only counts features whose domain matches target_domain if provided.
+    """
+    counts: dict[str, int] = {}
+    for obs in observations:
+        for feature in obs.serp_features:
+            if target_domain is not None and feature.domain != target_domain:
+                continue
+            feature_type = feature.feature_type.value
+            counts[feature_type] = counts.get(feature_type, 0) + 1
+    return counts
+
+
+def _serp_feature_metrics_for_dataset(
+    observations: tuple[RankingObservation, ...],
+    target_domain: str | None = None,
+) -> tuple[int, int, int, int, int, int, int, int]:
+    """Calculate SERP feature metrics for dataset-level aggregation.
+
+    Returns: (total_occurrences, obs_with_features, featured_snippet_count,
+              paa_count, featured_snippet_owned, paa_owned, kw_with_fs, kw_with_paa)
+
+    - total_occurrences: sum of all SERP feature instances
+    - obs_with_features: number of observations containing at least one feature
+    - featured_snippet_count: total featured snippets
+    - paa_count: total People Also Ask features
+    - featured_snippet_owned: featured snippets where domain matches target_domain
+    - paa_owned: PAA where domain matches target_domain
+    - kw_with_fs: number of distinct keywords with featured snippets
+    - kw_with_paa: number of distinct keywords with PAA
+
+    Ownership is only counted when the SERP feature has an explicit domain
+    that matches the target_domain.
+    """
+    total_occurrences = 0
+    obs_with_features = set()
+    featured_snippet_count = 0
+    paa_count = 0
+    featured_snippet_owned = 0
+    paa_owned = 0
+    kw_with_fs = set()
+    kw_with_paa = set()
+
+    for obs in observations:
+        has_feature = False
+        for feature in obs.serp_features:
+            total_occurrences += 1
+            has_feature = True
+
+            if target_domain is not None and feature.domain is not None:
+                # Feature has explicit domain - check ownership
+                if feature.domain == target_domain:
+                    if feature.feature_type == SERPFeatureType.FEATURED_SNIPPET:
+                        featured_snippet_count += 1
+                        kw_with_fs.add(obs.keyword)
+                        featured_snippet_owned += 1
+                    elif feature.feature_type == SERPFeatureType.PEOPLE_ALSO_ASK:
+                        paa_count += 1
+                        kw_with_paa.add(obs.keyword)
+                        paa_owned += 1
+                elif feature.feature_type == SERPFeatureType.FEATURED_SNIPPET:
+                    featured_snippet_count += 1
+                    kw_with_fs.add(obs.keyword)
+                elif feature.feature_type == SERPFeatureType.PEOPLE_ALSO_ASK:
+                    paa_count += 1
+                    kw_with_paa.add(obs.keyword)
+            else:
+                # No domain on feature - just count occurrences
+                if feature.feature_type == SERPFeatureType.FEATURED_SNIPPET:
+                    featured_snippet_count += 1
+                    kw_with_fs.add(obs.keyword)
+                elif feature.feature_type == SERPFeatureType.PEOPLE_ALSO_ASK:
+                    paa_count += 1
+                    kw_with_paa.add(obs.keyword)
+
+        if has_feature:
+            obs_with_features.add(obs.keyword)
+
+    return (
+        total_occurrences,
+        len(obs_with_features),
+        featured_snippet_count,
+        paa_count,
+        featured_snippet_owned,
+        paa_owned,
+        len(kw_with_fs),
+        len(kw_with_paa),
     )
 
 

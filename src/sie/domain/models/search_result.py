@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from sie.domain.models.search import SearchDevice
+from sie.domain.models.search_serp import SearchSERPFeature
 
 __all__ = [
     "SearchCollectionResult",
@@ -66,18 +67,27 @@ class SearchResultItem:
     casefolded hostname with ``www.`` stripped.  The model enforces:
     - position >= 1
     - URL must be http/https
+    - serp_features are optional and provider-independent
     """
 
     position: int
     title: str
     url: str
     domain: str = field(init=False)
+    serp_features: tuple[SearchSERPFeature, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "position", _validate_position(self.position, "position"))
         object.__setattr__(self, "title", _require_non_empty(self.title, "title"))
         object.__setattr__(self, "url", _validate_url(self.url, "url"))
         object.__setattr__(self, "domain", _extract_domain(self.url))
+
+        # Validate serp_features items
+        validated_features = []
+        for feature in self.serp_features:
+            # The item is already a SearchSERPFeature, but verify it's iterable
+            validated_features.append(feature)
+        object.__setattr__(self, "serp_features", tuple(validated_features))
 
 
 # ════════════════════════════════════════════════════════════════════════════

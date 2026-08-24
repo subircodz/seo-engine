@@ -36,6 +36,43 @@ def _to_aware(naive: datetime | None) -> datetime | None:
     return naive.replace(tzinfo=UTC)
 
 
+def _serialize_serp_features(features: tuple) -> list[dict] | None:
+    """Serialize SERP features tuple to JSON-serializable list of dicts."""
+    if not features:
+        return None
+    result = []
+    for f in features:
+        feature_dict = {
+            "feature_type": f.feature_type.value,
+            "position": f.position,
+            "title": f.title,
+            "url": f.url,
+            "domain": f.domain,
+            "metadata": dict(f.metadata) if f.metadata else {},
+        }
+        result.append(feature_dict)
+    return result
+
+
+def _deserialize_serp_features(data: list[dict] | None) -> tuple:
+    """Deserialize JSON list of dicts back to SERP features tuple."""
+    from sie.domain.models.search_serp import SearchSERPFeature, SERPFeatureType
+
+    if not data:
+        return ()
+    features = []
+    for item in data:
+        feature = SearchSERPFeature(
+            feature_type=SERPFeatureType(item["feature_type"]),
+            position=item.get("position"),
+            title=item.get("title"),
+            url=item.get("url"),
+            _metadata=tuple(item.get("metadata", {}).items()) if item.get("metadata") else (),
+        )
+        features.append(feature)
+    return tuple(features)
+
+
 class SqlAlchemyCrawlRunRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._sf = session_factory
@@ -791,6 +828,11 @@ class SqlAlchemyCrawlRunRepository:
                     )
                 )
             for obs in observations:
+                serp_features_data = (
+                    _serialize_serp_features(obs.serp_features)
+                    if hasattr(obs, "serp_features")
+                    else None
+                )
                 session.add(
                     SearchRankingObservationRow(
                         dataset_id=dataset.dataset_id,
@@ -803,6 +845,7 @@ class SqlAlchemyCrawlRunRepository:
                         language=obs.language,
                         device=obs.device.value,
                         observed_at=_naive(obs.observed_at),
+                        serp_features=serp_features_data,
                     )
                 )
             for comp in competitor_rankings:
@@ -866,6 +909,7 @@ class SqlAlchemyCrawlRunRepository:
                     device=SearchDevice(o_row.device),
                     observed_at=_to_aware(o_row.observed_at)
                     or o_row.observed_at.replace(tzinfo=UTC),
+                    serp_features=_deserialize_serp_features(o_row.serp_features),
                 )
                 for o_row in ds_row.observations
             )

@@ -15,7 +15,7 @@ Conventions shared with Phase 6A:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 __all__ = [
     "CompetitorMetrics",
@@ -79,6 +79,17 @@ class DatasetSearchMetrics:
     top_20_count: int
     top_50_count: int
     visibility_score: float
+
+    # SERP Feature Analytics (Phase 6N)
+    total_serp_feature_occurrences: int = 0
+    serp_features_by_type: dict[str, int] = field(default_factory=dict)
+    observations_with_serp_features: int = 0
+    featured_snippet_occurrences: int = 0
+    people_also_ask_occurrences: int = 0
+    featured_snippet_owned_by_target: int = 0
+    people_also_ask_owned_by_target: int = 0
+    keywords_with_featured_snippet: int = 0
+    keywords_with_people_also_ask: int = 0
 
 
 @dataclass(frozen=True, slots=True)

@@ -135,6 +135,7 @@ class RankingObservation:
     Attributes:
         source: Name of the provider/system that produced this observation
                 (e.g. ``"gsc"``, ``"manual"``) — never fabricated.
+        serp_features: Optional tuple of SERP features observed alongside this ranking.
     """
 
     keyword: str
@@ -146,6 +147,7 @@ class RankingObservation:
     language: str = "en"
     device: SearchDevice = SearchDevice.DESKTOP
     observed_at: datetime = field(default_factory=_utc_now)
+    serp_features: tuple = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sie.infrastructure.persistence.database import Base
@@ -73,6 +73,7 @@ class SearchRankingObservationRow(Base):
     language: Mapped[str] = mapped_column(String(8), nullable=False, default="en")
     device: Mapped[str] = mapped_column(String(16), nullable=False, default="desktop")
     observed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    serp_features: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
     dataset: Mapped[SearchDatasetRow] = relationship(back_populates="observations")
 
