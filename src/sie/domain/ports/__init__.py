@@ -6,7 +6,8 @@ Consumers depend on these Protocols; concrete providers live in
 
 from sie.domain.ports.crawling import Crawler
 from sie.domain.ports.fetching import Fetcher
+from sie.domain.ports.llm import LLMProvider
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.rendering import Renderer
 
-__all__ = ["CrawlRunRepository", "Crawler", "Fetcher", "Renderer"]
+__all__ = ["CrawlRunRepository", "Crawler", "Fetcher", "LLMProvider", "Renderer"]

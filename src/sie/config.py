@@ -60,6 +60,23 @@ class ContentSettings(BaseModel):
     stopwords_language: str = "en"
 
 
+class LLMSettings(BaseModel):
+    """LLM provider configuration.
+
+    All values are read from environment variables prefixed with ``SIE_LLM__``.
+    The provider is disabled by default; set ``enabled=true`` and provide a
+    ``base_url`` + ``api_key`` to activate LLM-enhanced diagnosis.
+    """
+
+    enabled: bool = False
+    base_url: str = "https://api.openai.com"
+    api_key: str = ""
+    model: str = "gpt-4o-mini"
+    timeout_seconds: float = Field(default=60.0, gt=0)
+    max_tokens: int = Field(default=4096, ge=256)
+    temperature: float = Field(default=0.3, ge=0.0, le=2.0)
+
+
 class Settings(BaseSettings):
     """Root configuration object. Construct directly (with overrides) in tests."""
 
@@ -87,6 +104,7 @@ class Settings(BaseSettings):
     crawler: CrawlerSettings = Field(default_factory=CrawlerSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
     content: ContentSettings = Field(default_factory=ContentSettings)
+    llm: LLMSettings = Field(default_factory=LLMSettings)
 
     @property
     def is_production(self) -> bool:

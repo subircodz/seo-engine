@@ -11,9 +11,11 @@ from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
 from sie.domain.services.crawl_service import CrawlService
 from sie.domain.services.diagnosis_service import DiagnosisService
+from sie.domain.services.intelligence_service import IntelligenceService
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 from sie.infrastructure.fetching.retrying_fetcher import RetryingFetcher
+from sie.infrastructure.llm.openai_provider import OpenAICompatibleProvider
 from sie.infrastructure.parsing.html_parser import Bs4PageParser
 from sie.infrastructure.persistence.database import Database
 from sie.infrastructure.persistence.migrations import run_migrations
@@ -71,11 +73,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.content_service = ContentService(repo, Bs4PageParser())
         app.state.diagnosis_service = DiagnosisService(repo, Bs4PageParser())
 
+        # LLM provider — conditionally created
+        llm_provider = None
+        llm_cfg = settings.llm
+        if llm_cfg.enabled:
+            llm_provider = OpenAICompatibleProvider(
+                base_url=llm_cfg.base_url,
+                api_key=llm_cfg.api_key,
+                model=llm_cfg.model,
+                timeout_seconds=llm_cfg.timeout_seconds,
+            )
+            logger.info(
+                "LLM provider enabled: model=%s base_url=%s",
+                llm_cfg.model,
+                llm_cfg.base_url,
+            )
+        else:
+            logger.info("LLM provider disabled (set SIE_LLM__ENABLED=true)")
+        app.state.llm_provider = llm_provider
+        app.state.intelligence_service = IntelligenceService(llm_provider)
+
         logger.info("startup complete")
         yield
 
         await app.state.crawl_service.shutdown()
         await fetcher.close()
+        if llm_provider is not None:
+            await llm_provider.close()
         await app.state.database.dispose()
         logger.info("shutdown complete")
 
