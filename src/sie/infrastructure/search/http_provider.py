@@ -118,8 +118,12 @@ class HttpSearchProvider:
 
         logger.debug("Search request to %s query=%r", url, query.query)
 
+        headers: dict[str, str] = {}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+
         try:
-            response = await self._client.post(url, json=payload)
+            response = await self._client.post(url, json=payload, headers=headers)
         except httpx.TimeoutException as exc:
             logger.warning("Search request timed out: %s", exc)
             raise SearchProviderTimeout(f"Search request timed out: {exc}") from exc
