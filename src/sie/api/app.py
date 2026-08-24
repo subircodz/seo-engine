@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from sie.api.routes import audit, content, crawl, diagnosis, system, web
+from sie.api.routes import audit, content, crawl, diagnosis, intelligence, system, web
 from sie.config import Settings, get_settings
 from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
@@ -91,7 +91,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else:
             logger.info("LLM provider disabled (set SIE_LLM__ENABLED=true)")
         app.state.llm_provider = llm_provider
-        app.state.intelligence_service = IntelligenceService(llm_provider)
+        app.state.intelligence_service = IntelligenceService(
+            llm_provider,
+            model_name=llm_cfg.model if llm_cfg.enabled else "deterministic",
+            provider_name=llm_cfg.base_url if llm_cfg.enabled else "none",
+        )
+        app.state.repository = repo
 
         logger.info("startup complete")
         yield
@@ -114,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(content.router)
     app.include_router(crawl.router)
     app.include_router(diagnosis.router)
+    app.include_router(intelligence.router)
     app.include_router(system.router)
     app.include_router(web.router)
     return app

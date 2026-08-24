@@ -11,6 +11,7 @@ from sie.infrastructure.models.content_orm import (
     ContentQualityReportRow,
 )
 from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
+from sie.infrastructure.models.intelligence_orm import IntelligenceReportRow
 from sie.infrastructure.persistence.database import Base
 
 
@@ -53,6 +54,12 @@ class CrawlRunRow(Base):
         back_populates="run",
         cascade="all, delete-orphan",
         uselist=False,
+    )
+
+    # Phase 5C: Intelligence report relationship
+    intelligence_reports: Mapped[list["IntelligenceReportRow"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
     )
 
 

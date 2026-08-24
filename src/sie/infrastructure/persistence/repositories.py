@@ -592,3 +592,163 @@ class SqlAlchemyCrawlRunRepository:
             top_affected_pages=tuple(row.top_affected_pages),
             generated_at=_to_aware(row.generated_at) or row.generated_at.replace(tzinfo=UTC),
         )
+
+    # ── Intelligence Report persistence (Phase 5C) ─────────────────────────
+
+    async def save_intelligence_report(self, run_id: str, report) -> None:
+        from sie.infrastructure.models.intelligence_orm import IntelligenceReportRow
+
+        async with self._sf() as session:
+            session.add(
+                IntelligenceReportRow(
+                    intelligence_id=report.intelligence_id,
+                    run_id=run_id,
+                    diagnosis_run_id=report.diagnosis_run_id,
+                    prompt_version=report.prompt_version,
+                    model_name=report.model_name,
+                    provider=report.provider,
+                    summary=report.summary,
+                    overall_assessment=report.overall_assessment,
+                    root_causes=[
+                        {
+                            "title": rc.title,
+                            "evidence": list(rc.evidence),
+                            "confidence": rc.confidence,
+                        }
+                        for rc in report.root_causes
+                    ],
+                    top_issues=[
+                        {
+                            "issue_code": ti.issue_code,
+                            "title": ti.title,
+                            "interpretation": ti.interpretation,
+                            "impact": ti.impact,
+                            "confidence": ti.confidence,
+                            "affected_url_count": ti.affected_url_count,
+                        }
+                        for ti in report.top_issues
+                    ],
+                    quick_wins=[
+                        {
+                            "action": qw.action,
+                            "reason": qw.reason,
+                            "priority": qw.priority,
+                            "difficulty": qw.difficulty,
+                        }
+                        for qw in report.quick_wins
+                    ],
+                    action_plan=[
+                        {
+                            "order": ap.order,
+                            "action": ap.action,
+                            "reason": ap.reason,
+                            "priority": ap.priority,
+                            "difficulty": ap.difficulty,
+                            "dependencies": list(ap.dependencies),
+                        }
+                        for ap in report.action_plan
+                    ],
+                    raw_response=report.raw_response,
+                    generated_at=_naive(report.generated_at),
+                )
+            )
+            await session.commit()
+
+    async def get_intelligence_report(self, intelligence_id: str):
+        from sie.infrastructure.models.intelligence_orm import IntelligenceReportRow
+
+        async with self._sf() as session:
+            stmt = select(IntelligenceReportRow).where(
+                IntelligenceReportRow.intelligence_id == intelligence_id
+            )
+            row = (await session.execute(stmt)).scalar_one_or_none()
+            if row is None:
+                return None
+
+        return self._report_from_row(row)
+
+    async def get_intelligence_report_by_run_id(self, run_id: str):
+        from sie.infrastructure.models.intelligence_orm import IntelligenceReportRow
+
+        async with self._sf() as session:
+            stmt = (
+                select(IntelligenceReportRow)
+                .where(IntelligenceReportRow.run_id == run_id)
+                .order_by(IntelligenceReportRow.generated_at.desc())
+                .limit(1)
+            )
+            row = (await session.execute(stmt)).scalar_one_or_none()
+            if row is None:
+                return None
+
+        return self._report_from_row(row)
+
+    @staticmethod
+    def _report_from_row(row):
+        from sie.domain.models.intelligence import (
+            ActionPlanItem,
+            IntelligenceReport,
+            QuickWin,
+            RootCause,
+            TopIssue,
+        )
+
+        root_causes = tuple(
+            RootCause(
+                title=rc["title"],
+                evidence=tuple(rc.get("evidence", [])),
+                confidence=rc.get("confidence", 0.5),
+            )
+            for rc in row.root_causes
+        )
+
+        top_issues = tuple(
+            TopIssue(
+                issue_code=ti["issue_code"],
+                title=ti["title"],
+                interpretation=ti["interpretation"],
+                impact=ti["impact"],
+                confidence=ti.get("confidence", 0.5),
+                affected_url_count=ti.get("affected_url_count", 0),
+            )
+            for ti in row.top_issues
+        )
+
+        quick_wins = tuple(
+            QuickWin(
+                action=qw["action"],
+                reason=qw["reason"],
+                priority=qw.get("priority", "P2"),
+                difficulty=qw.get("difficulty", "medium"),
+            )
+            for qw in row.quick_wins
+        )
+
+        action_plan = tuple(
+            ActionPlanItem(
+                order=ap["order"],
+                action=ap["action"],
+                reason=ap["reason"],
+                priority=ap.get("priority", "P2"),
+                difficulty=ap.get("difficulty", "medium"),
+                dependencies=tuple(ap.get("dependencies", [])),
+            )
+            for ap in row.action_plan
+        )
+
+        return IntelligenceReport(
+            intelligence_id=row.intelligence_id,
+            run_id=row.run_id,
+            diagnosis_run_id=row.diagnosis_run_id,
+            prompt_version=row.prompt_version,
+            model_name=row.model_name,
+            provider=row.provider,
+            summary=row.summary,
+            overall_assessment=row.overall_assessment,
+            root_causes=root_causes,
+            top_issues=top_issues,
+            quick_wins=quick_wins,
+            action_plan=action_plan,
+            raw_response=row.raw_response,
+            generated_at=_to_aware(row.generated_at) or row.generated_at.replace(tzinfo=UTC),
+        )
