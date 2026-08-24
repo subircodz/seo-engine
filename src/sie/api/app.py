@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from sie.api.routes import audit, content, crawl, diagnosis, intelligence, system, web
+from sie.api.routes import audit, content, crawl, diagnosis, intelligence, search, system, web
 from sie.config import Settings, get_settings
 from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
@@ -120,6 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(crawl.router)
     app.include_router(diagnosis.router)
     app.include_router(intelligence.router)
+    app.include_router(search.router)
     app.include_router(system.router)
     app.include_router(web.router)
     return app
