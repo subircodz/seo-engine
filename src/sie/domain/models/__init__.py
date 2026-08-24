@@ -45,6 +45,11 @@ from sie.domain.models.search import (
     SearchQuery,
 )
 from sie.domain.models.search_import import SearchImportResult, SearchRecordError
+from sie.domain.models.search_validation import (
+    DatasetValidationIssue,
+    DatasetValidationResult,
+    SearchDatasetContent,
+)
 
 __all__ = [
     "CompetitorRanking",
@@ -61,6 +66,8 @@ __all__ = [
     "CrawlStats",
     "CrawlStatus",
     "CrawlTarget",
+    "DatasetValidationIssue",
+    "DatasetValidationResult",
     "DiagnosisCategory",
     "DiagnosisEvidence",
     "DiagnosisIssue",
@@ -82,6 +89,7 @@ __all__ = [
     "ReadabilityMetrics",
     "RenderedPage",
     "SearchDataset",
+    "SearchDatasetContent",
     "SearchDevice",
     "SearchImportResult",
     "SearchIntent",
