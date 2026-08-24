@@ -44,6 +44,24 @@ from sie.domain.models.search import (
     SearchKeyword,
     SearchQuery,
 )
+from sie.domain.models.search_aio import (
+    AIOCitation,
+    AIOverviewDatasetMetrics,
+    AIOverviewMetrics,
+    AIOverviewObservation,
+    AIOverviewResult,
+    AIOverviewType,
+    CitationSource,
+)
+from sie.domain.models.search_geo import (
+    EntityMention,
+    EntityType,
+    GenerativeEngineType,
+    GEODatasetMetrics,
+    GEOMetrics,
+    GEOObservation,
+    GEOResult,
+)
 from sie.domain.models.search_import import SearchImportResult, SearchRecordError
 from sie.domain.models.search_result import (
     SearchCollectionResult,
@@ -61,6 +79,13 @@ from sie.domain.models.search_validation import (
 )
 
 __all__ = [
+    "AIOCitation",
+    "AIOverviewDatasetMetrics",
+    "AIOverviewMetrics",
+    "AIOverviewObservation",
+    "AIOverviewResult",
+    "AIOverviewType",
+    "CitationSource",
     "CompetitorRanking",
     "ContentAnalysisConfig",
     "ContentComparison",
@@ -84,9 +109,16 @@ __all__ = [
     "DiagnosisResult",
     "DiagnosisSeverity",
     "DuplicateStatus",
+    "EntityMention",
+    "EntityType",
     "ErrorOccurred",
     "FetchedPage",
     "FreshnessAnalysis",
+    "GEODatasetMetrics",
+    "GEOMetrics",
+    "GEOObservation",
+    "GEOResult",
+    "GenerativeEngineType",
     "HeadingAnalysis",
     "ImageAnalysis",
     "KeywordDensity",

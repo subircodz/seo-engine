@@ -7,6 +7,7 @@ from sie.domain.services.intelligence_service import IntelligenceService
 from sie.domain.services.ranking_volatility import RankingVolatilityService
 from sie.domain.services.search_dataset_service import SearchDatasetService
 from sie.domain.services.search_import_service import SearchImportService
+from sie.domain.services.search_intelligence import SearchIntelligenceService
 from sie.domain.services.search_opportunity import SearchOpportunityService
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "RankingVolatilityService",
     "SearchDatasetService",
     "SearchImportService",
+    "SearchIntelligenceService",
     "SearchOpportunityService",
 ]
