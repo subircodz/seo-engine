@@ -8,6 +8,12 @@ from sie.infrastructure.models.content_orm import (
 from sie.infrastructure.models.crawl_orm import CrawlPageRow, CrawlRunRow
 from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
 from sie.infrastructure.models.intelligence_orm import IntelligenceReportRow
+from sie.infrastructure.models.search_orm import (
+    SearchCompetitorRankingRow,
+    SearchDatasetRow,
+    SearchKeywordRow,
+    SearchRankingObservationRow,
+)
 
 __all__ = [
     "ContentComparisonRow",
@@ -17,4 +23,8 @@ __all__ = [
     "CrawlRunRow",
     "DiagnosisResultRow",
     "IntelligenceReportRow",
+    "SearchCompetitorRankingRow",
+    "SearchDatasetRow",
+    "SearchKeywordRow",
+    "SearchRankingObservationRow",
 ]

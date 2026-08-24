@@ -1,11 +1,19 @@
 """Port: persistence for crawl runs and pages."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Protocol
 
 from sie.domain.models.content import ContentComparison, ContentMetrics, ContentQualityReport
 from sie.domain.models.crawl import CrawlPageRecord, CrawlRunRecord, CrawlStatus
 from sie.domain.models.diagnosis import DiagnosisResult
+from sie.domain.models.search import (
+    CompetitorRanking,
+    RankingObservation,
+    SearchDataset,
+    SearchKeyword,
+)
+from sie.domain.models.search_validation import SearchDatasetContent
 
 
 class CrawlRunRepository(Protocol):
@@ -69,3 +77,32 @@ class CrawlRunRepository(Protocol):
     async def get_intelligence_report(self, intelligence_id: str) -> object | None: ...
 
     async def get_intelligence_report_by_run_id(self, run_id: str) -> object | None: ...
+
+    # ── Search Datasets (Phase 6E) ────────────────────────────────────────────
+
+    async def save_search_dataset(
+        self,
+        dataset: SearchDataset,
+        *,
+        keywords: Sequence[SearchKeyword] = (),
+        observations: Sequence[RankingObservation] = (),
+        competitor_rankings: Sequence[CompetitorRanking] = (),
+    ) -> None:
+        """Persist a dataset and all its records in one transaction."""
+        ...
+
+    async def get_search_dataset(
+        self, dataset_id: str
+    ) -> tuple[SearchDataset, SearchDatasetContent] | None:
+        """Return ``(dataset, content)`` or ``None`` when absent."""
+        ...
+
+    async def list_search_datasets(
+        self, *, limit: int = 50, offset: int = 0
+    ) -> tuple[int, list[SearchDataset]]:
+        """Return ``(total_datasets, datasets)`` ordered by creation descending."""
+        ...
+
+    async def delete_search_dataset(self, dataset_id: str) -> bool:
+        """Delete a dataset with all records; ``True`` when it existed."""
+        ...

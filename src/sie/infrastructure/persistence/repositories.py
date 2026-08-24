@@ -752,3 +752,184 @@ class SqlAlchemyCrawlRunRepository:
             raw_response=row.raw_response,
             generated_at=_to_aware(row.generated_at) or row.generated_at.replace(tzinfo=UTC),
         )
+
+    # ── Search Datasets persistence (Phase 6E) ─────────────────────────────
+
+    async def save_search_dataset(
+        self,
+        dataset,
+        *,
+        keywords=(),
+        observations=(),
+        competitor_rankings=(),
+    ) -> None:
+        from sie.infrastructure.models.search_orm import (
+            SearchCompetitorRankingRow,
+            SearchDatasetRow,
+            SearchKeywordRow,
+            SearchRankingObservationRow,
+        )
+
+        async with self._sf() as session:
+            session.add(
+                SearchDatasetRow(
+                    id=dataset.dataset_id,
+                    name=dataset.name,
+                    source=dataset.source,
+                    created_at=_naive(dataset.created_at),
+                    total_keywords=len(keywords),
+                    total_observations=len(observations),
+                )
+            )
+            for kw in keywords:
+                session.add(
+                    SearchKeywordRow(
+                        dataset_id=dataset.dataset_id,
+                        keyword=kw.keyword,
+                        normalized_keyword=kw.normalized_keyword or kw.keyword,
+                        search_intent=kw.search_intent.value,
+                    )
+                )
+            for obs in observations:
+                session.add(
+                    SearchRankingObservationRow(
+                        dataset_id=dataset.dataset_id,
+                        keyword=obs.keyword,
+                        target_url=obs.target_url,
+                        position=obs.position,
+                        source=obs.source,
+                        search_engine=obs.search_engine,
+                        country=obs.country,
+                        language=obs.language,
+                        device=obs.device.value,
+                        observed_at=_naive(obs.observed_at),
+                    )
+                )
+            for comp in competitor_rankings:
+                session.add(
+                    SearchCompetitorRankingRow(
+                        dataset_id=dataset.dataset_id,
+                        keyword=comp.keyword,
+                        competitor_domain=comp.competitor_domain,
+                        competitor_url=comp.competitor_url,
+                        position=comp.position,
+                        observed_at=_naive(comp.observed_at),
+                    )
+                )
+            await session.commit()
+
+    async def get_search_dataset(self, dataset_id: str):
+        from sqlalchemy.orm import selectinload
+
+        from sie.domain.models.search import (
+            CompetitorRanking,
+            RankingObservation,
+            SearchDataset,
+            SearchDevice,
+            SearchIntent,
+            SearchKeyword,
+        )
+        from sie.domain.models.search_validation import SearchDatasetContent
+        from sie.infrastructure.models.search_orm import SearchDatasetRow
+
+        async with self._sf() as session:
+            stmt = (
+                select(SearchDatasetRow)
+                .where(SearchDatasetRow.id == dataset_id)
+                .options(
+                    selectinload(SearchDatasetRow.keywords),
+                    selectinload(SearchDatasetRow.observations),
+                    selectinload(SearchDatasetRow.competitor_rankings),
+                )
+            )
+            ds_row = (await session.execute(stmt)).scalar_one_or_none()
+            if ds_row is None:
+                return None
+
+            keywords = tuple(
+                SearchKeyword(
+                    keyword=kw_row.keyword,
+                    normalized_keyword=kw_row.normalized_keyword,
+                    search_intent=SearchIntent(kw_row.search_intent),
+                )
+                for kw_row in ds_row.keywords
+            )
+            observations = tuple(
+                RankingObservation(
+                    keyword=o_row.keyword,
+                    target_url=o_row.target_url,
+                    position=o_row.position,
+                    source=o_row.source,
+                    search_engine=o_row.search_engine,
+                    country=o_row.country,
+                    language=o_row.language,
+                    device=SearchDevice(o_row.device),
+                    observed_at=_to_aware(o_row.observed_at)
+                    or o_row.observed_at.replace(tzinfo=UTC),
+                )
+                for o_row in ds_row.observations
+            )
+            competitor_rankings = tuple(
+                CompetitorRanking(
+                    keyword=c_row.keyword,
+                    competitor_domain=c_row.competitor_domain,
+                    competitor_url=c_row.competitor_url,
+                    position=c_row.position,
+                    observed_at=_to_aware(c_row.observed_at)
+                    or c_row.observed_at.replace(tzinfo=UTC),
+                )
+                for c_row in ds_row.competitor_rankings
+            )
+
+        dataset = SearchDataset(
+            dataset_id=ds_row.id,
+            name=ds_row.name,
+            source=ds_row.source,
+            created_at=_to_aware(ds_row.created_at) or ds_row.created_at.replace(tzinfo=UTC),
+            total_keywords=len(keywords),
+            total_observations=len(observations),
+        )
+        return dataset, SearchDatasetContent(
+            keywords=keywords,
+            observations=observations,
+            competitor_rankings=competitor_rankings,
+        )
+
+    async def list_search_datasets(self, *, limit: int = 50, offset: int = 0):
+        from sie.domain.models.search import SearchDataset
+        from sie.infrastructure.models.search_orm import SearchDatasetRow
+
+        async with self._sf() as session:
+            total = (await session.execute(select(func.count(SearchDatasetRow.id)))).scalar_one()
+            stmt = (
+                select(SearchDatasetRow)
+                .order_by(SearchDatasetRow.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        datasets = [
+            SearchDataset(
+                dataset_id=r.id,
+                name=r.name,
+                source=r.source,
+                created_at=_to_aware(r.created_at) or r.created_at.replace(tzinfo=UTC),
+                total_keywords=r.total_keywords,
+                total_observations=r.total_observations,
+            )
+            for r in rows
+        ]
+        return total, datasets
+
+    async def delete_search_dataset(self, dataset_id: str) -> bool:
+        from sie.infrastructure.models.search_orm import SearchDatasetRow
+
+        async with self._sf() as session:
+            stmt = select(SearchDatasetRow).where(SearchDatasetRow.id == dataset_id)
+            row = (await session.execute(stmt)).scalar_one_or_none()
+            if row is None:
+                return False
+            await session.delete(row)
+            await session.commit()
+            return True
