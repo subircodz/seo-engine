@@ -8,13 +8,25 @@ from sie.domain.engines.link_graph import (
     build_link_graph,
     compute_pagerank,
 )
+from sie.domain.engines.search_analytics import (
+    analyze_search_dataset,
+    calculate_competitor_metrics,
+    calculate_dataset_metrics,
+    calculate_keyword_metrics,
+    calculate_visibility_score,
+)
 from sie.domain.engines.technical_seo import run_technical_audit
 
 __all__ = [
     "analyze_content",
     "analyze_content_batch",
+    "analyze_search_dataset",
     "build_architecture_report",
     "build_link_graph",
+    "calculate_competitor_metrics",
+    "calculate_dataset_metrics",
+    "calculate_keyword_metrics",
+    "calculate_visibility_score",
     "compare_content",
     "compute_pagerank",
     "find_duplicate_groups",

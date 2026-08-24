@@ -13,12 +13,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
 from sie.domain.models.search import SearchDataset
+from sie.domain.models.search_analytics import SearchAnalyticsResult
 from sie.domain.models.search_import import SearchImportResult
 from sie.domain.models.search_validation import (
     SEVERITY_ERROR,
     DatasetValidationResult,
     SearchDatasetContent,
 )
+from sie.domain.services.search_analytics_service import SearchAnalyticsService
 from sie.domain.services.search_dataset_service import SearchDatasetService
 from sie.domain.services.search_import_service import SearchImportService
 
@@ -151,6 +153,53 @@ class SearchDatasetListResponse(BaseModel):
     limit: int
     offset: int
     datasets: list[SearchDatasetSummary]
+
+
+# ── Phase 6G analytics response models ────────────────────────────────────
+
+
+class KeywordRankingMetricsResponse(BaseModel):
+    keyword: str
+    observation_count: int
+    best_position: int
+    worst_position: int
+    average_position: float
+    latest_position: int
+    first_position: int
+    position_change: int | None = None
+    improved: bool
+    declined: bool
+
+
+class DatasetMetricsResponse(BaseModel):
+    total_keywords: int
+    total_observations: int
+    keywords_with_rankings: int
+    keywords_not_ranking: int
+    average_position: float | None = None
+    median_position: float | None = None
+    top_3_count: int
+    top_10_count: int
+    top_20_count: int
+    top_50_count: int
+    visibility_score: float
+
+
+class CompetitorMetricsResponse(BaseModel):
+    competitor_domain: str
+    keyword_count: int
+    observed_count: int
+    average_position: float
+    top_10_count: int
+    outranking_count: int
+    outranked_count: int
+
+
+class SearchAnalyticsResponse(BaseModel):
+    dataset_id: str
+    metrics: DatasetMetricsResponse
+    keywords: list[KeywordRankingMetricsResponse]
+    competitors: list[CompetitorMetricsResponse]
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -512,3 +561,66 @@ async def delete_search_dataset(dataset_id: str, request: Request) -> dict[str, 
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
     return {"deleted": True, "dataset_id": dataset_id}
+
+
+# ── Phase 6G: dataset analytics ───────────────────────────────────────────
+
+
+def _analytics_service(request: Request) -> SearchAnalyticsService:
+    return SearchAnalyticsService(request.app.state.repository)
+
+
+def _analytics_to_response(result: SearchAnalyticsResult) -> SearchAnalyticsResponse:
+    m = result.dataset_metrics
+    return SearchAnalyticsResponse(
+        dataset_id=result.dataset_id,
+        metrics=DatasetMetricsResponse(
+            total_keywords=m.total_keywords,
+            total_observations=m.total_observations,
+            keywords_with_rankings=m.keywords_with_rankings,
+            keywords_not_ranking=m.keywords_not_ranking,
+            average_position=m.average_position,
+            median_position=m.median_position,
+            top_3_count=m.top_3_count,
+            top_10_count=m.top_10_count,
+            top_20_count=m.top_20_count,
+            top_50_count=m.top_50_count,
+            visibility_score=m.visibility_score,
+        ),
+        keywords=[
+            KeywordRankingMetricsResponse(
+                keyword=k.keyword,
+                observation_count=k.observation_count,
+                best_position=k.best_position,
+                worst_position=k.worst_position,
+                average_position=k.average_position,
+                latest_position=k.latest_position,
+                first_position=k.first_position,
+                position_change=k.position_change,
+                improved=k.improved,
+                declined=k.declined,
+            )
+            for k in result.keyword_metrics
+        ],
+        competitors=[
+            CompetitorMetricsResponse(
+                competitor_domain=c.competitor_domain,
+                keyword_count=c.keyword_count,
+                observed_count=c.observed_count,
+                average_position=c.average_position,
+                top_10_count=c.top_10_count,
+                outranking_count=c.outranking_count,
+                outranked_count=c.outranked_count,
+            )
+            for c in result.competitor_metrics
+        ],
+    )
+
+
+@router.get("/datasets/{dataset_id}/analytics", response_model=SearchAnalyticsResponse)
+async def get_dataset_analytics(dataset_id: str, request: Request) -> SearchAnalyticsResponse:
+    """Deterministic ranking analytics for one persisted dataset."""
+    result = await _analytics_service(request).analyze_dataset(dataset_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
+    return _analytics_to_response(result)
