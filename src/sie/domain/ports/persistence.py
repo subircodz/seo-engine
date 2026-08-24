@@ -106,3 +106,32 @@ class CrawlRunRepository(Protocol):
     async def delete_search_dataset(self, dataset_id: str) -> bool:
         """Delete a dataset with all records; ``True`` when it existed."""
         ...
+
+    # ── Search Observations (Phase 6I) ─────────────────────────────────────
+
+    async def save_search_observations(
+        self,
+        dataset_id: str,
+        observations: Sequence[RankingObservation],
+    ) -> int:
+        """Persist ranking observations into an existing dataset.
+
+        Returns the number of rows inserted.  The dataset must already exist;
+        callers should validate existence before calling.  No deduplication
+        is applied — every observation is stored as a separate row.
+        """
+        ...
+
+    async def list_search_observations(
+        self,
+        dataset_id: str,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[int, list[RankingObservation]]:
+        """Return ``(total_count, observations_slice)`` for a dataset.
+
+        Ordered by insertion id (ascending) for deterministic output.
+        Returns ``(0, [])`` when the dataset has no observations.
+        """
+        ...

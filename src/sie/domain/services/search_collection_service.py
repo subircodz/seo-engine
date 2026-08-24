@@ -1,4 +1,4 @@
-"""Search Collection Service (Phase 6H).
+"""Search Collection Service (Phase 6H/6I).
 
 Orchestrates ranking collection by delegating each query to a pluggable
 ``SearchProvider`` and converting the returned ``SearchResult`` items into
@@ -22,7 +22,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sie.domain.models.search import RankingObservation, SearchQuery
-from sie.domain.models.search_result import SearchResult
+from sie.domain.models.search_result import SearchCollectionResult, SearchResult
+from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
 
 __all__ = ["CollectionItem", "SearchCollectionService"]
@@ -49,14 +50,25 @@ class SearchCollectionService:
     ----------
     provider:
         Any object satisfying the ``SearchProvider`` protocol.
+    repository:
+        Any object satisfying the ``CrawlRunRepository`` protocol, used by
+        ``collect_and_persist`` to validate dataset existence and save
+        observations.
     source:
         Label stored in every produced ``RankingObservation.source`` to
         identify the provenance of the data (e.g. ``"mock-provider"``,
         ``"serpapi"``).
     """
 
-    def __init__(self, provider: SearchProvider, *, source: str = "search-provider") -> None:
+    def __init__(
+        self,
+        provider: SearchProvider,
+        *,
+        repository: CrawlRunRepository | None = None,
+        source: str = "search-provider",
+    ) -> None:
         self._provider = provider
+        self._repository = repository
         self._source = source
 
     async def collect(self, queries: list[SearchQuery]) -> list[CollectionItem]:
@@ -72,6 +84,54 @@ class SearchCollectionService:
             item = self._build_item(query, result)
             items.append(item)
         return items
+
+    async def collect_and_persist(
+        self,
+        dataset_id: str,
+        queries: list[SearchQuery],
+    ) -> SearchCollectionResult:
+        """Collect rankings and persist found observations into *dataset_id*.
+
+        Flow:
+        1. Validate the dataset exists in the repository.
+        2. Execute each query through the provider.
+        3. Persist only actual ``RankingObservation`` objects (not-found
+           queries produce no persisted rows).
+        4. Return a ``SearchCollectionResult`` summarising the outcome.
+
+        Provider errors on individual queries are captured as
+        ``collection_errors`` strings and do not abort the remaining queries.
+        """
+        if self._repository is None:
+            raise RuntimeError("collect_and_persist requires a repository")
+
+        stored = await self._repository.get_search_dataset(dataset_id)
+        if stored is None:
+            raise LookupError(f"Dataset '{dataset_id}' not found")
+
+        items: list[CollectionItem] = []
+        errors: list[str] = []
+        for query in queries:
+            try:
+                result = await self._provider.search(query)
+                items.append(self._build_item(query, result))
+            except Exception as exc:
+                errors.append(f"Query '{query.query}' failed: {exc}")
+
+        observations = [item.observation for item in items if item.observation is not None]
+        saved = 0
+        if observations:
+            saved = await self._repository.save_search_observations(dataset_id, observations)
+
+        ranked = sum(1 for item in items if item.found)
+        return SearchCollectionResult(
+            dataset_id=dataset_id,
+            queried_count=len(queries),
+            ranked_count=ranked,
+            not_ranking_count=len(items) - ranked,
+            observations_saved=saved,
+            collection_errors=tuple(errors),
+        )
 
     def _build_item(self, query: SearchQuery, result: SearchResult) -> CollectionItem:
         """Map a ``SearchResult`` into a ``CollectionItem``.

@@ -367,18 +367,18 @@ class SqlAlchemyCrawlRunRepository:
             "has_webp": i.has_webp,
         }
 
-    def _links_to_dict(self, l) -> dict:
+    def _links_to_dict(self, links) -> dict:
         return {
-            "internal_links": l.internal_links,
-            "external_links": l.external_links,
-            "nofollow_links": l.nofollow_links,
-            "internal_link_ratio": l.internal_link_ratio,
-            "external_domains": l.external_domains,
-            "anchor_texts": list(l.anchor_texts),
-            "empty_anchors": l.empty_anchors,
-            "generic_anchors": l.generic_anchors,
-            "keyword_rich_anchors": l.keyword_rich_anchors,
-            "anchor_diversity": l.anchor_diversity,
+            "internal_links": links.internal_links,
+            "external_links": links.external_links,
+            "nofollow_links": links.nofollow_links,
+            "internal_link_ratio": links.internal_link_ratio,
+            "external_domains": links.external_domains,
+            "anchor_texts": list(links.anchor_texts),
+            "empty_anchors": links.empty_anchors,
+            "generic_anchors": links.generic_anchors,
+            "keyword_rich_anchors": links.keyword_rich_anchors,
+            "anchor_diversity": links.anchor_diversity,
         }
 
     def _structured_data_to_dict(self, s) -> dict:
@@ -933,3 +933,62 @@ class SqlAlchemyCrawlRunRepository:
             await session.delete(row)
             await session.commit()
             return True
+
+    # ── Search Observations persistence (Phase 6I) ─────────────────────────
+
+    async def save_search_observations(self, dataset_id, observations):
+        from sie.infrastructure.models.search_orm import SearchRankingObservationRow
+
+        async with self._sf() as session:
+            for obs in observations:
+                session.add(
+                    SearchRankingObservationRow(
+                        dataset_id=dataset_id,
+                        keyword=obs.keyword,
+                        target_url=obs.target_url,
+                        position=obs.position,
+                        source=obs.source,
+                        search_engine=obs.search_engine,
+                        country=obs.country,
+                        language=obs.language,
+                        device=obs.device.value,
+                        observed_at=_naive(obs.observed_at),
+                    )
+                )
+            await session.commit()
+        return len(observations)
+
+    async def list_search_observations(self, dataset_id, *, limit=50, offset=0):
+        from sie.domain.models.search import RankingObservation, SearchDevice
+        from sie.infrastructure.models.search_orm import SearchRankingObservationRow
+
+        async with self._sf() as session:
+            count_stmt = select(func.count(SearchRankingObservationRow.id)).where(
+                SearchRankingObservationRow.dataset_id == dataset_id
+            )
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(SearchRankingObservationRow)
+                .where(SearchRankingObservationRow.dataset_id == dataset_id)
+                .order_by(SearchRankingObservationRow.id)
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        observations = [
+            RankingObservation(
+                keyword=r.keyword,
+                target_url=r.target_url,
+                position=r.position,
+                source=r.source,
+                search_engine=r.search_engine,
+                country=r.country,
+                language=r.language,
+                device=SearchDevice(r.device),
+                observed_at=_to_aware(r.observed_at) or r.observed_at.replace(tzinfo=UTC),
+            )
+            for r in rows
+        ]
+        return total, observations

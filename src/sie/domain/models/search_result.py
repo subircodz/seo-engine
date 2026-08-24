@@ -15,7 +15,11 @@ from urllib.parse import urlparse
 
 from sie.domain.models.search import SearchDevice
 
-__all__ = ["SearchResult", "SearchResultItem"]
+__all__ = [
+    "SearchCollectionResult",
+    "SearchResult",
+    "SearchResultItem",
+]
 
 
 def _require_non_empty(value: str, field_name: str) -> str:
@@ -109,3 +113,29 @@ class SearchResult:
         )
         if not isinstance(self.items, tuple):
             raise ValueError(f"items must be a tuple, got {type(self.items).__name__}")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Collection result
+# ════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True, slots=True)
+class SearchCollectionResult:
+    """Structured outcome of a batch collection run.
+
+    ``queried_count`` is the total number of queries submitted.
+    ``ranked_count`` is how many returned a result where the target domain
+    appeared.  ``not_ranking_count`` is the remainder where the target was
+    absent from the results.  ``observations_saved`` is how many
+    ``RankingObservation`` objects were persisted (always <= ranked_count
+    when some are filtered or deduplicated).  ``collection_errors`` holds
+    human-readable messages for any query that failed at the provider level.
+    """
+
+    dataset_id: str
+    queried_count: int = 0
+    ranked_count: int = 0
+    not_ranking_count: int = 0
+    observations_saved: int = 0
+    collection_errors: tuple[str, ...] = ()

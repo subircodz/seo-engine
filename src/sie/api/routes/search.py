@@ -21,6 +21,7 @@ from sie.domain.models.search_validation import (
     SearchDatasetContent,
 )
 from sie.domain.services.search_analytics_service import SearchAnalyticsService
+from sie.domain.services.search_collection_service import SearchCollectionService
 from sie.domain.services.search_dataset_service import SearchDatasetService
 from sie.domain.services.search_import_service import SearchImportService
 
@@ -624,3 +625,137 @@ async def get_dataset_analytics(dataset_id: str, request: Request) -> SearchAnal
     if result is None:
         raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
     return _analytics_to_response(result)
+
+
+# ── Phase 6I: collection request / response models ────────────────────────
+
+
+class CollectQueryRequest(BaseModel):
+    keyword: str
+    target_domain: str = ""
+    search_engine: str = "google"
+    country: str = "us"
+    language: str = "en"
+    device: str = "desktop"
+    max_results: int = 10
+
+
+class CollectRequest(BaseModel):
+    queries: list[CollectQueryRequest]
+
+
+class CollectResponse(BaseModel):
+    dataset_id: str
+    queried_count: int
+    ranked_count: int
+    not_ranking_count: int
+    observations_saved: int
+    collection_errors: list[str]
+
+
+class ObservationListResponse(BaseModel):
+    dataset_id: str
+    total: int
+    limit: int
+    offset: int
+    observations: list[RankingObservationResponse]
+
+
+# ── helpers ───────────────────────────────────────────────────────────────
+
+
+def _collect_service(request: Request) -> SearchCollectionService:
+    from sie.infrastructure.search.mock_provider import MockSearchProvider
+
+    provider = getattr(request.app.state, "search_provider", None) or MockSearchProvider()
+    return SearchCollectionService(
+        provider,
+        repository=request.app.state.repository,
+        source="mock-collection",
+    )
+
+
+# ── Phase 6I: collection endpoints ────────────────────────────────────────
+
+
+@router.post(
+    "/datasets/{dataset_id}/collect",
+    response_model=CollectResponse,
+    status_code=200,
+)
+async def collect_rankings(dataset_id: str, body: CollectRequest, request: Request):
+    """Collect rankings via the mock provider and persist observations."""
+    svc = _collect_service(request)
+    from sie.domain.models.search import SearchDevice, SearchQuery
+
+    queries = []
+    for q in body.queries:
+        try:
+            device = SearchDevice(q.device)
+        except ValueError:
+            device = SearchDevice.DESKTOP
+        queries.append(
+            SearchQuery(
+                query=q.keyword,
+                search_engine=q.search_engine,
+                country=q.country,
+                language=q.language,
+                device=device,
+                target_domain=q.target_domain or None,
+                max_results=q.max_results,
+            )
+        )
+
+    try:
+        result = await svc.collect_and_persist(dataset_id, queries)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return CollectResponse(
+        dataset_id=result.dataset_id,
+        queried_count=result.queried_count,
+        ranked_count=result.ranked_count,
+        not_ranking_count=result.not_ranking_count,
+        observations_saved=result.observations_saved,
+        collection_errors=list(result.collection_errors),
+    )
+
+
+@router.get(
+    "/datasets/{dataset_id}/observations",
+    response_model=ObservationListResponse,
+)
+async def list_observations(
+    dataset_id: str,
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=200)] = _DEFAULT_LIST_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ObservationListResponse:
+    """List persisted ranking observations for a dataset."""
+    repo = request.app.state.repository
+    result = await repo.get_search_dataset(dataset_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
+    total, observations = await repo.list_search_observations(
+        dataset_id, limit=limit, offset=offset
+    )
+    return ObservationListResponse(
+        dataset_id=dataset_id,
+        total=total,
+        limit=limit,
+        offset=offset,
+        observations=[
+            RankingObservationResponse(
+                keyword=obs.keyword,
+                target_url=obs.target_url,
+                position=obs.position,
+                source=obs.source,
+                search_engine=obs.search_engine,
+                country=obs.country,
+                language=obs.language,
+                device=str(obs.device.value),
+                observed_at=obs.observed_at,
+            )
+            for obs in observations
+        ],
+    )

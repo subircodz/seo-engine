@@ -98,6 +98,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.repository = repo
 
+        # Phase 6I: mock search provider for collection endpoints
+        from sie.infrastructure.search.mock_provider import MockSearchProvider
+
+        app.state.search_provider = MockSearchProvider()
+
         logger.info("startup complete")
         yield
 
