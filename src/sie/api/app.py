@@ -98,37 +98,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.repository = repo
 
-        # Search provider — conditionally created based on configuration
-        sp_cfg = settings.search_provider
-        if not sp_cfg.enabled:
-            logger.info("Search provider disabled (set SIE_SEARCH_PROVIDER__ENABLED=true)")
-            from sie.infrastructure.search.mock_provider import MockSearchProvider
+        # Search provider — created via the provider factory
+        from sie.infrastructure.search.provider_factory import create_search_provider
 
-            app.state.search_provider = MockSearchProvider()
-        elif sp_cfg.provider_name == "mock":
-            from sie.infrastructure.search.mock_provider import MockSearchProvider
-
-            app.state.search_provider = MockSearchProvider()
-        elif sp_cfg.provider_name == "http":
-            from sie.infrastructure.search.http_provider import HttpSearchProvider
-
-            if not sp_cfg.base_url:
-                raise ValueError("Search provider 'http' requires SIE_SEARCH_PROVIDER__BASE_URL")
-            app.state.search_provider = HttpSearchProvider(
-                base_url=sp_cfg.base_url,
-                api_key=sp_cfg.api_key,
-                timeout_seconds=sp_cfg.timeout_seconds,
-            )
-            logger.info(
-                "Search provider enabled: name=%s base_url=%s",
-                sp_cfg.provider_name,
-                sp_cfg.base_url,
-            )
-        else:
-            raise ValueError(
-                f"Unknown search provider {sp_cfg.provider_name!r}. "
-                "Supported providers: 'mock', 'http'"
-            )
+        app.state.search_provider = create_search_provider(settings.search_provider)
 
         logger.info("startup complete")
         yield
