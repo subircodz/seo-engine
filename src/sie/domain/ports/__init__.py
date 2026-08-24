@@ -9,5 +9,13 @@ from sie.domain.ports.fetching import Fetcher
 from sie.domain.ports.llm import LLMProvider
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.rendering import Renderer
+from sie.domain.ports.search_provider import SearchProvider
 
-__all__ = ["CrawlRunRepository", "Crawler", "Fetcher", "LLMProvider", "Renderer"]
+__all__ = [
+    "CrawlRunRepository",
+    "Crawler",
+    "Fetcher",
+    "LLMProvider",
+    "Renderer",
+    "SearchProvider",
+]

@@ -174,13 +174,21 @@ class RankingObservation:
 
 @dataclass(frozen=True, slots=True)
 class SearchQuery:
-    """Parameters describing *how* a search was (or would be) performed."""
+    """Parameters describing *how* a search was (or would be) performed.
+
+    ``target_domain`` is optional; when present, providers that support it may
+    surface domain-specific context (e.g. filtering or highlighting).
+    ``max_results`` controls the maximum number of result items requested from
+    the provider.
+    """
 
     query: str
     country: str = "us"
     language: str = "en"
     device: SearchDevice = SearchDevice.DESKTOP
     search_engine: str = "google"
+    target_domain: str | None = None
+    max_results: int = 10
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -195,6 +203,17 @@ class SearchQuery:
             "search_engine",
             _require_non_empty(self.search_engine, "search_engine").casefold(),
         )
+        if self.target_domain is not None:
+            domain = _require_non_empty(self.target_domain, "target_domain")
+            if urlparse(domain).scheme or "/" in domain:
+                raise ValueError(
+                    f"target_domain must be a bare hostname like example.com, got {domain!r}"
+                )
+            object.__setattr__(self, "target_domain", domain.casefold().removeprefix("www."))
+        if isinstance(self.max_results, bool) or not isinstance(self.max_results, int):
+            raise ValueError(f"max_results must be an integer, got {self.max_results!r}")
+        if self.max_results < 1:
+            raise ValueError(f"max_results must be >= 1, got {self.max_results}")
 
 
 # ════════════════════════════════════════════════════════════════════════════
