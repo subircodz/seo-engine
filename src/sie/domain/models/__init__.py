@@ -44,6 +44,7 @@ from sie.domain.models.search import (
     SearchKeyword,
     SearchQuery,
 )
+from sie.domain.models.search_import import SearchImportResult, SearchRecordError
 
 __all__ = [
     "CompetitorRanking",
@@ -82,8 +83,10 @@ __all__ = [
     "RenderedPage",
     "SearchDataset",
     "SearchDevice",
+    "SearchImportResult",
     "SearchIntent",
     "SearchKeyword",
     "SearchQuery",
+    "SearchRecordError",
     "StructuredDataAnalysis",
 ]
