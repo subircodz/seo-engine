@@ -173,11 +173,7 @@ class TestListDatasets:
         page3 = (await client.get("/api/search/datasets?limit=2&offset=4")).json()
         assert len(page3["datasets"]) == 1
 
-        seen_ids = {
-            ds["dataset_id"]
-            for page in (page1, page2, page3)
-            for ds in page["datasets"]
-        }
+        seen_ids = {ds["dataset_id"] for page in (page1, page2, page3) for ds in page["datasets"]}
         assert seen_ids == {f"ds-page-{i}" for i in range(5)}
 
 
@@ -202,9 +198,7 @@ class TestDeleteDataset:
     async def test_cascade_deletion(self, client):
         """Child rows (keywords/observations/competitors) are removed by cascade."""
         await _create_dataset(client, "ds-cascade-001", RECORDS_WITH_COMPETITOR, "cascade")
-        fetched = (
-            await client.get("/api/search/datasets/ds-cascade-001")
-        ).json()
+        fetched = (await client.get("/api/search/datasets/ds-cascade-001")).json()
         assert len(fetched["keywords"]) == 1
         assert len(fetched["observations"]) == 1
         assert len(fetched["competitor_rankings"]) == 1

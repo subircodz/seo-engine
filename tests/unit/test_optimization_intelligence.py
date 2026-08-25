@@ -12,10 +12,8 @@ from sie.domain.models.search_optimization import (
     OptimizationEffort,
     OptimizationImpact,
     OptimizationRecommendation,
-    OptimizationResult,
     calculate_priority_score,
 )
-
 
 # ════════════════════════════════════════════════════════════════════════════
 # OptimizationRecommendation model
@@ -113,8 +111,7 @@ class TestSynthesizeRecommendations:
             cannibalized_keywords=("kw1",),
         )
         can_recs = [
-            r for r in result.recommendations
-            if r.category == OptimizationCategory.CANNIBALIZATION
+            r for r in result.recommendations if r.category == OptimizationCategory.CANNIBALIZATION
         ]
         assert len(can_recs) >= 1
         assert can_recs[0].impact == OptimizationImpact.HIGH
@@ -126,8 +123,7 @@ class TestSynthesizeRecommendations:
             featured_snippet_owned=2,
         )
         serp_recs = [
-            r for r in result.recommendations
-            if r.category == OptimizationCategory.SERP_FEATURE
+            r for r in result.recommendations if r.category == OptimizationCategory.SERP_FEATURE
         ]
         assert len(serp_recs) >= 1
 
@@ -138,10 +134,7 @@ class TestSynthesizeRecommendations:
             aio_keywords_with_overview=30,
             aio_target_cited_count=5,
         )
-        aio_recs = [
-            r for r in result.recommendations
-            if r.category == OptimizationCategory.AIO
-        ]
+        aio_recs = [r for r in result.recommendations if r.category == OptimizationCategory.AIO]
         assert len(aio_recs) >= 1
 
     def test_geo_recommendation(self):
@@ -151,10 +144,7 @@ class TestSynthesizeRecommendations:
             geo_keywords_mentioned=5,
             geo_overall_mention_rate=0.1,
         )
-        geo_recs = [
-            r for r in result.recommendations
-            if r.category == OptimizationCategory.GEO
-        ]
+        geo_recs = [r for r in result.recommendations if r.category == OptimizationCategory.GEO]
         assert len(geo_recs) >= 1
 
     def test_sorted_by_priority(self):

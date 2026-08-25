@@ -1,15 +1,21 @@
 """SQLAlchemy ORM models for content intelligence persistence."""
 
+from __future__ import annotations
+
 from datetime import datetime
-from enum import Enum as PyEnum
+from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sie.infrastructure.persistence.database import Base
 
+if TYPE_CHECKING:
+    from sie.infrastructure.models.crawl_orm import CrawlRunRow
 
-class ContentTypeEnum(str, PyEnum):
+
+class ContentTypeEnum(StrEnum):
     ARTICLE = "article"
     PRODUCT = "product"
     CATEGORY = "category"
@@ -28,7 +34,7 @@ class ContentTypeEnum(str, PyEnum):
     OTHER = "other"
 
 
-class QualityTierEnum(str, PyEnum):
+class QualityTierEnum(StrEnum):
     EXCELLENT = "excellent"
     GOOD = "good"
     FAIR = "fair"
@@ -36,7 +42,7 @@ class QualityTierEnum(str, PyEnum):
     THIN = "thin"
 
 
-class DuplicateStatusEnum(str, PyEnum):
+class DuplicateStatusEnum(StrEnum):
     UNIQUE = "unique"
     NEAR_DUPLICATE = "near_duplicate"
     EXACT_DUPLICATE = "exact_duplicate"
@@ -78,7 +84,7 @@ class ContentMetricsRow(Base):
 
     extracted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    run: Mapped["CrawlRunRow"] = relationship(back_populates="content_metrics")
+    run: Mapped[CrawlRunRow] = relationship(back_populates="content_metrics")
 
 
 class ContentComparisonRow(Base):
@@ -101,7 +107,7 @@ class ContentComparisonRow(Base):
 
     compared_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    run: Mapped["CrawlRunRow"] = relationship(back_populates="content_comparisons")
+    run: Mapped[CrawlRunRow] = relationship(back_populates="content_comparisons")
 
 
 class ContentQualityReportRow(Base):
@@ -126,7 +132,7 @@ class ContentQualityReportRow(Base):
 
     generated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    run: Mapped["CrawlRunRow"] = relationship(back_populates="content_quality_report")
+    run: Mapped[CrawlRunRow] = relationship(back_populates="content_quality_report")
 
 
 # Need to add relationships to CrawlRunRow - but that's in crawl_orm.py

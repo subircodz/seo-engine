@@ -127,9 +127,7 @@ class TestDatasetMetricsSerpFeatures:
         ds = _ds(total_keywords=10)
         obs = (
             _fs(
-                features=(
-                    _feat(SERPFeatureType.FEATURED_SNIPPET, url="https://oursite.io/page"),
-                ),
+                features=(_feat(SERPFeatureType.FEATURED_SNIPPET, url="https://oursite.io/page"),),
             ),
         )
         metrics = calculate_dataset_metrics(ds, obs)

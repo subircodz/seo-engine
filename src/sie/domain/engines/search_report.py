@@ -62,6 +62,9 @@ def generate_intelligence_report(
     optimization_recommendation_count: int = 0,
     high_priority_optimization_count: int = 0,
     quick_wins_count: int = 0,
+    # Industry Intelligence (Phase 11)
+    industry_findings_count: int = 0,
+    industry_opportunities_count: int = 0,
     # Metadata
     metadata: dict[str, object] | None = None,
 ) -> IntelligenceReport:
@@ -308,6 +311,42 @@ def generate_intelligence_report(
                 finding_count=entity_gap_count,
             )
         )
+
+    # ── Industry Intelligence Component (Phase 11) ──
+    if industry_findings_count > 0 or industry_opportunities_count > 0:
+        components.append(
+            ReportComponent(
+                name="industry",
+                status=ReportStatus.COMPLETE,
+                summary=(
+                    f"Industry intelligence identified {industry_findings_count} findings "
+                    f"and {industry_opportunities_count} opportunities."
+                ),
+                key_metrics={
+                    "findings": industry_findings_count,
+                    "opportunities": industry_opportunities_count,
+                },
+                finding_count=industry_findings_count,
+                recommendation_count=industry_opportunities_count,
+            )
+        )
+
+        if industry_findings_count > 0:
+            action_items.append(
+                ActionItem(
+                    order=order_counter,
+                    priority=ActionPriority.HIGH,
+                    title=f"Address {industry_findings_count} industry-specific findings",
+                    description=(
+                        "Industry-specific analysis has identified opportunities "
+                        "for content expansion and optimization."
+                    ),
+                    source_components=("industry",),
+                    effort="medium",
+                    confidence=0.85,
+                )
+            )
+            order_counter += 1
 
     # ── Optimization Component ──
     if optimization_recommendation_count > 0:

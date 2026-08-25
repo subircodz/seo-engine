@@ -7,6 +7,7 @@ from sie.infrastructure.models.content_orm import (
 )
 from sie.infrastructure.models.crawl_orm import CrawlPageRow, CrawlRunRow
 from sie.infrastructure.models.diagnosis_orm import DiagnosisResultRow
+from sie.infrastructure.models.industry_orm import IndustryIntelligenceRow
 from sie.infrastructure.models.intelligence_orm import IntelligenceReportRow
 from sie.infrastructure.models.search_orm import (
     SearchCompetitorRankingRow,
@@ -22,6 +23,7 @@ __all__ = [
     "CrawlPageRow",
     "CrawlRunRow",
     "DiagnosisResultRow",
+    "IndustryIntelligenceRow",
     "IntelligenceReportRow",
     "SearchCompetitorRankingRow",
     "SearchDatasetRow",

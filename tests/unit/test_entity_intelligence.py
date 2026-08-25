@@ -10,14 +10,8 @@ from sie.domain.engines.search_entity import (
     extract_entities_from_content,
 )
 from sie.domain.models.search_entity import (
-    EntityCategory,
-    EntityDatasetResult,
-    EntityGap,
     EntitySignal,
-    EntityVisibilityResult,
-    TopicCluster,
 )
-
 
 # ════════════════════════════════════════════════════════════════════════════
 # EntitySignal model
@@ -105,15 +99,12 @@ class TestExtractEntities:
         r1 = extract_entities_from_content(text)
         r2 = extract_entities_from_content(text)
         assert len(r1) == len(r2)
-        for e1, e2 in zip(r1, r2):
+        for e1, e2 in zip(r1, r2, strict=False):
             assert e1.text == e2.text
             assert e1.frequency == e2.frequency
 
     def test_max_entities_limit(self):
-        text = " ".join(
-            f"Entity{i} Corp Entity{i} Corp Entity{i} Corp"
-            for i in range(50)
-        )
+        text = " ".join(f"Entity{i} Corp Entity{i} Corp Entity{i} Corp" for i in range(50))
         result = extract_entities_from_content(text, max_entities=10)
         assert len(result) <= 10
 

@@ -196,6 +196,7 @@ def synthesize_industry_findings(inputs: _IndustryInputs) -> IndustryIntelligenc
 
     return IndustryIntelligenceResult(
         profile=inputs.profile,
+        total_keywords=inputs.total_keywords,
         visibility_score=inputs.visibility_score,
         ranking_health=inputs.ranking_health,
         entity_coverage=inputs.entity_coverage,

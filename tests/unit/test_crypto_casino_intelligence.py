@@ -10,7 +10,6 @@ from sie.domain.engines.search_crypto_casino import (
 )
 from sie.domain.models.industry import (
     CasinoSearchIntent,
-    CryptoSearchIntent,
     IndustryEntity,
     IndustryOpportunity,
     IndustryTopic,
@@ -97,10 +96,14 @@ class TestClassifyCryptoCasinoIntent:
         assert classify_crypto_casino_intent("play slots") == CasinoSearchIntent.GAME_SEEKING
 
     def test_payment_intent(self):
-        assert classify_crypto_casino_intent("deposit with crypto") == CasinoSearchIntent.PAYMENT_METHOD
+        assert classify_crypto_casino_intent("deposit with crypto") == (
+            CasinoSearchIntent.PAYMENT_METHOD
+        )
 
     def test_informational_intent(self):
-        assert classify_crypto_casino_intent("casino crypto guide") == CasinoSearchIntent.INFORMATIONAL
+        assert classify_crypto_casino_intent("casino crypto guide") == (
+            CasinoSearchIntent.INFORMATIONAL
+        )
         assert classify_crypto_casino_intent("gambling guide") == CasinoSearchIntent.INFORMATIONAL
 
     def test_empty_keyword(self):
@@ -198,6 +201,6 @@ class TestIntegration:
         result2 = detect_crypto_casino_opportunities(content1, content2)
 
         assert len(result1) == len(result2)
-        for o1, o2 in zip(result1, result2):
+        for o1, o2 in zip(result1, result2, strict=False):
             assert o1.topic == o2.topic
             assert o1.priority == o2.priority

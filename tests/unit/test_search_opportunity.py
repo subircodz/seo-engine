@@ -1,18 +1,21 @@
 """Unit tests for Search Opportunity Intelligence (Phase 6N-E)."""
 
-from datetime import UTC, datetime
-
 import dataclasses
+from datetime import UTC, datetime
 
 import pytest
 
 from sie.domain.engines.search_analytics import SearchAnalyticsResult
-from sie.domain.models.search import CompetitorRanking, RankingObservation, SearchDataset, SearchDevice
+from sie.domain.models.search import (
+    CompetitorRanking,
+    RankingObservation,
+    SearchDataset,
+    SearchDevice,
+)
 from sie.domain.models.search_analytics import DatasetSearchMetrics, KeywordRankingMetrics
-from sie.domain.models.search_serp import SERPFeatureType
 from sie.domain.services.search_opportunity import (
-    SearchOpportunity,
     ContentGapOpportunity,
+    SearchOpportunity,
     SearchOpportunityResult,
     SearchOpportunityService,
 )
@@ -45,7 +48,7 @@ def _comp(keywords, domains, urls, positions, observed_at=_T0):
             position=pos,
             observed_at=observed_at,
         )
-        for kw, dom, url, pos in zip(keywords, domains, urls, positions)
+        for kw, dom, url, pos in zip(keywords, domains, urls, positions, strict=False)
     )
 
 
@@ -350,41 +353,50 @@ class TestSearchOpportunityService:
     def test_calculate_competitor_gaps(self):
         service = SearchOpportunityService()
 
-        analytics_result = _analytics_result([
-            KeywordRankingMetrics(
-                keyword="kw1",
-                observation_count=2,
-                best_position=3,
-                worst_position=3,
-                average_position=3.0,
-                latest_position=None,
-                first_position=3,
-                position_change=None,
-                improved=False,
-                declined=False,
-            ),
-            KeywordRankingMetrics(
-                keyword="kw2",
-                observation_count=1,
-                best_position=10,
-                worst_position=10,
-                average_position=10.0,
-                latest_position=None,
-                first_position=10,
-                position_change=None,
-                improved=False,
-                declined=False,
-            ),
-        ])
+        analytics_result = _analytics_result(
+            [
+                KeywordRankingMetrics(
+                    keyword="kw1",
+                    observation_count=2,
+                    best_position=3,
+                    worst_position=3,
+                    average_position=3.0,
+                    latest_position=None,
+                    first_position=3,
+                    position_change=None,
+                    improved=False,
+                    declined=False,
+                ),
+                KeywordRankingMetrics(
+                    keyword="kw2",
+                    observation_count=1,
+                    best_position=10,
+                    worst_position=10,
+                    average_position=10.0,
+                    latest_position=None,
+                    first_position=10,
+                    position_change=None,
+                    improved=False,
+                    declined=False,
+                ),
+            ]
+        )
 
         competitor_rankings = _comp(
             keywords=["kw1", "kw1", "kw2", "kw2"],
             domains=["comp1.com", "comp2.com", "comp1.com", "comp2.com"],
-            urls=["https://comp1.com/page1", "https://comp2.com/page2", "https://comp1.com/page3", "https://comp2.com/page4"],
+            urls=[
+                "https://comp1.com/page1",
+                "https://comp2.com/page2",
+                "https://comp1.com/page3",
+                "https://comp2.com/page4",
+            ],
             positions=[2, 7, 3, 8],
         )
 
-        result = service._calculate_competitor_gaps(analytics_result, competitor_rankings, "oursite.io")
+        result = service._calculate_competitor_gaps(
+            analytics_result, competitor_rankings, "oursite.io"
+        )
 
         # Should only return kw2 (target has no observation, multiple competitors)
         assert len(result) == 1
@@ -397,32 +409,34 @@ class TestSearchOpportunityService:
     def test_calculate_weak_rankings(self):
         service = SearchOpportunityService()
 
-        analytics_result = _analytics_result([
-            KeywordRankingMetrics(
-                keyword="kw1",
-                observation_count=2,
-                best_position=3,
-                worst_position=10,
-                average_position=6.5,
-                latest_position=10,
-                first_position=3,
-                position_change=-7,
-                improved=False,
-                declined=True,
-            ),
-            KeywordRankingMetrics(
-                keyword="kw2",
-                observation_count=1,
-                best_position=15,
-                worst_position=15,
-                average_position=15.0,
-                latest_position=15,
-                first_position=15,
-                position_change=None,
-                improved=False,
-                declined=False,
-            ),
-        ])
+        analytics_result = _analytics_result(
+            [
+                KeywordRankingMetrics(
+                    keyword="kw1",
+                    observation_count=2,
+                    best_position=3,
+                    worst_position=10,
+                    average_position=6.5,
+                    latest_position=10,
+                    first_position=3,
+                    position_change=-7,
+                    improved=False,
+                    declined=True,
+                ),
+                KeywordRankingMetrics(
+                    keyword="kw2",
+                    observation_count=1,
+                    best_position=15,
+                    worst_position=15,
+                    average_position=15.0,
+                    latest_position=15,
+                    first_position=15,
+                    position_change=None,
+                    improved=False,
+                    declined=False,
+                ),
+            ]
+        )
 
         competitor_rankings = _comp(
             keywords=["kw1", "kw1"],
@@ -431,7 +445,9 @@ class TestSearchOpportunityService:
             positions=[3, 7],
         )
 
-        result = service._calculate_weak_rankings(analytics_result, competitor_rankings, "oursite.io")
+        result = service._calculate_weak_rankings(
+            analytics_result, competitor_rankings, "oursite.io"
+        )
 
         # Should only return kw1 (target ranks but competitor outranks)
         assert len(result) == 1
@@ -443,32 +459,34 @@ class TestSearchOpportunityService:
     def test_calculate_content_gaps(self):
         service = SearchOpportunityService()
 
-        analytics_result = _analytics_result([
-            KeywordRankingMetrics(
-                keyword="kw1",
-                observation_count=1,
-                best_position=5,
-                worst_position=5,
-                average_position=5.0,
-                latest_position=5,
-                first_position=5,
-                position_change=None,
-                improved=False,
-                declined=False,
-            ),
-            KeywordRankingMetrics(
-                keyword="kw2",
-                observation_count=0,
-                best_position=0,
-                worst_position=0,
-                average_position=0.0,
-                latest_position=0,
-                first_position=0,
-                position_change=None,
-                improved=False,
-                declined=False,
-            ),
-        ])
+        analytics_result = _analytics_result(
+            [
+                KeywordRankingMetrics(
+                    keyword="kw1",
+                    observation_count=1,
+                    best_position=5,
+                    worst_position=5,
+                    average_position=5.0,
+                    latest_position=5,
+                    first_position=5,
+                    position_change=None,
+                    improved=False,
+                    declined=False,
+                ),
+                KeywordRankingMetrics(
+                    keyword="kw2",
+                    observation_count=0,
+                    best_position=0,
+                    worst_position=0,
+                    average_position=0.0,
+                    latest_position=0,
+                    first_position=0,
+                    position_change=None,
+                    improved=False,
+                    declined=False,
+                ),
+            ]
+        )
 
         competitor_rankings = _comp(
             keywords=["kw2", "kw2"],
@@ -493,7 +511,12 @@ class TestSearchOpportunityService:
         items = _comp(
             keywords=["kw1", "kw2", "kw1", "kw2"],
             domains=["comp1.com", "comp2.com", "comp3.com", "comp4.com"],
-            urls=["https://comp1.com", "https://comp2.com", "https://comp3.com", "https://comp4.com"],
+            urls=[
+                "https://comp1.com",
+                "https://comp2.com",
+                "https://comp3.com",
+                "https://comp4.com",
+            ],
             positions=[3, 5, 7, 9],
         )
 

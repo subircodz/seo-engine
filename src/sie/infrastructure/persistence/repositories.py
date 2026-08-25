@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -24,6 +25,9 @@ from sie.infrastructure.models.content_orm import (
     ContentQualityReportRow,
 )
 from sie.infrastructure.models.crawl_orm import CrawlPageRow, CrawlRunRow
+
+if TYPE_CHECKING:
+    from sie.domain.models.industry import IndustryIntelligenceResult
 
 
 def _naive(aware: datetime) -> datetime:
@@ -1039,9 +1043,7 @@ class SqlAlchemyCrawlRunRepository:
 
     # ── AIO observation persistence ─────────────────────────────────────
 
-    async def save_aio_observations(
-        self, dataset_id: str, observations: tuple
-    ) -> int:
+    async def save_aio_observations(self, dataset_id: str, observations: tuple) -> int:
         """Save AIO observations for a dataset. Returns count saved."""
         from sie.infrastructure.models.search_aio_geo_orm import AIOverviewObservationRow
 
@@ -1080,9 +1082,7 @@ class SqlAlchemyCrawlRunRepository:
             await session.commit()
         return len(observations)
 
-    async def list_aio_observations(
-        self, dataset_id: str, *, limit: int = 50, offset: int = 0
-    ):
+    async def list_aio_observations(self, dataset_id: str, *, limit: int = 50, offset: int = 0):
         """List AIO observations for a dataset."""
         from sie.domain.models.search_aio import (
             AIOCitation,
@@ -1142,9 +1142,7 @@ class SqlAlchemyCrawlRunRepository:
 
     # ── GEO observation persistence ─────────────────────────────────────
 
-    async def save_geo_observations(
-        self, dataset_id: str, observations: tuple
-    ) -> int:
+    async def save_geo_observations(self, dataset_id: str, observations: tuple) -> int:
         """Save GEO observations for a dataset. Returns count saved."""
         from sie.infrastructure.models.search_aio_geo_orm import GEOObservationRow
 
@@ -1174,9 +1172,7 @@ class SqlAlchemyCrawlRunRepository:
                         competitor_domains=list(obs.competitor_domains)
                         if obs.competitor_domains
                         else None,
-                        citation_urls=list(obs.citation_urls)
-                        if obs.citation_urls
-                        else None,
+                        citation_urls=list(obs.citation_urls) if obs.citation_urls else None,
                         answer_length=obs.answer_length,
                         observed_at=_naive(obs.observed_at),
                         source=obs.source,
@@ -1185,9 +1181,7 @@ class SqlAlchemyCrawlRunRepository:
             await session.commit()
         return len(observations)
 
-    async def list_geo_observations(
-        self, dataset_id: str, *, limit: int = 50, offset: int = 0
-    ):
+    async def list_geo_observations(self, dataset_id: str, *, limit: int = 50, offset: int = 0):
         """List GEO observations for a dataset."""
         from sie.domain.models.search_geo import (
             EntityMention,
@@ -1234,12 +1228,8 @@ class SqlAlchemyCrawlRunRepository:
                     target_domain=r.target_domain,
                     mention_count=r.mention_count,
                     entity_mentions=entity_mentions,
-                    competitor_domains=tuple(r.competitor_domains)
-                    if r.competitor_domains
-                    else (),
-                    citation_urls=tuple(r.citation_urls)
-                    if r.citation_urls
-                    else (),
+                    competitor_domains=tuple(r.competitor_domains) if r.competitor_domains else (),
+                    citation_urls=tuple(r.citation_urls) if r.citation_urls else (),
                     answer_length=r.answer_length,
                     observed_at=_to_aware(r.observed_at) or r.observed_at.replace(tzinfo=UTC),
                     source=r.source,
@@ -1491,15 +1481,159 @@ class SqlAlchemyCrawlRunRepository:
                 impact=OptimizationImpact(r.impact),
                 effort=OptimizationEffort(r.effort),
                 priority_score=r.priority_score,
-                affected_keywords=tuple(r.affected_keywords)
-                if r.affected_keywords
-                else (),
-                affected_urls=tuple(r.affected_urls)
-                if r.affected_urls
-                else (),
+                affected_keywords=tuple(r.affected_keywords) if r.affected_keywords else (),
+                affected_urls=tuple(r.affected_urls) if r.affected_urls else (),
                 confidence=r.confidence,
                 source_engine=r.source_engine,
             )
             for r in rows
         ]
         return total, recs
+
+    # ── Industry Intelligence persistence (Phase 11) ─────────────────────────
+
+    async def save_industry_intelligence(
+        self,
+        result: IndustryIntelligenceResult,
+        *,
+        dataset_id: str | None = None,
+        industry_type: str = "general",
+    ) -> None:
+        """Persist industry intelligence result to the database."""
+        from datetime import UTC, datetime
+
+        from sie.domain.models.industry import IndustryIntelligenceResult as ModelResult
+        from sie.infrastructure.models.industry_orm import IndustryIntelligenceRow
+
+        if not isinstance(result, ModelResult):
+            return
+
+        now = datetime.now(UTC)
+        findings_data = []
+        for f in result.findings:
+            it = str(f.industry_type) if hasattr(f.industry_type, "value") else f.industry_type
+            findings_data.append(
+                {
+                    "category": f.category,
+                    "severity": f.severity,
+                    "impact": f.impact,
+                    "confidence": f.confidence,
+                    "title": f.title,
+                    "description": f.description,
+                    "evidence": list(f.evidence),
+                    "affected_keywords": list(f.affected_keywords),
+                    "affected_urls": list(f.affected_urls),
+                    "recommendation": f.recommendation,
+                    "industry_type": it,
+                }
+            )
+
+        opportunities_data = []
+        for o in result.opportunities:
+            it = str(o.intent) if hasattr(o.intent, "value") else o.intent
+            entities = [{"name": e.name, "entity_type": e.entity_type} for e in o.entities]
+            opportunities_data.append(
+                {
+                    "topic": o.topic,
+                    "entities": entities,
+                    "intent": it,
+                    "priority": o.priority,
+                    "recommendation": o.recommendation,
+                    "impact": o.impact,
+                    "effort": o.effort,
+                }
+            )
+
+        did = dataset_id or getattr(result.profile, "industry_type", "general")
+        async with self._sf() as session:
+            session.add(
+                IndustryIntelligenceRow(
+                    dataset_id=did,
+                    profile=industry_type,
+                    total_keywords=getattr(result, "total_keywords", 0),
+                    visibility_score=result.visibility_score,
+                    aio_visibility=getattr(result, "aio_visibility", 0.0),
+                    geo_visibility=getattr(result, "geo_visibility", 0.0),
+                    cannibalization_issues=result.cannibalization_issues,
+                    volatility_score=getattr(result, "volatility", 0.0),
+                    findings=findings_data,
+                    opportunities=opportunities_data,
+                    generated_at=now,
+                )
+            )
+            await session.commit()
+
+    async def get_industry_intelligence(self, dataset_id: str) -> IndustryIntelligenceResult | None:
+        """Retrieve industry intelligence result for a dataset."""
+
+        from sqlalchemy import select
+
+        from sie.domain.models.industry import (
+            IndustryIntelligenceResult as ModelResult,
+        )
+        from sie.domain.models.industry import (
+            IndustryOpportunity,
+            IndustryProfile,
+            IndustryStrategicFinding,
+            IndustryType,
+        )
+        from sie.infrastructure.models.industry_orm import IndustryIntelligenceRow
+
+        async with self._sf() as session:
+            stmt = select(IndustryIntelligenceRow).where(
+                IndustryIntelligenceRow.dataset_id == dataset_id
+            )
+            row = (await session.execute(stmt)).scalar_one_or_none()
+
+            if row is None:
+                return None
+
+            findings = []
+            for f in row.findings:
+                findings.append(
+                    IndustryStrategicFinding(
+                        category=f["category"],
+                        severity=f["severity"],
+                        impact=f["impact"],
+                        confidence=f["confidence"],
+                        title=f["title"],
+                        description=f["description"],
+                        evidence=tuple(f["evidence"]) if f["evidence"] else (),
+                        affected_keywords=(
+                            tuple(f["affected_keywords"]) if f["affected_keywords"] else ()
+                        ),
+                        affected_urls=tuple(f["affected_urls"]) if f["affected_urls"] else (),
+                        recommendation=f["recommendation"],
+                        industry_type=IndustryType(f["industry_type"])
+                        if f["industry_type"]
+                        else IndustryType.GENERAL,
+                    )
+                )
+
+            opportunities = []
+            for o in row.opportunities:
+                entities = []
+                for e in o.get("entities", []):
+                    entities.append(
+                        type(e["entity_type"])(name=e["name"], entity_type=e["entity_type"])
+                    )
+                it_type = IndustryType(o["intent"]) if o["intent"] else IndustryType.GENERAL
+                opportunities.append(
+                    IndustryOpportunity(
+                        topic=o["topic"],
+                        entities=tuple(entities),
+                        intent=it_type,
+                        priority=o["priority"],
+                        recommendation=o["recommendation"],
+                        impact=o["impact"],
+                        effort=o["effort"],
+                    )
+                )
+
+            return ModelResult(
+                profile=IndustryProfile(),
+                total_keywords=getattr(row, "total_keywords", 0),
+                visibility_score=row.visibility_score,
+                findings=tuple(findings),
+                opportunities=tuple(opportunities),
+            )

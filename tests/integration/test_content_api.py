@@ -18,7 +18,10 @@ def sample_crawl_pages():
             headers={"Content-Type": "text/html"},
             content=b"""
             <html>
-            <head><title>Page 1 - SEO Guide</title><meta name="description" content="Learn SEO basics"></head>
+            <head>
+                <title>Page 1 - SEO Guide</title>
+                <meta name="description" content="Learn SEO basics">
+            </head>
             <body>
                 <h1>Complete SEO Guide</h1>
                 <p>This is a comprehensive guide to search engine optimization.</p>
@@ -40,7 +43,10 @@ def sample_crawl_pages():
             headers={"Content-Type": "text/html"},
             content=b"""
             <html>
-            <head><title>Page 2 - Advanced SEO</title><meta name="description" content="Advanced SEO tactics"></head>
+            <head>
+                <title>Page 2 - Advanced SEO</title>
+                <meta name="description" content="Advanced SEO tactics">
+            </head>
             <body>
                 <h1>Advanced SEO Tactics</h1>
                 <p>Advanced strategies for improving rankings.</p>

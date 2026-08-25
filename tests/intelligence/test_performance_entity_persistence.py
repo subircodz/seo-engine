@@ -64,9 +64,7 @@ class TestPerformanceFindingPersistence:
         async with session_factory() as session:
             from sqlalchemy import select
 
-            stmt = select(PerformanceFindingRow).where(
-                PerformanceFindingRow.dataset_id == "ds1"
-            )
+            stmt = select(PerformanceFindingRow).where(PerformanceFindingRow.dataset_id == "ds1")
             rows = (await session.execute(stmt)).scalars().all()
             assert len(rows) == 1
             assert rows[0].url == "http://example.com"
@@ -113,9 +111,7 @@ class TestEntitySignalPersistence:
         async with session_factory() as session:
             from sqlalchemy import select
 
-            stmt = select(EntitySignalRow).where(
-                EntitySignalRow.dataset_id == "ds1"
-            )
+            stmt = select(EntitySignalRow).where(EntitySignalRow.dataset_id == "ds1")
             rows = (await session.execute(stmt)).scalars().all()
             assert len(rows) == 1
             assert rows[0].entity_text == "Acme Corp"
@@ -146,9 +142,7 @@ class TestEntitySignalPersistence:
         async with session_factory() as session:
             from sqlalchemy import select
 
-            stmt = select(EntitySignalRow).where(
-                EntitySignalRow.dataset_id == "ds1"
-            )
+            stmt = select(EntitySignalRow).where(EntitySignalRow.dataset_id == "ds1")
             rows = (await session.execute(stmt)).scalars().all()
             assert len(rows) == 5
 

@@ -7,9 +7,14 @@ from pydantic import BaseModel
 
 from sie.domain.engines.search_aio import analyze_aio_observations
 from sie.domain.engines.search_geo import analyze_geo_observations
+from sie.domain.models.industry import IndustryType
 from sie.domain.models.search import CompetitorRanking, RankingObservation, SearchDataset
 from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewResult
 from sie.domain.models.search_geo import GEOObservation, GEOResult
+from sie.domain.services.industry_intelligence import (
+    IndustryAnalysisConfig,
+    IndustryIntelligenceService,
+)
 from sie.domain.services.search_intelligence import (
     SearchIntelligenceResult,
     SearchIntelligenceService,
@@ -592,3 +597,130 @@ def _parse_competitor_rankings(
             )
         )
     return tuple(rankings)
+
+
+# ── Industry Intelligence API ─────────────────────────────────────────────
+
+
+class IndustryIntelligenceRequest(BaseModel):
+    dataset_id: str
+    industry_type: str = "general"
+    target_domain: str = ""
+    content: str = ""
+    confidence_threshold: float = 0.5
+
+
+class IndustryFindingResponse(BaseModel):
+    category: str
+    severity: str
+    impact: float
+    confidence: float
+    title: str
+    description: str
+    recommendation: str
+
+
+class IndustryOpportunityResponse(BaseModel):
+    topic: str
+    priority: float
+    recommendation: str
+    impact: float
+    effort: float
+
+
+class IndustryIntelligenceResponse(BaseModel):
+    dataset_id: str
+    total_keywords: int
+    visibility_score: float
+    total_findings: int
+    findings: list[IndustryFindingResponse]
+    opportunities: list[IndustryOpportunityResponse]
+
+
+@router.post("/industry/analyze", response_model=IndustryIntelligenceResponse)
+async def analyze_industry_intelligence(
+    body: IndustryIntelligenceRequest,
+) -> IndustryIntelligenceResponse:
+    """Analyze industry intelligence for a dataset.
+
+    This endpoint combines search intelligence with industry-specific
+    analysis for targeted insights.
+    """
+    try:
+        industry_type = IndustryType(body.industry_type)
+    except ValueError:
+        industry_type = IndustryType.GENERAL
+
+    service = IndustryIntelligenceService()
+    config = IndustryAnalysisConfig(
+        industry_type=industry_type,
+        target_domain=body.target_domain,
+        min_entity_confidence=body.confidence_threshold,
+    )
+
+    from sqlalchemy import select
+
+    from sie.config import get_settings
+    from sie.infrastructure.models.search_orm import SearchDatasetRow
+    from sie.infrastructure.persistence.database import Database
+
+    settings = get_settings()
+    db = Database(settings.database_url)
+    session_factory = db.session_factory
+
+    async with session_factory() as session:
+        row = (
+            await session.execute(
+                select(SearchDatasetRow).where(SearchDatasetRow.id == body.dataset_id)
+            )
+        ).scalar_one_or_none()
+
+        if row is None:
+            raise ValueError(f"Dataset {body.dataset_id} not found")
+
+        dataset = type(
+            "SearchDataset",
+            (),
+            {
+                "dataset_id": body.dataset_id,
+                "name": row.name,
+                "source": row.source,
+                "total_keywords": row.total_keywords,
+                "total_observations": row.total_observations,
+            },
+        )()
+
+    result = service.analyze_with_content(
+        dataset=dataset,
+        content=body.content,
+        config=config,
+    )
+
+    return IndustryIntelligenceResponse(
+        dataset_id=body.dataset_id,
+        total_keywords=result.total_keywords,
+        visibility_score=result.visibility_score,
+        total_findings=result.total_findings,
+        findings=[
+            IndustryFindingResponse(
+                category=f.category,
+                severity=f.severity,
+                impact=f.impact,
+                confidence=f.confidence,
+                title=f.title,
+                description=f.description,
+                recommendation=f.recommendation,
+            )
+            for f in result.findings
+        ],
+        opportunities=[
+            IndustryOpportunityResponse(
+                topic=o.topic,
+                priority=o.priority,
+                recommendation=o.recommendation,
+                impact=o.impact,
+                effort=o.effort,
+            )
+            for o in result.opportunities
+        ],
+    )

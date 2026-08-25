@@ -564,6 +564,3 @@ class TestPhase6M_NoRealNetwork:
         assert result1.keyword == result2.keyword
         assert result1.items[0].url == result2.items[0].url
         assert result1.items[0].position == result2.items[0].position
-
-
-

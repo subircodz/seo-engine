@@ -1,8 +1,7 @@
 """Unit tests for ranking volatility (Phase 6N-D)."""
 
-from datetime import UTC, datetime
-
 import dataclasses
+from datetime import UTC, datetime
 
 import pytest
 
@@ -114,9 +113,7 @@ class TestRankingVolatilityBoundaryCases:
     def test_unknown_keyword_no_fabrication(self):
         """Keywords with only one observation must have zero volatility."""
         service = RankingVolatilityService()
-        obs = (
-            _obs(keyword="kw1"),
-        )
+        obs = (_obs(keyword="kw1"),)
         metrics = service.calculate_volatility_by_keyword(obs)
         assert metrics[0].volatility == 0.0
 
@@ -167,9 +164,7 @@ class TestRankingVolatilityBoundaryCases:
     def test_single_observation_returns_single_metric(self):
         """One observation → one metric with zero volatility."""
         service = RankingVolatilityService()
-        obs = (
-            _obs(keyword="single", position=7),
-        )
+        obs = (_obs(keyword="single", position=7),)
         metrics = service.calculate_volatility_by_keyword(obs)
         assert len(metrics) == 1
         assert metrics[0].keyword == "single"
@@ -212,7 +207,7 @@ class TestDatasetVolatility:
     def test_dataset_volatility(self):
         """Calculate volatility across a full dataset."""
         service = RankingVolatilityService()
-        ds = _ds(total_keywords=10)
+        _ds(total_keywords=10)
         obs = (
             _obs(keyword="kw1", position=3, observed_at=_T0),
             _obs(keyword="kw1", position=5, observed_at=_T1),
@@ -226,7 +221,7 @@ class TestDatasetVolatility:
     def test_dataset_volatile_keywords(self):
         """Identify volatile keywords in a dataset."""
         service = RankingVolatilityService()
-        ds = _ds(total_keywords=5)
+        _ds(total_keywords=5)
         obs = (
             _obs(keyword="kw1", position=3, observed_at=_T0),
             _obs(keyword="kw1", position=50, observed_at=_T1),

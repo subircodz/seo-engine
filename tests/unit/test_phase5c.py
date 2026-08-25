@@ -419,7 +419,9 @@ class TestLLMFailureFallback:
         transport = MockTransport(raise_exc=httpx.TimeoutException("timeout"))
         client = httpx.AsyncClient(transport=transport)
         provider = OpenAICompatibleProvider(
-            base_url="https://api.test.com", api_key="sk-test", client=client,
+            base_url="https://api.test.com",
+            api_key="sk-test",
+            client=client,
         )
         service = IntelligenceService(llm_provider=provider)
         diag = _make_diagnosis_result()
@@ -438,7 +440,9 @@ class TestLLMFailureFallback:
         )
         client = httpx.AsyncClient(transport=transport)
         provider = OpenAICompatibleProvider(
-            base_url="https://api.test.com", api_key="sk-test", client=client,
+            base_url="https://api.test.com",
+            api_key="sk-test",
+            client=client,
         )
         service = IntelligenceService(llm_provider=provider)
         diag = _make_diagnosis_result()
@@ -453,7 +457,9 @@ class TestLLMFailureFallback:
         transport = MockTransport(raise_exc=httpx.ConnectError("refused"))
         client = httpx.AsyncClient(transport=transport)
         provider = OpenAICompatibleProvider(
-            base_url="https://api.test.com", api_key="sk-test", client=client,
+            base_url="https://api.test.com",
+            api_key="sk-test",
+            client=client,
         )
         service = IntelligenceService(llm_provider=provider)
         diag = _make_diagnosis_result()
@@ -474,10 +480,14 @@ class TestLLMFailureFallback:
         )
         client = httpx.AsyncClient(transport=transport)
         provider = OpenAICompatibleProvider(
-            base_url="https://api.test.com", api_key="sk-test", client=client,
+            base_url="https://api.test.com",
+            api_key="sk-test",
+            client=client,
         )
         service = IntelligenceService(
-            llm_provider=provider, model_name="gpt-4o", provider_name="openai",
+            llm_provider=provider,
+            model_name="gpt-4o",
+            provider_name="openai",
         )
         diag = _make_diagnosis_result()
         evidence = _make_evidence_package()

@@ -15,8 +15,8 @@ import httpx
 
 __all__ = [
     "FakeSearchServer",
-    "ServerMode",
     "ServerConfig",
+    "ServerMode",
 ]
 
 

@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
-
 from sie.domain.engines.search_report import generate_intelligence_report
 from sie.domain.models.search_report import (
-    ActionItem,
     ActionPriority,
     IntelligenceReport,
     ReportComponent,
     ReportStatus,
 )
-
 
 # ════════════════════════════════════════════════════════════════════════════
 # IntelligenceReport model
@@ -75,10 +71,7 @@ class TestGenerateIntelligenceReport:
             total_keywords=100,
             keywords_not_ranking=40,
         )
-        ranking_actions = [
-            a for a in report.action_items
-            if "ranking" in str(a.source_components)
-        ]
+        ranking_actions = [a for a in report.action_items if "ranking" in str(a.source_components)]
         assert len(ranking_actions) >= 1
 
     def test_cannibalization_component(self):
@@ -96,9 +89,7 @@ class TestGenerateIntelligenceReport:
             extreme_cannibalization_count=3,
             cannibalization_count=5,
         )
-        critical_actions = [
-            a for a in report.action_items if a.priority == ActionPriority.CRITICAL
-        ]
+        critical_actions = [a for a in report.action_items if a.priority == ActionPriority.CRITICAL]
         assert len(critical_actions) >= 1
 
     def test_volatility_component(self):

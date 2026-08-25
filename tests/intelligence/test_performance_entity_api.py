@@ -92,12 +92,7 @@ class TestEntityExtractionEndpoint:
     async def test_basic_extraction(self, client):
         resp = await client.post(
             "/api/search-intelligence/entity/extract",
-            json={
-                "text": (
-                    "Acme Corp announced new products. "
-                    "Acme Corp released a major update."
-                )
-            },
+            json={"text": ("Acme Corp announced new products. Acme Corp released a major update.")},
         )
         assert resp.status_code == 200
         data = resp.json()

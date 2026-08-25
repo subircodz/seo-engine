@@ -1,8 +1,7 @@
 """Unit tests for cannibalization detection (Phase 6N-D)."""
 
-from datetime import UTC, datetime
-
 import dataclasses
+from datetime import UTC, datetime
 
 import pytest
 
@@ -156,9 +155,7 @@ class TestCannibalizationDetector:
     def test_single_observation_no_cannibalization(self):
         """Single observation per keyword = no cannibalization."""
         detector = CannibalizationDetector()
-        obs = (
-            _obs(keyword="kw1", url="https://oursite.io/page1", position=3),
-        )
+        obs = (_obs(keyword="kw1", url="https://oursite.io/page1", position=3),)
         findings = detector.detect_cannibalization(obs)
         assert findings == ()
 

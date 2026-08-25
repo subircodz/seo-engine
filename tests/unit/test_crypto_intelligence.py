@@ -110,15 +110,12 @@ class TestExtractCryptoEntities:
         r1 = extract_crypto_entities(text)
         r2 = extract_crypto_entities(text)
         assert len(r1) == len(r2)
-        for e1, e2 in zip(r1, r2):
+        for e1, e2 in zip(r1, r2, strict=False):
             assert e1.name == e2.name
             assert e1.frequency == e2.frequency
 
     def test_min_frequency_filter(self):
-        text = (
-            "BTC BTC BTC Bitcoin is popular. "
-            "ETH ETH is another coin. "
-        )
+        text = "BTC BTC BTC Bitcoin is popular. ETH ETH is another coin. "
         result = extract_crypto_entities(text, min_frequency=3)
         texts = [e.name for e in result]
         assert any("BTC" in t for t in texts)

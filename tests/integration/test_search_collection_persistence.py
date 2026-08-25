@@ -328,9 +328,7 @@ class TestExistingEndpointsStillWork:
 
 class TestCollectionServiceUnit:
     async def test_collect_and_return_items(self):
-        provider = MockSearchProvider(
-            results={"kw": _result_for("kw", "https://oursite.io/kw", 1)}
-        )
+        provider = MockSearchProvider(results={"kw": _result_for("kw", "https://oursite.io/kw", 1)})
         svc = SearchCollectionService(provider, source="unit-test")
         query = SearchQuery(query="kw", target_domain="oursite.io")
         items = await svc.collect([query])
@@ -339,9 +337,7 @@ class TestCollectionServiceUnit:
         assert items[0].observation is not None
 
     async def test_not_ranking_service_returns_not_found(self):
-        provider = MockSearchProvider(
-            results={"kw": _result_for("kw", "https://other.io/page", 1)}
-        )
+        provider = MockSearchProvider(results={"kw": _result_for("kw", "https://other.io/page", 1)})
         svc = SearchCollectionService(provider, source="unit-test")
         query = SearchQuery(query="kw", target_domain="oursite.io")
         items = await svc.collect([query])

@@ -9,7 +9,6 @@ Tests industry-specific intelligence for:
 All tests verify deterministic output.
 """
 
-
 from sie.domain.engines.industry_synthesis import (
     _analyze_competitor_intelligence,
     _analyze_entity_intelligence,

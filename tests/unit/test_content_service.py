@@ -153,7 +153,7 @@ async def test_analyze_content(content_service, sample_pages):
 @pytest.mark.asyncio
 async def test_analyze_content_cached(content_service, sample_pages):
     config = ContentAnalysisConfig()
-    metrics1 = await content_service.analyze_content("run1", sample_pages, config)
+    await content_service.analyze_content("run1", sample_pages, config)
     metrics2 = content_service.get_analysis("run1")
 
     assert metrics2 is not None

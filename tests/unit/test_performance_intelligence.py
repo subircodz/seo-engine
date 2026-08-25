@@ -10,13 +10,9 @@ from sie.domain.engines.search_performance import (
 )
 from sie.domain.models.search_performance import (
     PagePerformanceMetrics,
-    PerformanceDatasetMetrics,
-    PerformanceFinding,
-    PerformanceResult,
     PerformanceSeverity,
     ResourceMetric,
 )
-
 
 # ════════════════════════════════════════════════════════════════════════════
 # ResourceMetric
@@ -57,9 +53,7 @@ class TestPagePerformanceMetrics:
 
     def test_efficiency_out_of_range_raises(self):
         with pytest.raises(ValueError, match="content_efficiency must be"):
-            PagePerformanceMetrics(
-                url="http://example.com", content_efficiency=1.5
-            )
+            PagePerformanceMetrics(url="http://example.com", content_efficiency=1.5)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -76,9 +70,7 @@ class TestAnalyzePagePerformance:
         assert len(result.findings) == 0
 
     def test_large_html(self):
-        result = analyze_page_performance(
-            url="http://example.com", html_size=200000
-        )
+        result = analyze_page_performance(url="http://example.com", html_size=200000)
         assert result.metrics.html_size_bytes == 200000
         # Should have at least one HTML size finding
         size_findings = [f for f in result.findings if f.metric_name == "html_size"]
@@ -86,9 +78,7 @@ class TestAnalyzePagePerformance:
         assert size_findings[0].severity == PerformanceSeverity.HIGH
 
     def test_very_large_html(self):
-        result = analyze_page_performance(
-            url="http://example.com", html_size=600000
-        )
+        result = analyze_page_performance(url="http://example.com", html_size=600000)
         size_findings = [f for f in result.findings if f.metric_name == "html_size"]
         assert len(size_findings) == 1
         assert size_findings[0].severity == PerformanceSeverity.CRITICAL
@@ -100,9 +90,7 @@ class TestAnalyzePagePerformance:
             visible_text="short text",
         )
         assert result.metrics.content_efficiency > 0
-        eff_findings = [
-            f for f in result.findings if f.metric_name == "content_efficiency"
-        ]
+        eff_findings = [f for f in result.findings if f.metric_name == "content_efficiency"]
         assert len(eff_findings) == 1
         assert eff_findings[0].severity in (
             PerformanceSeverity.HIGH,
@@ -113,19 +101,13 @@ class TestAnalyzePagePerformance:
         result = analyze_page_performance(
             url="http://example.com", image_count=10, images_without_alt=5
         )
-        alt_findings = [
-            f for f in result.findings if f.metric_name == "images_without_alt"
-        ]
+        alt_findings = [f for f in result.findings if f.metric_name == "images_without_alt"]
         assert len(alt_findings) == 1
         assert alt_findings[0].severity == PerformanceSeverity.HIGH
 
     def test_many_resources(self):
-        result = analyze_page_performance(
-            url="http://example.com", css_count=50, js_count=60
-        )
-        resource_findings = [
-            f for f in result.findings if f.metric_name == "resource_count"
-        ]
+        result = analyze_page_performance(url="http://example.com", css_count=50, js_count=60)
+        resource_findings = [f for f in result.findings if f.metric_name == "resource_count"]
         assert len(resource_findings) == 1
 
     def test_score_starts_at_one(self):

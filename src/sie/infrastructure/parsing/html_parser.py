@@ -171,7 +171,7 @@ def parse_query_keys(url: str) -> list[str]:
     query = urlsplit(url).query
     if not query:
         return []
-    return [k for k in parse_qs(query).keys()]
+    return [k for k in parse_qs(query)]
 
 
 class Bs4PageParser:

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sie.infrastructure.persistence.database import Base
+
+if TYPE_CHECKING:
+    from sie.infrastructure.models.industry_orm import IndustryIntelligenceRow
 
 
 class SearchDatasetRow(Base):
@@ -34,6 +38,11 @@ class SearchDatasetRow(Base):
         back_populates="dataset",
         cascade="all, delete-orphan",
         order_by="SearchCompetitorRankingRow.id",
+    )
+    industry_intelligence: Mapped[list[IndustryIntelligenceRow]] = relationship(
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+        order_by="IndustryIntelligenceRow.id",
     )
 
 

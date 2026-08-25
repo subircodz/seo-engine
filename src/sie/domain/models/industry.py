@@ -311,6 +311,7 @@ class IndustryIntelligenceResult:
     """
 
     profile: IndustryProfile
+    total_keywords: int = 0
     ranking_health: dict[str, float] = field(default_factory=dict)
     visibility_score: float = 0.0
     serp_ownership: dict[str, int] = field(default_factory=dict)

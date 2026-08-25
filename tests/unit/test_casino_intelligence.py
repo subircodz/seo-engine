@@ -109,7 +109,7 @@ class TestExtractCasinoEntities:
         r1 = extract_casino_entities(text)
         r2 = extract_casino_entities(text)
         assert len(r1) == len(r2)
-        for e1, e2 in zip(r1, r2):
+        for e1, e2 in zip(r1, r2, strict=False):
             assert e1.name == e2.name
             assert e1.frequency == e2.frequency
 
