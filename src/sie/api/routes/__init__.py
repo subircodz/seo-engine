@@ -7,6 +7,7 @@ from sie.api.routes import (
     diagnosis,
     intelligence,
     search,
+    search_performance,
     system,
     web,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "diagnosis",
     "intelligence",
     "search",
+    "search_performance",
     "system",
     "web",
 ]

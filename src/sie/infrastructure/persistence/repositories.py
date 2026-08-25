@@ -1246,3 +1246,260 @@ class SqlAlchemyCrawlRunRepository:
                 )
             )
         return total, observations
+
+    # ── Phase 8: Performance, Entity, Optimization persistence ──────────────
+
+    async def save_performance_findings(
+        self,
+        dataset_id: str,
+        findings: tuple,
+    ) -> None:
+        """Persist performance findings to the database."""
+        from datetime import UTC, datetime
+
+        from sie.infrastructure.models.search_performance_entity_orm import (
+            PerformanceFindingRow,
+        )
+
+        if not findings:
+            return
+
+        now = datetime.now(UTC)
+        async with self._sf() as session:
+            for finding in findings:
+                session.add(
+                    PerformanceFindingRow(
+                        dataset_id=dataset_id,
+                        url=getattr(finding, "url", ""),
+                        metric_name=getattr(finding, "metric_name", ""),
+                        severity=getattr(finding, "severity", "low"),
+                        value=float(getattr(finding, "value", 0.0)),
+                        threshold=float(getattr(finding, "threshold", 0.0)),
+                        description=getattr(finding, "description", ""),
+                        recommendation=getattr(finding, "recommendation", ""),
+                        created_at=now,
+                    )
+                )
+            await session.commit()
+
+    async def list_performance_findings(
+        self,
+        dataset_id: str,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[int, list]:
+        """Retrieve performance findings for a dataset."""
+        from sqlalchemy import func, select
+
+        from sie.domain.models.search_performance import (
+            PerformanceFinding,
+            PerformanceSeverity,
+        )
+        from sie.infrastructure.models.search_performance_entity_orm import (
+            PerformanceFindingRow,
+        )
+
+        async with self._sf() as session:
+            count_stmt = select(func.count(PerformanceFindingRow.id)).where(
+                PerformanceFindingRow.dataset_id == dataset_id
+            )
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(PerformanceFindingRow)
+                .where(PerformanceFindingRow.dataset_id == dataset_id)
+                .order_by(PerformanceFindingRow.id)
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        findings = [
+            PerformanceFinding(
+                metric_name=r.metric_name,
+                severity=PerformanceSeverity(r.severity),
+                value=r.value,
+                threshold=r.threshold,
+                description=r.description,
+                recommendation=r.recommendation,
+                url=r.url,
+            )
+            for r in rows
+        ]
+        return total, findings
+
+    async def save_entity_signals(
+        self,
+        dataset_id: str,
+        signals: tuple,
+        *,
+        keyword: str = "",
+    ) -> None:
+        """Persist entity signals to the database."""
+        from datetime import UTC, datetime
+
+        from sie.infrastructure.models.search_performance_entity_orm import (
+            EntitySignalRow,
+        )
+
+        if not signals:
+            return
+
+        now = datetime.now(UTC)
+        async with self._sf() as session:
+            for signal in signals:
+                session.add(
+                    EntitySignalRow(
+                        dataset_id=dataset_id,
+                        keyword=keyword,
+                        entity_text=getattr(signal, "text", ""),
+                        category=getattr(signal, "category", "other"),
+                        frequency=int(getattr(signal, "frequency", 1)),
+                        is_target=1 if getattr(signal, "is_target", False) else 0,
+                        domain=getattr(signal, "domain", ""),
+                        confidence=float(getattr(signal, "confidence", 0.5)),
+                        created_at=now,
+                    )
+                )
+            await session.commit()
+
+    async def list_entity_signals(
+        self,
+        dataset_id: str,
+        *,
+        keyword: str = "",
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[int, list]:
+        """Retrieve entity signals for a dataset."""
+        from sqlalchemy import func, select
+
+        from sie.domain.models.search_entity import EntityCategory, EntitySignal
+        from sie.infrastructure.models.search_performance_entity_orm import (
+            EntitySignalRow,
+        )
+
+        async with self._sf() as session:
+            base_filter = EntitySignalRow.dataset_id == dataset_id
+            if keyword:
+                base_filter = base_filter & (EntitySignalRow.keyword == keyword)
+
+            count_stmt = select(func.count(EntitySignalRow.id)).where(base_filter)
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(EntitySignalRow)
+                .where(base_filter)
+                .order_by(EntitySignalRow.frequency.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        signals = [
+            EntitySignal(
+                text=r.entity_text,
+                category=EntityCategory(r.category),
+                frequency=r.frequency,
+                is_target=bool(r.is_target),
+                domain=r.domain,
+                confidence=r.confidence,
+            )
+            for r in rows
+        ]
+        return total, signals
+
+    async def save_optimization_recommendations(
+        self,
+        dataset_id: str,
+        recommendations: tuple,
+    ) -> None:
+        """Persist optimization recommendations to the database."""
+        from datetime import UTC, datetime
+
+        from sie.infrastructure.models.search_performance_entity_orm import (
+            OptimizationRecommendationRow,
+        )
+
+        if not recommendations:
+            return
+
+        now = datetime.now(UTC)
+        async with self._sf() as session:
+            for rec in recommendations:
+                affected_kw = list(getattr(rec, "affected_keywords", ()))
+                affected_urls = list(getattr(rec, "affected_urls", ()))
+                session.add(
+                    OptimizationRecommendationRow(
+                        dataset_id=dataset_id,
+                        category=getattr(rec, "category", ""),
+                        title=getattr(rec, "title", ""),
+                        description=getattr(rec, "description", ""),
+                        impact=getattr(rec, "impact", "medium"),
+                        effort=getattr(rec, "effort", "medium"),
+                        priority_score=float(getattr(rec, "priority_score", 0.0)),
+                        affected_keywords=affected_kw if affected_kw else None,
+                        affected_urls=affected_urls if affected_urls else None,
+                        confidence=float(getattr(rec, "confidence", 0.5)),
+                        source_engine=getattr(rec, "source_engine", ""),
+                        created_at=now,
+                    )
+                )
+            await session.commit()
+
+    async def list_optimization_recommendations(
+        self,
+        dataset_id: str,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[int, list]:
+        """Retrieve optimization recommendations for a dataset."""
+        from sqlalchemy import func, select
+
+        from sie.domain.models.search_optimization import (
+            OptimizationCategory,
+            OptimizationEffort,
+            OptimizationImpact,
+            OptimizationRecommendation,
+        )
+        from sie.infrastructure.models.search_performance_entity_orm import (
+            OptimizationRecommendationRow,
+        )
+
+        async with self._sf() as session:
+            count_stmt = select(func.count(OptimizationRecommendationRow.id)).where(
+                OptimizationRecommendationRow.dataset_id == dataset_id
+            )
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(OptimizationRecommendationRow)
+                .where(OptimizationRecommendationRow.dataset_id == dataset_id)
+                .order_by(OptimizationRecommendationRow.priority_score.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        recs = [
+            OptimizationRecommendation(
+                category=OptimizationCategory(r.category),
+                title=r.title,
+                description=r.description,
+                impact=OptimizationImpact(r.impact),
+                effort=OptimizationEffort(r.effort),
+                priority_score=r.priority_score,
+                affected_keywords=tuple(r.affected_keywords)
+                if r.affected_keywords
+                else (),
+                affected_urls=tuple(r.affected_urls)
+                if r.affected_urls
+                else (),
+                confidence=r.confidence,
+                source_engine=r.source_engine,
+            )
+            for r in rows
+        ]
+        return total, recs

@@ -53,6 +53,14 @@ from sie.domain.models.search_aio import (
     AIOverviewType,
     CitationSource,
 )
+from sie.domain.models.search_entity import (
+    EntityCategory,
+    EntityDatasetResult,
+    EntityGap,
+    EntitySignal,
+    EntityVisibilityResult,
+    TopicCluster,
+)
 from sie.domain.models.search_geo import (
     EntityMention,
     EntityType,
@@ -63,6 +71,29 @@ from sie.domain.models.search_geo import (
     GEOResult,
 )
 from sie.domain.models.search_import import SearchImportResult, SearchRecordError
+from sie.domain.models.search_optimization import (
+    OptimizationCategory,
+    OptimizationEffort,
+    OptimizationImpact,
+    OptimizationRecommendation,
+    OptimizationResult,
+    calculate_priority_score,
+)
+from sie.domain.models.search_performance import (
+    PagePerformanceMetrics,
+    PerformanceDatasetMetrics,
+    PerformanceFinding,
+    PerformanceResult,
+    PerformanceSeverity,
+    ResourceMetric,
+)
+from sie.domain.models.search_report import (
+    ActionItem,
+    ActionPriority,
+    IntelligenceReport,
+    ReportComponent,
+    ReportStatus,
+)
 from sie.domain.models.search_result import (
     SearchCollectionResult,
     SearchResult,
@@ -85,6 +116,8 @@ __all__ = [
     "AIOverviewObservation",
     "AIOverviewResult",
     "AIOverviewType",
+    "ActionItem",
+    "ActionPriority",
     "CitationSource",
     "CompetitorRanking",
     "ContentAnalysisConfig",
@@ -109,8 +142,13 @@ __all__ = [
     "DiagnosisResult",
     "DiagnosisSeverity",
     "DuplicateStatus",
+    "EntityCategory",
+    "EntityDatasetResult",
+    "EntityGap",
     "EntityMention",
+    "EntitySignal",
     "EntityType",
+    "EntityVisibilityResult",
     "ErrorOccurred",
     "FetchedPage",
     "FreshnessAnalysis",
@@ -121,14 +159,28 @@ __all__ = [
     "GenerativeEngineType",
     "HeadingAnalysis",
     "ImageAnalysis",
+    "IntelligenceReport",
     "KeywordDensity",
     "LinkAnalysis",
     "MultimediaAnalysis",
+    "OptimizationCategory",
+    "OptimizationEffort",
+    "OptimizationImpact",
+    "OptimizationRecommendation",
+    "OptimizationResult",
     "PageFetchCompleted",
+    "PagePerformanceMetrics",
+    "PerformanceDatasetMetrics",
+    "PerformanceFinding",
+    "PerformanceResult",
+    "PerformanceSeverity",
     "QualityTier",
     "RankingObservation",
     "ReadabilityMetrics",
     "RenderedPage",
+    "ReportComponent",
+    "ReportStatus",
+    "ResourceMetric",
     "SERPFeatureType",
     "SearchCollectionResult",
     "SearchDataset",
@@ -143,4 +195,6 @@ __all__ = [
     "SearchResultItem",
     "SearchSERPFeature",
     "StructuredDataAnalysis",
+    "TopicCluster",
+    "calculate_priority_score",
 ]
