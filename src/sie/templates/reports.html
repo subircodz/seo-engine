@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Reports - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1>Reports</h1>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <h2>Generate Report</h2>
+    <p style="color: var(--text-secondary); margin: 8px 0 14px; font-size: 0.85rem;">
+        Download a professional PDF report for any analysis. Reports include findings, evidence, and recommendations.
+    </p>
+    <div class="grid grid-3" style="margin-top: 12px;">
+        <div>
+            <label>Report ID (Dataset ID)</label>
+            <input type="text" id="input-report-id" placeholder="ds-xxxxxxxxxxxx">
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 8px;">
+            <button class="btn btn-primary" onclick="downloadReport()">Download PDF</button>
+            <button class="btn btn-secondary" onclick="checkReport()">Check</button>
+        </div>
+        <div></div>
+    </div>
+    <div id="report-status" style="margin-top: 12px;"></div>
+</div>
+
+<div class="card glass">
+    <h2>About Reports</h2>
+    <div class="grid grid-2" style="margin-top: 12px;">
+        <div>
+            <h3>PDF Reports</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                Professional PDFs generated via WeasyPrint with page headers, footers, page numbers, severity-coded findings, evidence sources, and actionable recommendations.
+            </p>
+        </div>
+        <div>
+            <h3>Data Sources</h3>
+            <ul style="font-size: 0.85rem; color: var(--text-secondary); padding-left: 16px; margin-top: 4px;">
+                <li>Industry Intelligence (by dataset ID)</li>
+                <li>Search Intelligence (by intelligence ID)</li>
+                <li>Strategic findings with evidence provenance</li>
+                <li>Competitive opportunities with impact scores</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+var params = new URLSearchParams(window.location.search);
+if (params.get('id')) document.getElementById('input-report-id').value = params.get('id');
+
+function downloadReport() {
+    var id = document.getElementById('input-report-id').value.trim();
+    if (!id) { alert('Report ID required'); return; }
+    document.getElementById('report-status').innerHTML = '<div class="loading">Generating PDF...</div>';
+    window.location.href = '/api/reports/' + encodeURIComponent(id) + '/pdf';
+    setTimeout(function() { document.getElementById('report-status').innerHTML = ''; }, 3000);
+}
+
+async function checkReport() {
+    var id = document.getElementById('input-report-id').value.trim();
+    if (!id) { alert('Report ID required'); return; }
+    try {
+        var resp = await fetch('/api/reports/' + encodeURIComponent(id) + '/pdf');
+        if (resp.ok) {
+            var blob = await resp.blob();
+            document.getElementById('report-status').innerHTML = '<div class="success-box">&#9989; PDF available (' + (blob.size / 1024).toFixed(1) + ' KB). <button class="btn btn-sm btn-primary" onclick="downloadReport()" style="margin-left:8px;">Download</button></div>';
+        } else {
+            var err = await resp.json().catch(function() { return { detail: resp.statusText }; });
+            document.getElementById('report-status').innerHTML = '<div class="error-box">' + (err.detail || 'Report not found') + '</div>';
+        }
+    } catch (e) { document.getElementById('report-status').innerHTML = '<div class="error-box">' + e.message + '</div>'; }
+}
+</script>
+{% endblock %}

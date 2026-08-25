@@ -237,6 +237,7 @@ class IndustryOpportunity:
     recommendation: str = ""
     impact: float = 0.5
     effort: float = 0.5
+    evidence_sources: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.topic or not self.topic.strip():
@@ -290,6 +291,7 @@ class IndustryStrategicFinding:
     title: str
     description: str
     evidence: tuple[str, ...] = ()
+    evidence_sources: tuple[str, ...] = ()
     affected_keywords: tuple[str, ...] = ()
     affected_urls: tuple[str, ...] = ()
     recommendation: str = ""

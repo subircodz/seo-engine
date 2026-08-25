@@ -28,9 +28,7 @@ class AIOverviewObservationRow(Base):
     target_domain: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     citation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     citations: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
-    competitor_cited_domains: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True, default=None
-    )
+    competitor_cited_domains: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     observed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     source: Mapped[str] = mapped_column(String(128), nullable=False, default="manual")
 
@@ -52,9 +50,7 @@ class GEOObservationRow(Base):
     target_domain: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     mention_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     entity_mentions: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
-    competitor_domains: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True, default=None
-    )
+    competitor_domains: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     citation_urls: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     answer_length: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     observed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

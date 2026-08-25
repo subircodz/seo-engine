@@ -58,9 +58,7 @@ class EntitySignal:
         if not self.text or not self.text.strip():
             raise ValueError("text must be a non-empty string")
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(
-                f"confidence must be in [0.0, 1.0], got {self.confidence}"
-            )
+            raise ValueError(f"confidence must be in [0.0, 1.0], got {self.confidence}")
         if self.frequency < 1:
             raise ValueError(f"frequency must be >= 1, got {self.frequency}")
 

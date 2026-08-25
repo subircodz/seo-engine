@@ -75,13 +75,23 @@ def create_search_provider(settings: SearchProviderSettings) -> SearchProvider:
     ---------
     - When ``settings.enabled`` is ``False`` the factory always returns
       a ``MockSearchProvider`` regardless of ``provider_name``.
-    - When ``enabled`` is ``True`` the ``provider_name`` is looked up in
-      the registry.  An unsupported name raises ``SearchProviderConfigError``.
+    - When ``enabled`` is ``True`` the ``provider_name`` is looked up
+      in the registry.  An unsupported name raises
+      ``SearchProviderConfigError``.
 
     No API keys are exposed in log messages or error strings.
+
+    Raises
+    ------
+    SearchProviderConfigError
+        When the provider is enabled but misconfigured (missing base_url,
+        unsupported provider_name, etc.).
     """
     if not settings.enabled:
-        logger.info("Search provider disabled (set SIE_SEARCH_PROVIDER__ENABLED=true)")
+        logger.info(
+            "Search provider disabled — mock provider active. "
+            "Set SIE_SEARCH_PROVIDER__ENABLED=true for real SERP data."
+        )
         return _create_mock(settings)
 
     name = settings.provider_name.lower().strip()

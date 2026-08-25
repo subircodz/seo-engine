@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Search - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1>Live Search</h1>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <h2>Search Query</h2>
+    <p style="color: var(--text-secondary); margin: 8px 0 14px; font-size: 0.85rem;">
+        Execute a real search through the configured SERP provider and collect ranking data.
+    </p>
+    <div class="grid grid-4" style="margin-top: 12px;">
+        <div>
+            <label>Keyword</label>
+            <input type="text" id="input-keyword" placeholder="best crm software">
+        </div>
+        <div>
+            <label>Target Domain</label>
+            <input type="text" id="input-domain" placeholder="example.com">
+        </div>
+        <div>
+            <label>Country</label>
+            <select id="input-country">
+                <option value="us">US</option>
+                <option value="gb">GB</option>
+                <option value="de">DE</option>
+                <option value="fr">FR</option>
+                <option value="au">AU</option>
+                <option value="ca">CA</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-primary" onclick="performSearch()" id="search-btn">Search</button>
+        </div>
+    </div>
+    <div class="grid grid-3" style="margin-top: 12px;">
+        <div>
+            <label>Search Engine</label>
+            <select id="input-engine">
+                <option value="google">Google</option>
+                <option value="bing">Bing</option>
+            </select>
+        </div>
+        <div>
+            <label>Device</label>
+            <select id="input-device">
+                <option value="desktop">Desktop</option>
+                <option value="mobile">Mobile</option>
+            </select>
+        </div>
+        <div>
+            <label>Max Results</label>
+            <input type="number" id="input-max" value="10" min="1" max="50">
+        </div>
+    </div>
+</div>
+
+<div id="search-status" style="display: none;"></div>
+<div id="search-results"></div>
+
+<script>
+async function performSearch() {
+    var keyword = document.getElementById('input-keyword').value.trim();
+    if (!keyword) { alert('Keyword is required'); return; }
+
+    var domain = document.getElementById('input-domain').value.trim();
+    var country = document.getElementById('input-country').value;
+    var engine = document.getElementById('input-engine').value;
+    var device = document.getElementById('input-device').value;
+    var maxResults = parseInt(document.getElementById('input-max').value) || 10;
+
+    var statusEl = document.getElementById('search-status');
+    var resultsEl = document.getElementById('search-results');
+    var btn = document.getElementById('search-btn');
+
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<div class="card glass"><div class="loading">&#8987; Searching for "' + keyword + '" via ' + engine + '...</div></div>';
+    resultsEl.innerHTML = '';
+
+    try {
+        /* Step 1: Create a dataset via import */
+        var searchRecord = {
+            keyword: keyword,
+            url: domain ? 'https://' + domain : '',
+            position: 0,
+            search_engine: engine,
+            country: country,
+            language: 'en',
+            device: device
+        };
+
+        /* Step 2: Collect rankings via the provider */
+        var collectResp = await fetch('/api/search/datasets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                records: [searchRecord],
+                name: 'search-' + keyword.replace(/\s+/g, '-'),
+                source: 'live-search'
+            })
+        });
+
+        if (!collectResp.ok) {
+            var err = await collectResp.json().catch(function() { return { detail: 'Dataset creation failed' }; });
+            statusEl.innerHTML = '<div class="error-box">&#10060; ' + (err.detail || 'Failed to create dataset') + '</div>';
+            btn.disabled = false;
+            btn.textContent = 'Search';
+            return;
+        }
+
+        var dataset = await collectResp.json();
+        var datasetId = dataset.dataset_id;
+
+        /* Step 3: If domain provided, collect rankings via the provider */
+        if (domain) {
+            statusEl.innerHTML = '<div class="card glass"><div class="loading">&#8987; Collecting rankings for "' + keyword + '"...</div></div>';
+
+            var collectRankResp = await fetch('/api/search/datasets/' + datasetId + '/collect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    queries: [{
+                        keyword: keyword,
+                        target_domain: domain,
+                        search_engine: engine,
+                        country: country,
+                        language: 'en',
+                        device: device,
+                        max_results: maxResults
+                    }]
+                })
+            });
+
+            if (collectRankResp.ok) {
+                var collectResult = await collectRankResp.json();
+                statusEl.innerHTML = '<div class="success-box">&#9989; Collected ' + collectResult.ranked_count + ' rankings, ' + collectResult.not_ranking_count + ' not ranking.</div>';
+            } else {
+                var collectErr = await collectRankResp.json().catch(function() { return { detail: 'Collection failed' }; });
+                statusEl.innerHTML = '<div class="error-box">&#10060; ' + (collectErr.detail || 'Ranking collection failed. Provider may be disabled or misconfigured.') + '</div>';
+            }
+        }
+
+        /* Step 4: Show results */
+        var datasetResp = await fetch('/api/search/datasets/' + datasetId);
+        if (datasetResp.ok) {
+            var ds = await datasetResp.json();
+            renderSearchResults(ds, domain, resultsEl);
+        }
+
+        if (!domain) {
+            statusEl.innerHTML = '<div class="success-box">&#9989; Dataset created. Add a target domain to collect real rankings.</div>';
+            resultsEl.innerHTML = '<div class="card glass"><div class="empty-state"><p>Dataset created with ' + dataset.total_keywords + ' keyword(s).</p><p style="font-size:0.85rem;margin-top:8px;">Add a target domain and search again to collect real SERP rankings.</p></div></div>';
+        }
+
+    } catch (e) {
+        statusEl.innerHTML = '<div class="error-box">&#10060; Error: ' + e.message + '</div>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Search';
+}
+
+function renderSearchResults(ds, domain, container) {
+    var html = '';
+    if (ds.observations && ds.observations.length > 0) {
+        html += '<div class="card glass"><h2>Ranking Results</h2>';
+        html += '<table style="margin-top:10px"><thead><tr><th>#</th><th>Keyword</th><th>URL</th><th>Position</th><th>Engine</th></tr></thead><tbody>';
+        ds.observations.forEach(function(o) {
+            var badge = o.position <= 3 ? 'badge-success' : o.position <= 10 ? 'badge-warning' : 'badge-info';
+            html += '<tr><td>' + o.position + '</td><td><strong>' + o.keyword + '</strong></td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + o.target_url + '</td><td><span class="badge ' + badge + '">#' + o.position + '</span></td><td>' + o.search_engine + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        html += '<div style="margin-top:12px;display:flex;gap:8px;">';
+        html += '<a href="/datasets/' + ds.dataset_id + '" class="btn btn-secondary btn-sm">View Dataset</a>';
+        html += '<a href="/intelligence?dataset=' + ds.dataset_id + '&domain=' + (domain || '') + '" class="btn btn-primary btn-sm">Run Intelligence</a>';
+        html += '</div></div>';
+    } else {
+        html += '<div class="card glass"><div class="empty-state"><p>No ranking observations. ' + (domain ? 'The target domain may not rank for this keyword.' : 'Add a target domain to collect rankings.') + '</p></div></div>';
+    }
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}

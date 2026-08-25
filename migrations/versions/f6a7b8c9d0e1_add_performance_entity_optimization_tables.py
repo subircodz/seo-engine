@@ -35,14 +35,10 @@ def upgrade() -> None:
         sa.Column("value", sa.Float(), nullable=False),
         sa.Column("threshold", sa.Float(), nullable=False),
         sa.Column("description", sa.String(2048), nullable=False, server_default=""),
-        sa.Column(
-            "recommendation", sa.String(2048), nullable=False, server_default=""
-        ),
+        sa.Column("recommendation", sa.String(2048), nullable=False, server_default=""),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
-    op.create_index(
-        "ix_perf_findings_dataset_id", "performance_findings", ["dataset_id"]
-    )
+    op.create_index("ix_perf_findings_dataset_id", "performance_findings", ["dataset_id"])
     op.create_index(
         "ix_perf_findings_dataset_url",
         "performance_findings",
@@ -95,9 +91,7 @@ def upgrade() -> None:
         sa.Column("affected_keywords", sa.JSON(), nullable=True),
         sa.Column("affected_urls", sa.JSON(), nullable=True),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="0.5"),
-        sa.Column(
-            "source_engine", sa.String(64), nullable=False, server_default=""
-        ),
+        sa.Column("source_engine", sa.String(64), nullable=False, server_default=""),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
     op.create_index(

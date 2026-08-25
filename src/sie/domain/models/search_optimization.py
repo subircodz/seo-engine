@@ -92,13 +92,9 @@ class OptimizationRecommendation:
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(
-                f"confidence must be in [0.0, 1.0], got {self.confidence}"
-            )
+            raise ValueError(f"confidence must be in [0.0, 1.0], got {self.confidence}")
         if not 0.0 <= self.priority_score <= 1.0:
-            raise ValueError(
-                f"priority_score must be in [0.0, 1.0], got {self.priority_score}"
-            )
+            raise ValueError(f"priority_score must be in [0.0, 1.0], got {self.priority_score}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,9 +128,7 @@ _EFFORT_WEIGHTS = {
 }
 
 
-def calculate_priority_score(
-    impact: OptimizationImpact, effort: OptimizationEffort
-) -> float:
+def calculate_priority_score(impact: OptimizationImpact, effort: OptimizationEffort) -> float:
     """Deterministic priority score from impact and effort.
 
     High impact + low effort = 1.0 (highest priority)

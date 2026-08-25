@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Intelligence - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1>Search Intelligence Analysis</h1>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <h2>Configuration</h2>
+    <div class="grid grid-4" style="margin-top: 12px;">
+        <div>
+            <label>Dataset ID</label>
+            <input type="text" id="input-dataset" placeholder="ds-xxxxxxxxxxxx">
+        </div>
+        <div>
+            <label>Target Domain</label>
+            <input type="text" id="input-domain" placeholder="example.com">
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-primary" onclick="runIntelligence()">Analyze</button>
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-secondary" onclick="viewReport()">Download Report</button>
+        </div>
+    </div>
+</div>
+
+<div id="results-container"></div>
+
+<script>
+var params = new URLSearchParams(window.location.search);
+if (params.get('dataset')) document.getElementById('input-dataset').value = params.get('dataset');
+if (params.get('domain')) document.getElementById('input-domain').value = params.get('domain');
+
+function viewReport() {
+    var id = document.getElementById('input-dataset').value.trim();
+    if (!id) { alert('Dataset ID required'); return; }
+    window.location.href = '/reports?id=' + id;
+}
+
+async function runIntelligence() {
+    var datasetId = document.getElementById('input-dataset').value.trim();
+    var domain = document.getElementById('input-domain').value.trim();
+    if (!datasetId) { alert('Dataset ID is required'); return; }
+    var container = document.getElementById('results-container');
+    container.innerHTML = '<div class="card glass"><div class="loading">&#8987; Running analysis...</div></div>';
+    try {
+        var resp = await fetch('/api/search-intelligence/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset_id: datasetId, target_domain: domain || undefined })
+        });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { detail: 'Request failed' }; });
+            container.innerHTML = '<div class="error-box">' + (err.detail || resp.statusText) + '</div>';
+            return;
+        }
+        var data = await resp.json();
+        renderResults(data, container);
+    } catch (e) { container.innerHTML = '<div class="error-box">' + e.message + '</div>'; }
+}
+
+function renderResults(data, container) {
+    var html = '';
+    if (data.summary) {
+        var s = data.summary;
+        html += '<div class="card glass"><h2>Summary</h2><div class="grid grid-4" style="margin-top:10px;">';
+        html += '<div class="stat"><div class="value">' + (s.total_keywords || 0) + '</div><div class="label">Keywords</div></div>';
+        html += '<div class="stat"><div class="value">' + (s.total_observations || 0) + '</div><div class="label">Observations</div></div>';
+        html += '<div class="stat"><div class="value">' + ((s.visibility_score || 0) * 100).toFixed(1) + '%</div><div class="label">Visibility</div></div>';
+        html += '<div class="stat"><div class="value">' + (s.opportunity_count || 0) + '</div><div class="label">Opportunities</div></div>';
+        html += '</div></div>';
+    }
+    if (data.recommendations && data.recommendations.length > 0) {
+        html += '<div class="card glass"><h2>Recommendations</h2>';
+        data.recommendations.forEach(function(r) {
+            var p = r.priority || 'medium';
+            var sev = p === 'high' || p === 'critical' ? 'severity-high' : p === 'medium' ? 'severity-medium' : 'severity-low';
+            var badge = p === 'high' || p === 'critical' ? 'badge-danger' : p === 'medium' ? 'badge-warning' : 'badge-success';
+            html += '<div class="' + sev + '" style="padding:12px 16px;margin-bottom:8px;"><strong>' + (r.title || 'Recommendation') + '</strong> <span class="badge ' + badge + '" style="margin-left:8px;">' + p + '</span><div style="margin-top:4px;color:var(--text-secondary);font-size:0.9rem;">' + (r.description || '') + '</div></div>';
+        });
+        html += '</div>';
+    }
+    if (data.cannibalization_count > 0) {
+        html += '<div class="card glass"><h2>Cannibalization</h2><div class="severity-high" style="padding:12px 16px;"><span class="badge badge-danger">' + data.cannibalization_count + ' issues</span><div style="color:var(--text-secondary);font-size:0.9rem;margin-top:4px;">Multiple URLs competing for the same keywords.</div></div></div>';
+    }
+    if (data.volatility_count > 0) {
+        html += '<div class="card glass"><h2>Volatility</h2><div class="severity-medium" style="padding:12px 16px;"><span class="badge badge-warning">' + data.volatility_count + ' volatile keywords</span></div></div>';
+    }
+    if (!html) html = '<div class="empty-state"><h2>No Results</h2><p>Ensure the dataset ID is valid and contains observations.</p></div>';
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}

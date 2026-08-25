@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Industry Intelligence - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1>Industry Intelligence</h1>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <h2>Industry Analysis</h2>
+    <div class="grid grid-4" style="margin-top: 12px;">
+        <div>
+            <label>Dataset ID</label>
+            <input type="text" id="input-dataset" placeholder="ds-xxxxxxxxxxxx">
+        </div>
+        <div>
+            <label>Industry Type</label>
+            <select id="input-industry">
+                <option value="general">General</option>
+                <option value="casino">Casino</option>
+                <option value="crypto">Crypto</option>
+                <option value="crypto_casino">Crypto Casino</option>
+            </select>
+        </div>
+        <div>
+            <label>Target Domain</label>
+            <input type="text" id="input-domain" placeholder="example.com">
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-primary" onclick="runIndustryAnalysis()">Analyze</button>
+        </div>
+    </div>
+</div>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <label>Industry Content (optional)</label>
+    <textarea id="input-content" rows="4" placeholder="Paste industry-relevant content for enhanced entity/topic analysis..." style="margin-top: 4px;"></textarea>
+</div>
+
+<div id="results-container"></div>
+
+<script>
+var params = new URLSearchParams(window.location.search);
+if (params.get('dataset')) document.getElementById('input-dataset').value = params.get('dataset');
+if (params.get('industry')) document.getElementById('input-industry').value = params.get('industry');
+if (params.get('domain')) document.getElementById('input-domain').value = params.get('domain');
+
+async function runIndustryAnalysis() {
+    var datasetId = document.getElementById('input-dataset').value.trim();
+    if (!datasetId) { alert('Dataset ID required'); return; }
+    var container = document.getElementById('results-container');
+    container.innerHTML = '<div class="card glass"><div class="loading">&#8987; Analyzing...</div></div>';
+    try {
+        var resp = await fetch('/api/search-intelligence/industry/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                dataset_id: datasetId,
+                industry_type: document.getElementById('input-industry').value,
+                target_domain: document.getElementById('input-domain').value.trim() || undefined,
+                content: document.getElementById('input-content').value.trim() || undefined
+            })
+        });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { detail: 'Failed' }; });
+            container.innerHTML = '<div class="error-box">' + (err.detail || resp.statusText) + '</div>';
+            return;
+        }
+        var data = await resp.json();
+        renderIndustry(data, container);
+    } catch (e) { container.innerHTML = '<div class="error-box">' + e.message + '</div>'; }
+}
+
+function renderIndustry(data, container) {
+    var html = '<div class="card glass"><div class="grid grid-3"><div class="stat"><div class="value">' + (data.total_findings || 0) + '</div><div class="label">Findings</div></div><div class="stat"><div class="value">' + (data.opportunities || []).length + '</div><div class="label">Opportunities</div></div><div class="stat"><div class="value">' + ((data.visibility_score || 0) * 100).toFixed(1) + '%</div><div class="label">Visibility</div></div></div></div>';
+    if (data.findings && data.findings.length > 0) {
+        html += '<div class="card glass"><h2>Findings</h2>';
+        data.findings.forEach(function(f) {
+            var sev = f.severity === 'high' ? 'severity-high' : f.severity === 'medium' ? 'severity-medium' : 'severity-low';
+            var badge = f.severity === 'high' ? 'badge-danger' : f.severity === 'medium' ? 'badge-warning' : 'badge-success';
+            html += '<div class="' + sev + '" style="padding:12px 16px;margin-bottom:8px;"><strong>' + f.title + '</strong> <span class="badge ' + badge + '" style="margin-left:8px;">' + (f.severity || 'medium') + '</span><div style="margin-top:4px;color:var(--text-secondary);font-size:0.9rem;">' + (f.description || '') + '</div>';
+            if (f.recommendation) html += '<div style="margin-top:4px;font-size:0.85rem;"><strong>Recommendation:</strong> ' + f.recommendation + '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+    if (data.opportunities && data.opportunities.length > 0) {
+        html += '<div class="card glass"><h2>Opportunities</h2>';
+        data.opportunities.forEach(function(o) {
+            html += '<div class="severity-medium" style="padding:12px 16px;margin-bottom:8px;"><strong>' + o.topic + '</strong> <span class="badge badge-warning" style="margin-left:8px;">Impact ' + ((o.impact || 0.5) * 100).toFixed(0) + '%</span><div style="color:var(--text-secondary);font-size:0.9rem;margin-top:4px;">' + (o.recommendation || '') + '</div></div>';
+        });
+        html += '</div>';
+    }
+    if (!html) html = '<div class="empty-state"><h2>No Results</h2><p>Ensure the dataset is valid.</p></div>';
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}

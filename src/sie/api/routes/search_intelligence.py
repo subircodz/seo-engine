@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import select
 
 from sie.domain.engines.search_aio import analyze_aio_observations
 from sie.domain.engines.search_geo import analyze_geo_observations
@@ -22,6 +23,11 @@ from sie.domain.services.search_intelligence import (
 from sie.domain.services.search_opportunity import SearchOpportunityResult
 
 router = APIRouter(prefix="/api/search-intelligence", tags=["search-intelligence"])
+
+
+def _industry_service(request: Request) -> IndustryIntelligenceService:
+    """Get industry intelligence service from app state."""
+    return request.app.state.industry_intelligence_service
 
 
 # ── Request / Response models ────────────────────────────────────────────
@@ -640,6 +646,7 @@ class IndustryIntelligenceResponse(BaseModel):
 @router.post("/industry/analyze", response_model=IndustryIntelligenceResponse)
 async def analyze_industry_intelligence(
     body: IndustryIntelligenceRequest,
+    request: Request,
 ) -> IndustryIntelligenceResponse:
     """Analyze industry intelligence for a dataset.
 
@@ -651,24 +658,16 @@ async def analyze_industry_intelligence(
     except ValueError:
         industry_type = IndustryType.GENERAL
 
-    service = IndustryIntelligenceService()
+    svc = _industry_service(request)
     config = IndustryAnalysisConfig(
         industry_type=industry_type,
         target_domain=body.target_domain,
         min_entity_confidence=body.confidence_threshold,
     )
 
-    from sqlalchemy import select
-
-    from sie.config import get_settings
     from sie.infrastructure.models.search_orm import SearchDatasetRow
-    from sie.infrastructure.persistence.database import Database
 
-    settings = get_settings()
-    db = Database(settings.database_url)
-    session_factory = db.session_factory
-
-    async with session_factory() as session:
+    async with request.app.state.database.session_factory() as session:
         row = (
             await session.execute(
                 select(SearchDatasetRow).where(SearchDatasetRow.id == body.dataset_id)
@@ -676,21 +675,19 @@ async def analyze_industry_intelligence(
         ).scalar_one_or_none()
 
         if row is None:
-            raise ValueError(f"Dataset {body.dataset_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Dataset {body.dataset_id} not found"
+            )
 
-        dataset = type(
-            "SearchDataset",
-            (),
-            {
-                "dataset_id": body.dataset_id,
-                "name": row.name,
-                "source": row.source,
-                "total_keywords": row.total_keywords,
-                "total_observations": row.total_observations,
-            },
-        )()
+        dataset = SearchDataset(
+            dataset_id=body.dataset_id,
+            name=row.name,
+            source=row.source,
+            total_keywords=row.total_keywords,
+            total_observations=row.total_observations,
+        )
 
-    result = service.analyze_with_content(
+    result = svc.analyze_with_content(
         dataset=dataset,
         content=body.content,
         config=config,

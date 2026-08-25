@@ -50,9 +50,7 @@ class ResourceMetric:
         if self.count < 0:
             raise ValueError(f"count must be >= 0, got {self.count}")
         if self.total_size_bytes < 0:
-            raise ValueError(
-                f"total_size_bytes must be >= 0, got {self.total_size_bytes}"
-            )
+            raise ValueError(f"total_size_bytes must be >= 0, got {self.total_size_bytes}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,9 +105,7 @@ class PagePerformanceMetrics:
 
     def __post_init__(self) -> None:
         if self.html_size_bytes < 0:
-            raise ValueError(
-                f"html_size_bytes must be >= 0, got {self.html_size_bytes}"
-            )
+            raise ValueError(f"html_size_bytes must be >= 0, got {self.html_size_bytes}")
         if not 0.0 <= self.content_efficiency <= 1.0:
             raise ValueError(
                 f"content_efficiency must be in [0.0, 1.0], got {self.content_efficiency}"

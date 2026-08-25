@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Dataset - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1 id="dataset-title">Loading...</h1>
+<div id="error-container"></div>
+
+<div class="grid grid-4" style="margin-bottom: 16px;" id="stats-row">
+    <div class="card glass stat"><div class="value" id="stat-keywords">&mdash;</div><div class="label">Keywords</div></div>
+    <div class="card glass stat"><div class="value" id="stat-observations">&mdash;</div><div class="label">Observations</div></div>
+    <div class="card glass stat"><div class="value" id="stat-visibility">&mdash;</div><div class="label">Visibility</div></div>
+    <div class="card glass stat"><div class="value" id="stat-top10">&mdash;</div><div class="label">Top 10</div></div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card glass">
+        <div class="section-header"><h2>Keyword Rankings</h2></div>
+        <div id="keywords-table"><div class="loading">Loading analytics...</div></div>
+    </div>
+    <div class="card glass">
+        <div class="section-header"><h2>Competitors</h2></div>
+        <div id="competitors-table"><div class="loading">Loading...</div></div>
+    </div>
+</div>
+
+<div class="card glass" style="margin-top: 16px;">
+    <div class="section-header">
+        <h2>Ranking Observations</h2>
+        <a id="run-analysis-btn" class="btn btn-sm btn-primary">Run Analysis</a>
+    </div>
+    <div id="observations-table"><div class="loading">Loading...</div></div>
+</div>
+
+<script>
+var datasetId = '{{ dataset_id }}';
+document.getElementById('run-analysis-btn').href = '/intelligence?dataset=' + datasetId;
+
+async function loadDataset() {
+    try {
+        var resp = await fetch('/api/search/datasets/' + datasetId);
+        if (!resp.ok) {
+            if (resp.status === 404) { document.getElementById('error-container').innerHTML = '<div class="error-box">Dataset not found.</div>'; document.getElementById('dataset-title').textContent = 'Not Found'; return; }
+            throw new Error('Failed to load');
+        }
+        var data = await resp.json();
+        document.getElementById('dataset-title').textContent = data.name;
+        document.title = data.name + ' - SIE';
+        var html = '<table><thead><tr><th>Keyword</th><th>URL</th><th>Position</th><th>Date</th></tr></thead><tbody>';
+        data.observations.forEach(function(o) {
+            var badge = o.position <= 3 ? 'badge-success' : o.position <= 10 ? 'badge-warning' : 'badge-info';
+            html += '<tr><td><strong>' + o.keyword + '</strong></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + o.target_url + '</td><td><span class="badge ' + badge + '">#' + o.position + '</span></td><td>' + new Date(o.observed_at).toLocaleDateString() + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        if (data.observations.length === 0) html = '<div class="empty-state"><p>No observations.</p></div>';
+        document.getElementById('observations-table').innerHTML = html;
+    } catch (e) { document.getElementById('error-container').innerHTML = '<div class="error-box">' + e.message + '</div>'; }
+}
+
+async function loadAnalytics() {
+    try {
+        var resp = await fetch('/api/search/datasets/' + datasetId + '/analytics');
+        if (!resp.ok) throw new Error('Analytics unavailable');
+        var data = await resp.json();
+        var m = data.metrics;
+        document.getElementById('stat-keywords').textContent = m.total_keywords;
+        document.getElementById('stat-observations').textContent = m.total_observations;
+        document.getElementById('stat-visibility').textContent = (m.visibility_score * 100).toFixed(1) + '%';
+        document.getElementById('stat-top10').textContent = m.top_10_count;
+        var kwHtml = '<table><thead><tr><th>Keyword</th><th>Best</th><th>Latest</th><th>Avg</th></tr></thead><tbody>';
+        data.keywords.forEach(function(k) { kwHtml += '<tr><td>' + k.keyword + '</td><td>#' + k.best_position + '</td><td>#' + k.latest_position + '</td><td>' + k.average_position.toFixed(1) + '</td></tr>'; });
+        kwHtml += '</tbody></table>';
+        document.getElementById('keywords-table').innerHTML = kwHtml;
+        var compHtml = '<table><thead><tr><th>Domain</th><th>Keywords</th><th>Avg Pos</th></tr></thead><tbody>';
+        data.competitors.forEach(function(c) { compHtml += '<tr><td><strong>' + c.competitor_domain + '</strong></td><td>' + c.keyword_count + '</td><td>' + c.average_position.toFixed(1) + '</td></tr>'; });
+        compHtml += '</tbody></table>';
+        if (data.competitors.length === 0) compHtml = '<div class="empty-state"><p>No competitor data.</p></div>';
+        document.getElementById('competitors-table').innerHTML = compHtml;
+    } catch (e) {
+        document.getElementById('keywords-table').innerHTML = '<div class="empty-state"><p>Analytics not available.</p></div>';
+        document.getElementById('competitors-table').innerHTML = '<div class="empty-state"><p>No competitor data.</p></div>';
+    }
+}
+loadDataset();
+loadAnalytics();
+</script>
+{% endblock %}

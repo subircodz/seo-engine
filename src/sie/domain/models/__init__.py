@@ -34,6 +34,7 @@ from sie.domain.models.diagnosis import (
     DiagnosisSeverity,
 )
 from sie.domain.models.events import CrawlEvent, CrawlFinished, ErrorOccurred, PageFetchCompleted
+from sie.domain.models.evidence import Evidence, EvidenceType, Provenance, SourceType
 from sie.domain.models.industry import (
     CasinoAnalysisResult,
     CasinoEntity,
@@ -180,6 +181,8 @@ __all__ = [
     "EntityType",
     "EntityVisibilityResult",
     "ErrorOccurred",
+    "Evidence",
+    "EvidenceType",
     "FetchedPage",
     "FreshnessAnalysis",
     "GEODatasetMetrics",
@@ -212,6 +215,7 @@ __all__ = [
     "PerformanceFinding",
     "PerformanceResult",
     "PerformanceSeverity",
+    "Provenance",
     "QualityTier",
     "RankingObservation",
     "ReadabilityMetrics",
@@ -232,6 +236,7 @@ __all__ = [
     "SearchResult",
     "SearchResultItem",
     "SearchSERPFeature",
+    "SourceType",
     "StructuredDataAnalysis",
     "TopicCluster",
     "calculate_priority_score",

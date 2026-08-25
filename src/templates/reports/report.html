@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>SEO Intelligence Report</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 0.75in 0.85in;
+            @top-left { content: "SEO Intelligence Engine"; font-size: 9pt; color: #666; }
+            @top-right { content: "Confidential"; font-size: 9pt; color: #999; }
+            @bottom-left { content: "{{ intelligence_id | default('') }}"; font-size: 8pt; color: #999; }
+            @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #666; }
+        }
+        @page:first {
+            @top-left { content: none; }
+            @top-right { content: none; }
+            @bottom-right { content: "Page " counter(page); }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.5;
+            color: #1e293b;
+            font-size: 10pt;
+        }
+        .cover {
+            text-align: center;
+            padding: 60px 0 40px 0;
+            border-bottom: 3px solid #2563eb;
+            margin-bottom: 30px;
+            page-break-after: always;
+        }
+        .cover h1 { font-size: 24pt; color: #1e293b; margin-bottom: 8px; }
+        .cover .subtitle { font-size: 12pt; color: #64748b; margin-bottom: 24px; }
+        .cover .meta { font-size: 10pt; color: #94a3b8; margin-top: 20px; }
+        .cover .meta table { margin: 0 auto; border-collapse: collapse; }
+        .cover .meta td { padding: 4px 16px; text-align: left; }
+        .cover .meta td:first-child { font-weight: 600; color: #475569; }
+        h2 {
+            font-size: 14pt;
+            color: #1e40af;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 6px;
+            margin: 24px 0 12px 0;
+        }
+        h3 { font-size: 11pt; color: #334155; margin: 16px 0 8px 0; }
+        table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 9.5pt; }
+        th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; }
+        th { background-color: #1e40af; color: white; font-weight: 600; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .finding {
+            border: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #94a3b8;
+        }
+        .finding.severity-high { border-left-color: #dc2626; background-color: #fef2f2; }
+        .finding.severity-medium { border-left-color: #d97706; background-color: #fffbeb; }
+        .finding.severity-low { border-left-color: #16a34a; background-color: #f0fdf4; }
+        .finding .title { font-weight: 700; font-size: 10.5pt; margin-bottom: 4px; }
+        .finding .description { color: #475569; font-size: 9.5pt; margin-bottom: 6px; }
+        .finding .recommendation { font-size: 9pt; color: #334155; }
+        .finding .recommendation strong { color: #1e40af; }
+        .evidence-sources { margin-top: 6px; }
+        .evidence-sources strong { font-size: 9pt; color: #64748b; }
+        .tag {
+            display: inline-block;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 8pt;
+            color: #475569;
+            margin: 2px 4px 2px 0;
+        }
+        .summary-box { background: #f8fafc; padding: 16px; border-radius: 4px; margin: 16px 0; border: 1px solid #e2e8f0; }
+        .summary-box p { margin-bottom: 8px; }
+        .section-break { page-break-before: always; }
+    </style>
+</head>
+<body>
+    <div class="cover">
+        <h1>SEO Intelligence Report</h1>
+        <div class="subtitle">Comprehensive Search Intelligence Analysis</div>
+        <div class="meta">
+            <table>
+                {% if intelligence_id %}<tr><td>Report ID</td><td>{{ intelligence_id }}</td></tr>{% endif %}
+                <tr><td>Generated</td><td>{{ generated_at }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <section id="executive-summary">
+        <h2>Executive Summary</h2>
+        <div class="summary-box">
+            <p>{{ summary | safe }}</p>
+        </div>
+    </section>
+
+    {% if findings %}
+    <section id="findings" class="section-break">
+        <h2>Findings</h2>
+        {% for finding in findings %}
+        <div class="finding severity-{{ finding.severity | default('medium') }}">
+            <div class="title">{{ finding.title }}</div>
+            <div class="description">{{ finding.description }}</div>
+            {% if finding.evidence_sources %}
+            <div class="evidence-sources">
+                <strong>Evidence:</strong>
+                {% for source in finding.evidence_sources %}
+                    <span class="tag">{{ source }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if finding.recommendation %}
+            <div class="recommendation"><strong>Recommendation:</strong> {{ finding.recommendation }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if recommendations %}
+    <section id="recommendations">
+        <h2>Recommendations &amp; Action Items</h2>
+        <table>
+            <thead>
+                <tr><th>#</th><th>Title</th><th>Description</th><th>Priority</th></tr>
+            </thead>
+            <tbody>
+            {% for rec in recommendations %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ rec.title }}</strong></td>
+                    <td>{{ rec.description }}</td>
+                    <td>{{ rec.priority }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    <section id="metadata" class="section-break">
+        <h2>Report Metadata</h2>
+        <table>
+            <tr><th>Generated</th><td>{{ generated_at }}</td></tr>
+            {% if intelligence_id %}
+            <tr><th>Report ID</th><td>{{ intelligence_id }}</td></tr>
+            {% endif %}
+            <tr><th>Report Type</th><td>SEO Intelligence Analysis</td></tr>
+        </table>
+    </section>
+</body>
+</html>

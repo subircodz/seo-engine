@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Datasets - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1>Search Datasets</h1>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <div class="section-header">
+        <h2>All Datasets</h2>
+        <span id="dataset-count" class="badge badge-info">0</span>
+    </div>
+    <div id="datasets-list"><div class="loading">Loading...</div></div>
+</div>
+
+<div class="card glass">
+    <h2>Import Data</h2>
+    <p style="color: var(--text-secondary); margin: 8px 0 14px; font-size: 0.85rem;">
+        Import search-ranking data via CSV or JSON. See <a href="/docs" target="_blank" style="color: var(--primary);">API docs</a> for schema.
+    </p>
+    <div class="grid grid-2">
+        <div>
+            <h3>CSV Import</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                <code>POST /api/search/import/csv</code> with CSV file upload.
+            </p>
+        </div>
+        <div>
+            <h3>JSON Import</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                <code>POST /api/search/import/json</code> with JSON array.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadDatasets() {
+    try {
+        var resp = await fetch('/api/search/datasets?limit=100');
+        if (!resp.ok) throw new Error('Failed to load');
+        var data = await resp.json();
+        document.getElementById('dataset-count').textContent = data.total + ' dataset' + (data.total !== 1 ? 's' : '');
+        var container = document.getElementById('datasets-list');
+        if (data.datasets.length === 0) {
+            container.innerHTML = '<div class="empty-state"><h2>No Datasets</h2><p>Import search data or <a href="/search" style="color:var(--primary)">run a live search</a> to create your first dataset.</p></div>';
+            return;
+        }
+        var html = '<table><thead><tr><th>Name</th><th>ID</th><th>Keywords</th><th>Observations</th><th>Actions</th></tr></thead><tbody>';
+        data.datasets.forEach(function(d) {
+            html += '<tr><td><strong>' + d.name + '</strong></td><td style="font-family:monospace;font-size:0.8rem;">' + d.dataset_id + '</td><td>' + d.total_keywords + '</td><td>' + d.total_observations + '</td><td><a href="/datasets/' + d.dataset_id + '" class="btn btn-sm btn-primary">View</a> <button class="btn btn-sm btn-danger" onclick="deleteDataset(\'' + d.dataset_id + '\')">Delete</button></td></tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        document.getElementById('datasets-list').innerHTML = '<div class="error-box">' + e.message + '</div>';
+    }
+}
+async function deleteDataset(id) {
+    if (!confirm('Delete this dataset and all associated records?')) return;
+    try {
+        var resp = await fetch('/api/search/datasets/' + id, { method: 'DELETE' });
+        if (resp.ok) loadDatasets();
+        else alert('Failed to delete');
+    } catch (e) { alert('Error: ' + e.message); }
+}
+loadDatasets();
+</script>
+{% endblock %}

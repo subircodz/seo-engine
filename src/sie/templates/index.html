@@ -1,15 +1,124 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ settings.app_name }}</title>
-  </head>
-  <body>
-    <main>
-      <h1>{{ settings.app_name }}</h1>
-      <p>Version {{ settings.version }} &middot; {{ settings.environment }} environment</p>
-      <p>Service is running. API docs: <a href="/docs">/docs</a> &middot; Health: <a href="/health">/health</a></p>
-    </main>
-  </body>
-</html>
+{% extends "base.html" %}
+{% block title %}Dashboard - SEO Intelligence Engine{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="grid grid-4" style="margin-bottom: 20px;">
+    <div class="card glass stat">
+        <div class="value" id="total-datasets">&mdash;</div>
+        <div class="label">Datasets</div>
+    </div>
+    <div class="card glass stat">
+        <div class="value" id="total-keywords">&mdash;</div>
+        <div class="label">Keywords</div>
+    </div>
+    <div class="card glass stat">
+        <div class="value" id="provider-status">&mdash;</div>
+        <div class="label">Search Provider</div>
+    </div>
+    <div class="card glass stat">
+        <div class="value" id="app-version">&mdash;</div>
+        <div class="label">Version</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card glass">
+        <div class="section-header">
+            <h2>Recent Datasets</h2>
+            <a href="/datasets" class="btn btn-sm btn-secondary">View All</a>
+        </div>
+        <div id="recent-datasets"><div class="loading">Loading...</div></div>
+    </div>
+    <div class="card glass">
+        <h2>Quick Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+            <a href="/search" class="btn btn-primary">&#128269; Live Search</a>
+            <a href="/datasets" class="btn btn-secondary">&#128202; View Datasets</a>
+            <a href="/intelligence" class="btn btn-secondary">&#9881; Intelligence Analysis</a>
+            <a href="/industry" class="btn btn-secondary">&#127981; Industry Intelligence</a>
+            <a href="/reports" class="btn btn-secondary">&#128196; Reports</a>
+        </div>
+    </div>
+</div>
+
+<div class="card glass" style="margin-top: 16px;">
+    <h2>System Status</h2>
+    <table style="margin-top: 10px;">
+        <thead><tr><th>Component</th><th>Status</th><th>Details</th></tr></thead>
+        <tbody>
+            <tr>
+                <td>Application</td>
+                <td><span class="badge badge-success">Running</span></td>
+                <td id="status-app-name">&mdash;</td>
+            </tr>
+            <tr>
+                <td>Environment</td>
+                <td><span class="badge badge-info" id="status-env-badge">&mdash;</span></td>
+                <td id="status-env-detail">&mdash;</td>
+            </tr>
+            <tr>
+                <td>Database</td>
+                <td><span class="badge badge-success">Connected</span></td>
+                <td>SQLite</td>
+            </tr>
+            <tr>
+                <td>Search Provider</td>
+                <td id="status-provider-badge">&mdash;</td>
+                <td id="status-provider-detail">&mdash;</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function loadDashboard() {
+    try {
+        const resp = await fetch('/api/search/datasets?limit=5');
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('total-datasets').textContent = data.total;
+            let totalKw = 0;
+            data.datasets.forEach(d => totalKw += d.total_keywords);
+            document.getElementById('total-keywords').textContent = totalKw.toLocaleString();
+            const container = document.getElementById('recent-datasets');
+            if (data.datasets.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No datasets yet.</p><a href="/search" class="btn btn-primary btn-sm" style="margin-top:8px">Start a Search</a></div>';
+            } else {
+                let html = '<table><thead><tr><th>Name</th><th>Keywords</th><th></th></tr></thead><tbody>';
+                data.datasets.forEach(d => {
+                    html += '<tr><td><strong>' + d.name + '</strong></td><td>' + d.total_keywords + '</td><td><a href="/datasets/' + d.dataset_id + '" class="btn btn-sm btn-secondary">View</a></td></tr>';
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            }
+        }
+    } catch (e) {
+        document.getElementById('recent-datasets').innerHTML = '<div class="error-box">Failed to load datasets</div>';
+    }
+
+    try {
+        const resp = await fetch('/health');
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('app-version').textContent = data.version || '\u2014';
+            document.getElementById('status-app-name').textContent = (data.app_name || 'SIE') + ' v' + (data.version || '');
+            document.getElementById('status-env-badge').textContent = data.environment || 'development';
+            document.getElementById('status-env-detail').textContent = 'Debug: ' + (data.debug !== false);
+            var sp = data.search_provider || {};
+            var providerLabel = sp.enabled ? sp.provider_name : 'disabled';
+            document.getElementById('provider-status').textContent = providerLabel;
+            document.getElementById('status-provider-badge').innerHTML = sp.enabled
+                ? '<span class="badge badge-success">Enabled</span>'
+                : '<span class="badge badge-warning">Disabled</span>';
+            document.getElementById('status-provider-detail').textContent = sp.enabled
+                ? 'Provider: ' + (sp.provider_name || 'http') + (sp.base_url ? ' (' + sp.base_url + ')' : ' (no URL)')
+                : 'Mock mode \u2014 set SIE_SEARCH_PROVIDER__ENABLED=true for real SERP data';
+        }
+    } catch (e) {
+        document.getElementById('provider-status').textContent = 'Unknown';
+    }
+}
+loadDashboard();
+</script>
+{% endblock %}

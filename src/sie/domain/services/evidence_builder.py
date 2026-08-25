@@ -213,14 +213,11 @@ def _build_content_evidence(
         for word, count, _density in m.keywords.top_keywords:
             keyword_counter[word] += count
     top_keywords = [
-        {"keyword": word, "count": count}
-        for word, count in keyword_counter.most_common(10)
+        {"keyword": word, "count": count} for word, count in keyword_counter.most_common(10)
     ]
 
     # Keyword stuffing detection
-    stuffing_count = sum(
-        1 for m in content_metrics if m.keywords.keyword_stuffing_score > 0.05
-    )
+    stuffing_count = sum(1 for m in content_metrics if m.keywords.keyword_stuffing_score > 0.05)
 
     # Duplicate pairs
     dup_pairs: list[dict[str, str]] = []
@@ -245,9 +242,7 @@ def _build_content_evidence(
         quality_distribution=dict(quality_dist),
         duplicate_pair_count=len(dup_pairs),
         duplicate_pairs=tuple(dup_pairs[:10]),
-        avg_readability_score=round(
-            statistics.mean(readability_scores), 1
-        )
+        avg_readability_score=round(statistics.mean(readability_scores), 1)
         if readability_scores
         else 0.0,
         images_without_alt_count=images_without_alt,

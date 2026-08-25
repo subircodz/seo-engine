@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}SEO Intelligence Engine{% endblock %}</title>
+    <style>
+        /* ── Theme System ─────────────────────────────────────────────── */
+        :root {
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --blur: 16px;
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ── Dark Theme (default) ─────────────────────────────────── */
+        [data-theme="dark"] {
+            --bg: #0a0e1a;
+            --bg-gradient: linear-gradient(135deg, #0a0e1a 0%, #0f1629 50%, #0a0e1a 100%);
+            --surface: rgba(255, 255, 255, 0.04);
+            --surface-hover: rgba(255, 255, 255, 0.07);
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --primary: #60a5fa;
+            --primary-dim: rgba(96, 165, 250, 0.15);
+            --primary-glow: rgba(96, 165, 250, 0.25);
+            --success: #34d399;
+            --success-dim: rgba(52, 211, 153, 0.15);
+            --warning: #fbbf24;
+            --warning-dim: rgba(251, 191, 36, 0.15);
+            --danger: #f87171;
+            --danger-dim: rgba(248, 113, 113, 0.15);
+            --info: #67e8f9;
+            --info-dim: rgba(103, 232, 249, 0.15);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --input-border: rgba(255, 255, 255, 0.1);
+            --table-stripe: rgba(255, 255, 255, 0.02);
+            --nav-bg: rgba(10, 14, 26, 0.85);
+            --nav-border: rgba(255, 255, 255, 0.06);
+            --scrollbar-track: rgba(255, 255, 255, 0.03);
+            --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+        }
+
+        /* ── Light Theme ──────────────────────────────────────────── */
+        [data-theme="light"] {
+            --bg: #f0f2f5;
+            --bg-gradient: linear-gradient(135deg, #f0f2f5 0%, #e8ecf1 50%, #f0f2f5 100%);
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-hover: rgba(255, 255, 255, 0.9);
+            --glass: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            --text: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --primary: #2563eb;
+            --primary-dim: rgba(37, 99, 235, 0.08);
+            --primary-glow: rgba(37, 99, 235, 0.15);
+            --success: #16a34a;
+            --success-dim: rgba(22, 163, 74, 0.08);
+            --warning: #d97706;
+            --warning-dim: rgba(217, 119, 6, 0.08);
+            --danger: #dc2626;
+            --danger-dim: rgba(220, 38, 38, 0.08);
+            --info: #0891b2;
+            --info-dim: rgba(8, 145, 178, 0.08);
+            --input-bg: rgba(255, 255, 255, 0.8);
+            --input-border: rgba(0, 0, 0, 0.12);
+            --table-stripe: rgba(0, 0, 0, 0.02);
+            --nav-bg: rgba(240, 242, 245, 0.9);
+            --nav-border: rgba(0, 0, 0, 0.06);
+            --scrollbar-track: rgba(0, 0, 0, 0.03);
+            --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+        }
+
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font);
+            background: var(--bg-gradient);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background var(--transition), color var(--transition);
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+
+        /* ── Glass Card ───────────────────────────────────────────── */
+        .glass {
+            background: var(--glass);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            box-shadow: var(--glass-shadow);
+            transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+        }
+
+        /* ── Navigation ───────────────────────────────────────────── */
+        nav {
+            position: sticky; top: 0; z-index: 100;
+            background: var(--nav-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--nav-border);
+            padding: 0 24px;
+            display: flex; align-items: center;
+            height: 56px;
+            transition: background var(--transition), border-color var(--transition);
+        }
+        nav .brand {
+            font-weight: 700; font-size: 1.05rem;
+            color: var(--primary);
+            text-decoration: none; margin-right: 28px;
+            letter-spacing: -0.02em;
+        }
+        nav a {
+            color: var(--text-secondary); text-decoration: none;
+            padding: 6px 14px; border-radius: var(--radius-sm);
+            font-size: 0.85rem; font-weight: 500;
+            transition: all var(--transition);
+        }
+        nav a:hover { color: var(--text); background: var(--surface-hover); }
+        nav a.active { color: var(--primary); background: var(--primary-dim); }
+        nav .spacer { flex: 1; }
+        nav .theme-toggle {
+            background: var(--surface); border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm); padding: 6px 10px;
+            color: var(--text-secondary); cursor: pointer; font-size: 1rem;
+            transition: all var(--transition);
+        }
+        nav .theme-toggle:hover { background: var(--surface-hover); color: var(--text); }
+
+        /* ── Layout ───────────────────────────────────────────────── */
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.02em; }
+        h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 10px; }
+        h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; }
+
+        /* ── Cards ────────────────────────────────────────────────── */
+        .card { padding: 20px; margin-bottom: 16px; }
+        .card:hover { border-color: rgba(255,255,255,0.12); }
+
+        /* ── Grid ─────────────────────────────────────────────────── */
+        .grid { display: grid; gap: 16px; }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        /* ── Stats ────────────────────────────────────────────────── */
+        .stat { text-align: center; padding: 16px; }
+        .stat .value { font-size: 2rem; font-weight: 700; color: var(--primary); letter-spacing: -0.03em; }
+        .stat .label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* ── Tables ───────────────────────────────────────────────── */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--glass-border); }
+        th {
+            font-weight: 600; font-size: 0.8rem;
+            color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;
+            background: var(--surface);
+        }
+        tr:hover { background: var(--surface-hover); }
+
+        /* ── Badges ───────────────────────────────────────────────── */
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: var(--success-dim); color: var(--success); }
+        .badge-warning { background: var(--warning-dim); color: var(--warning); }
+        .badge-danger { background: var(--danger-dim); color: var(--danger); }
+        .badge-info { background: var(--info-dim); color: var(--info); }
+        .badge-primary { background: var(--primary-dim); color: var(--primary); }
+
+        /* ── Buttons ──────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: var(--radius-sm);
+            border: none; font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; text-decoration: none;
+            transition: all var(--transition);
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--glass-border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid transparent; }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+
+        /* ── Forms ────────────────────────────────────────────────── */
+        input, select, textarea {
+            width: 100%; padding: 8px 12px;
+            background: var(--input-bg); border: 1px solid var(--input-border);
+            border-radius: var(--radius-sm); color: var(--text);
+            font-family: var(--font); font-size: 0.9rem;
+            transition: all var(--transition);
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
+
+        /* ── Severity Borders ─────────────────────────────────────── */
+        .severity-high { border-left: 4px solid var(--danger); }
+        .severity-medium { border-left: 4px solid var(--warning); }
+        .severity-low { border-left: 4px solid var(--success); }
+
+        /* ── Utility ──────────────────────────────────────────────── */
+        .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+        .empty-state h2 { color: var(--text-secondary); }
+        .loading { text-align: center; padding: 24px; color: var(--text-muted); }
+        .error-box { background: var(--danger-dim); border: 1px solid var(--danger); color: var(--danger); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; }
+        .success-box { background: var(--success-dim); border: 1px solid var(--success); color: var(--success); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; }
+        .evidence-tag { display: inline-block; background: var(--surface); border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary); margin: 2px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .section-header h2 { margin-bottom: 0; }
+        code { background: var(--surface); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+        footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--glass-border); margin-top: 48px; }
+        footer a { color: var(--text-secondary); text-decoration: none; }
+        footer a:hover { color: var(--primary); }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .container { padding: 16px; }
+            nav { padding: 0 12px; flex-wrap: wrap; height: auto; min-height: 48px; }
+            nav a { padding: 4px 8px; font-size: 0.8rem; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav>
+        <a href="/" class="brand">SIE</a>
+        <a href="/" {% if active_page == 'dashboard' %}class="active"{% endif %}>Dashboard</a>
+        <a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a>
+        <a href="/datasets" {% if active_page == 'datasets' %}class="active"{% endif %}>Datasets</a>
+        <a href="/intelligence" {% if active_page == 'intelligence' %}class="active"{% endif %}>Intelligence</a>
+        <a href="/industry" {% if active_page == 'industry' %}class="active"{% endif %}>Industry</a>
+        <a href="/reports" {% if active_page == 'reports' %}class="active"{% endif %}>Reports</a>
+        <span class="spacer"></span>
+        <a href="/docs" target="_blank">API</a>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+            <span id="theme-icon">&#9790;</span>
+        </button>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        SEO Intelligence Engine &middot; <a href="/health">Health</a> &middot; <a href="/docs">API Docs</a>
+    </footer>
+    <script>
+        (function() {
+            var saved = localStorage.getItem('sie-theme');
+            if (saved) { document.documentElement.setAttribute('data-theme', saved); updateIcon(saved); }
+        })();
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('sie-theme', next);
+            updateIcon(next);
+        }
+        function updateIcon(theme) {
+            var el = document.getElementById('theme-icon');
+            if (el) el.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

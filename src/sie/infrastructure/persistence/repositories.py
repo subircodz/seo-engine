@@ -1521,6 +1521,7 @@ class SqlAlchemyCrawlRunRepository:
                     "title": f.title,
                     "description": f.description,
                     "evidence": list(f.evidence),
+                    "evidence_sources": list(f.evidence_sources),
                     "affected_keywords": list(f.affected_keywords),
                     "affected_urls": list(f.affected_urls),
                     "recommendation": f.recommendation,
@@ -1541,6 +1542,7 @@ class SqlAlchemyCrawlRunRepository:
                     "recommendation": o.recommendation,
                     "impact": o.impact,
                     "effort": o.effort,
+                    "evidence_sources": list(o.evidence_sources),
                 }
             )
 
@@ -1599,6 +1601,9 @@ class SqlAlchemyCrawlRunRepository:
                         title=f["title"],
                         description=f["description"],
                         evidence=tuple(f["evidence"]) if f["evidence"] else (),
+                        evidence_sources=(
+                            tuple(f["evidence_sources"]) if f["evidence_sources"] else ()
+                        ),
                         affected_keywords=(
                             tuple(f["affected_keywords"]) if f["affected_keywords"] else ()
                         ),
@@ -1627,6 +1632,9 @@ class SqlAlchemyCrawlRunRepository:
                         recommendation=o["recommendation"],
                         impact=o["impact"],
                         effort=o["effort"],
+                        evidence_sources=(
+                            tuple(o["evidence_sources"]) if o["evidence_sources"] else ()
+                        ),
                     )
                 )
 

@@ -126,24 +126,16 @@ def analyze_page_performance(
 def _calculate_metrics(page: _PageInput) -> PagePerformanceMetrics:
     """Calculate deterministic performance metrics from page data."""
     text_len = len(page.visible_text)
-    content_efficiency = (
-        min(text_len / page.html_size, 1.0) if page.html_size > 0 else 0.0
-    )
+    content_efficiency = min(text_len / page.html_size, 1.0) if page.html_size > 0 else 0.0
 
     resource_metrics = _build_resource_metrics(page)
     total_resources = page.css_count + page.js_count + page.image_count
     total_resource_size = page.css_total_bytes + page.js_total_bytes + page.image_total_bytes
 
     inline_css_ratio = (
-        page.inline_css_bytes / page.css_total_bytes
-        if page.css_total_bytes > 0
-        else 0.0
+        page.inline_css_bytes / page.css_total_bytes if page.css_total_bytes > 0 else 0.0
     )
-    inline_js_ratio = (
-        page.inline_js_bytes / page.js_total_bytes
-        if page.js_total_bytes > 0
-        else 0.0
-    )
+    inline_js_ratio = page.inline_js_bytes / page.js_total_bytes if page.js_total_bytes > 0 else 0.0
 
     return PagePerformanceMetrics(
         url=page.url,
@@ -192,9 +184,7 @@ def _build_resource_metrics(page: _PageInput) -> list[ResourceMetric]:
     return metrics
 
 
-def _detect_findings(
-    page: _PageInput, metrics: PagePerformanceMetrics
-) -> list[PerformanceFinding]:
+def _detect_findings(page: _PageInput, metrics: PagePerformanceMetrics) -> list[PerformanceFinding]:
     """Detect performance findings based on thresholds."""
     findings: list[PerformanceFinding] = []
 
@@ -226,10 +216,7 @@ def _detect_findings(
                 severity=PerformanceSeverity.HIGH,
                 value=float(page.html_size),
                 threshold=float(_LARGE_HTML_BYTES),
-                description=(
-                    f"HTML document is large "
-                    f"({page.html_size:,} bytes)."
-                ),
+                description=(f"HTML document is large ({page.html_size:,} bytes)."),
                 recommendation="Consider minifying HTML and removing unnecessary markup.",
                 url=page.url,
             )
@@ -296,9 +283,7 @@ def _detect_findings(
     # Image optimization findings
     if page.images_without_alt > 0:
         severity = (
-            PerformanceSeverity.MEDIUM
-            if page.images_without_alt < 5
-            else PerformanceSeverity.HIGH
+            PerformanceSeverity.MEDIUM if page.images_without_alt < 5 else PerformanceSeverity.HIGH
         )
         findings.append(
             PerformanceFinding(
@@ -351,9 +336,7 @@ def _detect_findings(
     return findings
 
 
-def _calculate_score(
-    metrics: PagePerformanceMetrics, findings: list[PerformanceFinding]
-) -> float:
+def _calculate_score(metrics: PagePerformanceMetrics, findings: list[PerformanceFinding]) -> float:
     """Calculate deterministic performance score (0.0-1.0, higher is better).
 
     Starts at 1.0 and deducts points for negative findings based on severity.
@@ -436,18 +419,12 @@ def analyze_dataset_performance(
 
     # Top 10 largest pages
     sorted_by_size = sorted(results, key=lambda r: r.metrics.html_size_bytes, reverse=True)
-    largest = tuple(
-        (r.url, r.metrics.html_size_bytes) for r in sorted_by_size[:10]
-    )
+    largest = tuple((r.url, r.metrics.html_size_bytes) for r in sorted_by_size[:10])
 
     # Top 10 least efficient
-    with_efficiency = [
-        r for r in results if r.metrics.html_size_bytes > 0
-    ]
+    with_efficiency = [r for r in results if r.metrics.html_size_bytes > 0]
     sorted_by_eff = sorted(with_efficiency, key=lambda r: r.metrics.content_efficiency)
-    least_eff = tuple(
-        (r.url, r.metrics.content_efficiency) for r in sorted_by_eff[:10]
-    )
+    least_eff = tuple((r.url, r.metrics.content_efficiency) for r in sorted_by_eff[:10])
 
     return PerformanceDatasetMetrics(
         dataset_id=dataset_id,

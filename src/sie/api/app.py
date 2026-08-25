@@ -11,6 +11,7 @@ from sie.api.routes import (
     crawl,
     diagnosis,
     intelligence,
+    report,
     search,
     search_intelligence,
     search_performance,
@@ -22,6 +23,7 @@ from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
 from sie.domain.services.crawl_service import CrawlService
 from sie.domain.services.diagnosis_service import DiagnosisService
+from sie.domain.services.industry_intelligence import IndustryIntelligenceService
 from sie.domain.services.intelligence_service import IntelligenceService
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
@@ -108,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             provider_name=llm_cfg.base_url if llm_cfg.enabled else "none",
         )
         app.state.repository = repo
+        app.state.industry_intelligence_service = IndustryIntelligenceService()
 
         # Search provider — created via the provider factory
         from sie.infrastructure.search.provider_factory import create_search_provider
@@ -136,6 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(crawl.router)
     app.include_router(diagnosis.router)
     app.include_router(intelligence.router)
+    app.include_router(report.router)
     app.include_router(search.router)
     app.include_router(search_intelligence.router)
     app.include_router(search_performance.router)

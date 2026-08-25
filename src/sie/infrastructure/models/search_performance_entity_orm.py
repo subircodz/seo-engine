@@ -27,9 +27,7 @@ class PerformanceFindingRow(Base):
     value: Mapped[float] = mapped_column(Float, nullable=False)
     threshold: Mapped[float] = mapped_column(Float, nullable=False)
     description: Mapped[str] = mapped_column(String(2048), nullable=False, default="")
-    recommendation: Mapped[str] = mapped_column(
-        String(2048), nullable=False, default=""
-    )
+    recommendation: Mapped[str] = mapped_column(String(2048), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 

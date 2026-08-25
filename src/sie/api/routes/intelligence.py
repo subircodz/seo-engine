@@ -110,9 +110,7 @@ async def reason_intelligence(body: IntelligenceRequest, request: Request):
     pages = _crawled_pages(request).get(body.run_id)
 
     if pages is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="crawl run not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crawl run not found")
 
     # Get or compute diagnosis
     diagnosis = diag_svc.get_result(body.run_id)
@@ -125,9 +123,7 @@ async def reason_intelligence(body: IntelligenceRequest, request: Request):
 
     from sie.domain.services.evidence_builder import build_evidence_package
 
-    status_dist: dict[str, int] = dict(
-        Counter(str(p.status_code) for p in pages)
-    )
+    status_dist: dict[str, int] = dict(Counter(str(p.status_code) for p in pages))
 
     # Compute technical audit for evidence
     from sie.domain.engines.technical_seo import run_technical_audit

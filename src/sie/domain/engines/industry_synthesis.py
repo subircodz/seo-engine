@@ -161,6 +161,7 @@ def synthesize_industry_findings(inputs: _IndustryInputs) -> IndustryIntelligenc
                     "Multiple pages compete for the same keywords. "
                     "Consolidate content or implement canonical tags."
                 ),
+                evidence_sources=("cannibalization_analysis.json",),
                 recommendation="Review cannibalized keywords and fix content overlap.",
                 industry_type=industry_type,
             )
@@ -179,6 +180,7 @@ def synthesize_industry_findings(inputs: _IndustryInputs) -> IndustryIntelligenc
                     f"{inputs.keywords_not_ranking} of {inputs.total_keywords} "
                     f"keywords ({pct:.0%}) have no current ranking."
                 ),
+                evidence_sources=("search_intelligence_analysis.json",),
                 recommendation="Create or improve content targeting unranked keywords.",
                 industry_type=industry_type,
             )
@@ -235,6 +237,7 @@ def _analyze_ranking_intelligence(
                     f"Visibility score is {inputs.visibility_score:.2f} (below 0.3 threshold). "
                     "Major SEO improvements needed."
                 ),
+                evidence_sources=("search_intelligence_analysis.json",),
                 recommendation="Review content quality, technical SEO, and authority building.",
                 industry_type=industry_type,
             )
@@ -259,6 +262,7 @@ def _analyze_content_intelligence(
                     confidence=0.8,
                     title=f"Weak content coverage for: {', '.join(weak_topics[:3])}",
                     description=f"Content health scores below 0.5 for: {', '.join(weak_topics)}",
+                    evidence_sources=("content_metrics.json",),
                     recommendation="Improve content depth and quality for these topics.",
                     industry_type=industry_type,
                 )
@@ -284,6 +288,7 @@ def _analyze_entity_intelligence(
                     f"Entity coverage is {inputs.entity_coverage:.0%}, indicating "
                     "limited topic authority."
                 ),
+                evidence_sources=("entity_analysis.json",),
                 recommendation="Expand content to cover key industry entities.",
                 industry_type=industry_type,
             )
@@ -298,6 +303,7 @@ def _analyze_entity_intelligence(
                 confidence=0.75,
                 title=f"{inputs.entity_gap_count} entity coverage gaps",
                 description="Competitors mention entities not covered in target content.",
+                evidence_sources=("entity_gap_analysis.json",),
                 recommendation="Add content covering missing entities.",
                 industry_type=industry_type,
             )
@@ -320,6 +326,7 @@ def _analyze_competitor_intelligence(
                 confidence=0.8,
                 title="Competitor presence detected",
                 description=f"Found in {len(inputs.competitor_domains)} competitor domains.",
+                evidence_sources=("competitor_analysis.json",),
                 recommendation="Analyze competitor content strategy and identify gaps.",
                 industry_type=industry_type,
             )
@@ -343,6 +350,7 @@ def _analyze_industry_specific_intelligence(
                 confidence=0.6,
                 title="No industry content provided",
                 description="Industry-specific analysis requires content input.",
+                evidence_sources=("industry_analysis.json",),
                 recommendation="Provide industry-relevant content for analysis.",
                 industry_type=industry_type,
             )
@@ -380,6 +388,7 @@ def _analyze_casino_intelligence(inputs: _IndustryInputs) -> list[IndustryStrate
                     confidence=0.7,
                     title="Limited casino game coverage",
                     description="Content has limited coverage of casino games and topics.",
+                    evidence_sources=("casino_entity_analysis.json",),
                     recommendation="Add content about games, slots, table games, and live dealer.",
                     industry_type=IndustryType.CASINO,
                 )
@@ -394,6 +403,7 @@ def _analyze_casino_intelligence(inputs: _IndustryInputs) -> list[IndustryStrate
                     confidence=0.7,
                     title="Missing bonus content",
                     description="No bonus-specific content detected in target content.",
+                    evidence_sources=("casino_entity_analysis.json",),
                     recommendation="Add content about welcome bonuses, deposit bonuses.",
                     industry_type=IndustryType.CASINO,
                 )
@@ -408,6 +418,7 @@ def _analyze_casino_intelligence(inputs: _IndustryInputs) -> list[IndustryStrate
                     confidence=0.6,
                     title="Missing payment method content",
                     description="No payment method details detected.",
+                    evidence_sources=("casino_entity_analysis.json",),
                     recommendation="Document accepted payment methods and processing times.",
                     industry_type=IndustryType.CASINO,
                 )
@@ -437,6 +448,7 @@ def _analyze_crypto_intelligence(inputs: _IndustryInputs) -> list[IndustryStrate
                     confidence=0.7,
                     title="Missing cryptocurrency content",
                     description="No coins or tokens mentioned in content.",
+                    evidence_sources=("crypto_entity_analysis.json",),
                     recommendation="Add information about supported cryptocurrencies and tokens.",
                     industry_type=IndustryType.CRYPTO,
                 )
@@ -451,6 +463,7 @@ def _analyze_crypto_intelligence(inputs: _IndustryInputs) -> list[IndustryStrate
                     confidence=0.6,
                     title="Missing network information",
                     description="No blockchain network details detected.",
+                    evidence_sources=("crypto_entity_analysis.json",),
                     recommendation="Explain supported networks and transaction methods.",
                     industry_type=IndustryType.CRYPTO,
                 )
@@ -465,6 +478,7 @@ def _analyze_crypto_intelligence(inputs: _IndustryInputs) -> list[IndustryStrate
                     confidence=0.6,
                     title="Missing wallet guidance",
                     description="No wallet setup or usage instructions found.",
+                    evidence_sources=("crypto_entity_analysis.json",),
                     recommendation="Add wallet setup guides and support information.",
                     industry_type=IndustryType.CRYPTO,
                 )
@@ -490,6 +504,7 @@ def _analyze_crypto_casino_intelligence(inputs: _IndustryInputs) -> list[Industr
                 confidence=0.8,
                 title="Limited crypto-casino intersection",
                 description="Content lacks intersection of casino and crypto topics.",
+                evidence_sources=("crypto_casino_analysis.json",),
                 recommendation="Add content about crypto payments, BTC deposits.",
                 industry_type=IndustryType.CRYPTO_CASINO,
             )
@@ -510,6 +525,7 @@ def _analyze_crypto_casino_intelligence(inputs: _IndustryInputs) -> list[Industr
                 confidence=0.75,
                 title="Insufficient crypto terminology",
                 description=f"Only {len(found_keywords)} crypto keywords found: {found_keywords}",
+                evidence_sources=("crypto_casino_analysis.json",),
                 recommendation="Add more crypto-related keywords and concepts.",
                 industry_type=IndustryType.CRYPTO_CASINO,
             )
@@ -547,6 +563,7 @@ def _generate_casino_opportunities(inputs: _IndustryInputs) -> list[IndustryOppo
                 recommendation="Add content about casino games, slots, and table games.",
                 impact=0.6,
                 effort=0.7,
+                evidence_sources=("casino_entity_analysis.json",),
             )
         )
 
@@ -566,6 +583,7 @@ def _generate_casino_opportunities(inputs: _IndustryInputs) -> list[IndustryOppo
                 recommendation="Create content about bonuses, promotions, and welcome offers.",
                 impact=0.7,
                 effort=0.6,
+                evidence_sources=("casino_entity_analysis.json",),
             )
         )
 
@@ -589,6 +607,7 @@ def _generate_crypto_opportunities(inputs: _IndustryInputs) -> list[IndustryOppo
                 recommendation="Add content about Bitcoin payments and wallets.",
                 impact=0.7,
                 effort=0.6,
+                evidence_sources=("crypto_entity_analysis.json",),
             )
         )
 
@@ -605,6 +624,7 @@ def _generate_crypto_opportunities(inputs: _IndustryInputs) -> list[IndustryOppo
                 recommendation="Add content about Ethereum payments and wallets.",
                 impact=0.7,
                 effort=0.6,
+                evidence_sources=("crypto_entity_analysis.json",),
             )
         )
 
@@ -628,6 +648,7 @@ def _generate_crypto_casino_opportunities(inputs: _IndustryInputs) -> list[Indus
                 recommendation="Add content about Bitcoin casino deposits and withdrawals.",
                 impact=0.8,
                 effort=0.6,
+                evidence_sources=("crypto_casino_analysis.json",),
             )
         )
 
@@ -644,6 +665,7 @@ def _generate_crypto_casino_opportunities(inputs: _IndustryInputs) -> list[Indus
                 recommendation="Add content about Ethereum casino deposits and withdrawals.",
                 impact=0.8,
                 effort=0.6,
+                evidence_sources=("crypto_casino_analysis.json",),
             )
         )
 
@@ -660,6 +682,7 @@ def _generate_crypto_casino_opportunities(inputs: _IndustryInputs) -> list[Indus
                 recommendation="Add content about crypto casino games and slots.",
                 impact=0.6,
                 effort=0.7,
+                evidence_sources=("crypto_casino_analysis.json",),
             )
         )
 

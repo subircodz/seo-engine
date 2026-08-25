@@ -182,9 +182,7 @@ class IntelligenceService:
             )
         else:
             # Build a deterministic-only report from the diagnosis
-            report = self._build_deterministic_report(
-                intelligence_id, run_id, diagnosis
-            )
+            report = self._build_deterministic_report(intelligence_id, run_id, diagnosis)
 
         self._reports[intelligence_id] = report
         logger.info(
@@ -435,8 +433,14 @@ class IntelligenceService:
         data = self._strip_and_parse_json(raw)
 
         # Validate required top-level keys
-        required_keys = {"summary", "overall_assessment", "root_causes", "top_issues",
-                         "quick_wins", "action_plan"}
+        required_keys = {
+            "summary",
+            "overall_assessment",
+            "root_causes",
+            "top_issues",
+            "quick_wins",
+            "action_plan",
+        }
         missing = required_keys - set(data.keys())
         if missing:
             raise ValueError(f"LLM response missing keys: {missing}")

@@ -27,4 +27,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column("search_ranking_observations", "serp_features")
-
