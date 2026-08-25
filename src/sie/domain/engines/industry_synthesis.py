@@ -99,7 +99,7 @@ def generate_industry_intelligence(
     performance_health: dict[str, float] | None = None,
     volatility: float = 0.0,
     cannibalization: int = 0,
-    casino_content: str = "",
+    content: str = "",
     crypto_content: str = "",
     competitor_domains: tuple[str, ...] = (),
     keywords: tuple[str, ...] = (),
@@ -124,7 +124,7 @@ def generate_industry_intelligence(
         performance_health=performance_health or {},
         volatility_score=volatility,
         cannibalization_count=cannibalization,
-        content=casino_content,
+        content=content,
         competitor_domains=competitor_domains,
         keywords=keywords,
     )
@@ -521,7 +521,19 @@ def _generate_casino_opportunities(inputs: _IndustryInputs) -> list[IndustryOppo
     opportunities = []
     content_lower = inputs.content.lower()
 
-    if "game" not in content_lower and "slot" not in content_lower:
+    has_game_content = any(
+        word in content_lower
+        for word in [
+            "game",
+            "slot",
+            "table game",
+            "live dealer",
+            "blackjack",
+            "roulette",
+            "baccarat",
+        ]
+    )
+    if not has_game_content:
         score = IndustryOpportunityScorer.score(
             impact=0.6, coverage=0.5, intent_match=True, entity_gap=True, base_priority=0.6
         )
@@ -537,7 +549,10 @@ def _generate_casino_opportunities(inputs: _IndustryInputs) -> list[IndustryOppo
             )
         )
 
-    if "bonus" not in content_lower:
+    has_bonus_content = any(
+        word in content_lower for word in ["bonus", "promo", "offer", "deal", "free spin"]
+    )
+    if not has_bonus_content:
         score = IndustryOpportunityScorer.score(
             impact=0.7, coverage=0.6, intent_match=True, entity_gap=True, base_priority=0.7
         )
