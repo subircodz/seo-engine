@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -24,6 +25,10 @@ class SiteAnalyzeRequest(BaseModel):
     max_pages: int = Field(default=100, ge=1, le=500, description="Maximum pages to crawl")
     max_keywords: int = Field(default=50, ge=1, le=200, description="Maximum keywords to check rankings for")
     country: str = Field(default="us", description="Country code for search (e.g., us, gb, de)")
+    target_countries: list[str] = Field(
+        default=[], max_length=10,
+        description='Additional countries to analyze (e.g., ["gb", "de", "in"])'
+    )
     device: str = Field(default="desktop", description="Device type: desktop or mobile")
     competitors: list[str] = Field(default=[], max_length=5, description="Competitor domains to track")
     deep_aio: bool = Field(default=True, description="Enable AI Overview analysis")
@@ -52,6 +57,32 @@ class SiteAnalyzeResponse(BaseModel):
     architecture: dict | None = None
     aio: dict | None = None
     geo: dict | None = None
+    country_rankings: list[dict] | None = None
+
+    # V3 CategoryScore breakdowns
+    content_breakdown: dict | None = None
+    ranking_breakdown: dict | None = None
+    architecture_breakdown: dict | None = None
+    aio_breakdown: dict | None = None
+    geo_breakdown: dict | None = None
+
+    # Entity / Knowledge Graph analysis
+    entity_analysis: dict | None = None
+
+    # Page performance (deterministic HTML analysis)
+    performance_summary: dict | None = None
+
+    # Search opportunity analysis
+    search_opportunities: dict | None = None
+
+    # CrUX real-user Core Web Vitals
+    crux_metrics: dict | None = None
+    crux_status: str = "NOT_CONFIGURED"
+
+    # Access / protection status
+    access_status: dict | None = None
+    website_type: dict | None = None
+    report_metadata: dict | None = None
 
     # Prioritized recommendations
     recommendations: list[dict]
@@ -175,6 +206,229 @@ def _serialize_geo(geo) -> dict | None:
     }
 
 
+def _serialize_country_ranking(cr) -> dict:
+    return {
+        "country_code": cr.country_code,
+        "country_name": cr.country_name,
+        "seo_score": round(cr.seo_score, 1),
+        "aio_score": round(cr.aio_score, 1),
+        "geo_score": round(cr.geo_score, 1),
+        "overall_score": round(cr.overall_score, 1),
+        "keywords_ranking": cr.keywords_ranking,
+        "keywords_not_ranking": cr.keywords_not_ranking,
+        "visibility_score": cr.visibility_score,
+        "top_keywords": cr.top_keywords,
+        "aio_citations": cr.aio_citations,
+        "geo_mentions": cr.geo_mentions,
+        "recommendations": [_serialize_recommendation(r) for r in cr.recommendations],
+        "action_items": cr.action_items,
+    }
+
+
+def _serialize_metric(m) -> dict:
+    """Serialize a single AnalysisMetric to dict."""
+    return {
+        "metric_name": m.metric_name,
+        "category": m.category,
+        "metric_type": m.metric_type,
+        "expected": m.expected,
+        "normalized_score": m.normalized_score,
+        "weight": m.weight,
+        "raw_value": m.raw_value,
+        "raw_unit": m.raw_unit,
+        "raw_evidence": m.raw_evidence,
+        "normalization_method": m.normalization_method,
+        "score_contribution": m.score_contribution,
+        "status": m.status,
+        "evidence": m.evidence,
+        "evidence_quality": m.evidence_quality,
+        "affected_urls": m.affected_urls,
+        "affected_keywords": m.affected_keywords,
+        "why_it_matters": m.why_it_matters,
+        "remediation": m.remediation,
+        "implementation": m.implementation,
+        "reference_url": m.reference_url,
+        "limitations": m.limitations,
+        "sample_size": m.sample_size,
+        "data_coverage": m.data_coverage,
+        "coverage_methodology": m.coverage_methodology,
+        "confidence": m.confidence,
+    }
+
+
+def _serialize_breakdown(breakdown) -> dict | None:
+    """Serialize a CategoryScore to dict for the API response."""
+    if not breakdown:
+        return None
+    return {
+        "category_name": breakdown.category_name,
+        "overall_score": breakdown.overall_score,
+        "score_status": breakdown.score_status,
+        "scoring_methodology": breakdown.scoring_methodology,
+        "metrics": [_serialize_metric(m) for m in breakdown.metrics],
+        "sample_size": breakdown.sample_size,
+        "data_coverage": breakdown.data_coverage,
+        "confidence": breakdown.confidence,
+        "confidence_factors": breakdown.confidence_factors,
+        "limitations": breakdown.limitations,
+        "evidence_quality_summary": breakdown.evidence_quality_summary,
+        "data_source": breakdown.data_source,
+        "observation_date": breakdown.observation_date,
+    }
+
+
+def _serialize_entity_analysis(entity) -> dict | None:
+    """Serialize entity/knowledge graph analysis."""
+    if not entity:
+        return None
+    return {
+        "entities_extracted": entity.entities_extracted,
+        "unique_entities": entity.unique_entities,
+        "entity_types": entity.entity_types,
+        "wikipedia_aligned": entity.wikipedia_aligned,
+        "wikidata_aligned": entity.wikidata_aligned,
+        "knowledge_graph_coverage": entity.knowledge_graph_coverage,
+        "entity_salience_scores": entity.entity_salience_scores,
+        "missing_entity_types": entity.missing_entity_types,
+        "schema_entity_alignment": entity.schema_entity_alignment,
+        "recommendations": entity.recommendations,
+        "score": entity.score,
+    }
+
+
+def _serialize_performance_summary(perf) -> dict | None:
+    """Serialize deterministic page performance summary."""
+    if not perf:
+        return None
+    return {
+        "pages_analyzed": perf.pages_analyzed,
+        "avg_performance_score": perf.avg_performance_score,
+        "pages_above_threshold": perf.pages_above_threshold,
+        "pages_below_threshold": perf.pages_below_threshold,
+        "total_findings": perf.total_findings,
+        "avg_html_size": perf.avg_html_size,
+        "avg_content_efficiency": perf.avg_content_efficiency,
+        "top_issues": perf.top_issues,
+        "largest_pages": perf.largest_pages,
+        "least_efficient": perf.least_efficient,
+        "findings_by_severity": perf.findings_by_severity,
+        "score": perf.score,
+        "methodology": perf.methodology,
+        "limitations": perf.limitations,
+    }
+
+
+def _serialize_search_opportunities(opps) -> dict | None:
+    """Serialize search opportunity analysis."""
+    if not opps:
+        return None
+    result: dict[str, Any] = {
+        "total_opportunities": opps.total_opportunities,
+        "competitor_gaps": [],
+        "weak_rankings": [],
+        "content_gaps": [],
+    }
+    for gap in opps.competitor_gaps:
+        result["competitor_gaps"].append({
+            "keyword": gap.keyword,
+            "competitor_domain": gap.competitor_domain,
+            "competitor_position": gap.competitor_position,
+            "severity": gap.severity,
+            "confidence_score": gap.confidence_score,
+            "estimated_improvement": gap.estimated_improvement,
+        })
+    for wr in opps.weak_ranking_opportunities:
+        result["weak_rankings"].append({
+            "keyword": wr.keyword,
+            "target_position": wr.target_position,
+            "severity": wr.severity,
+            "confidence_score": wr.confidence_score,
+            "estimated_improvement": wr.estimated_improvement,
+        })
+    for cg in opps.content_gaps:
+        result["content_gaps"].append({
+            "keyword": cg.keyword,
+            "competitor_domains": list(cg.competitor_domains),
+            "average_competitor_position": cg.average_competitor_position,
+            "primary_competitor": cg.primary_competitor,
+            "confidence_score": cg.confidence_score,
+            "content_description_hint": cg.content_description_hint,
+        })
+    return result
+
+
+def _serialize_crux_metrics(crux) -> dict | None:
+    """Serialize CrUX real-user Core Web Vitals."""
+    if not crux:
+        return None
+    return {
+        "origin": crux.origin,
+        "lcp_p75": crux.lcp_p75,
+        "fid_p75": crux.fid_p75,
+        "cls_p75": crux.cls_p75,
+        "inp_p75": crux.inp_p75,
+        "ttfb_p75": crux.ttfb_p75,
+        "lcp_good": crux.lcp_good,
+        "fid_good": crux.fid_good,
+        "cls_good": crux.cls_good,
+        "inp_good": crux.inp_good,
+        "lcp_poor": crux.lcp_poor,
+        "fid_poor": crux.fid_poor,
+        "cls_poor": crux.cls_poor,
+        "form_factor": crux.form_factor,
+        "effective_date": crux.effective_date,
+    }
+
+
+def _serialize_access_status(status) -> dict | None:
+    """Serialize access/protection status."""
+    if not status:
+        return None
+    return {
+        "accessible": status.accessible,
+        "protection_detected": status.protection_detected,
+        "protection_details": status.protection_details,
+        "status_code": status.status_code,
+        "analysis_status": status.analysis_status,
+        "block_reason": status.block_reason,
+        "analyzed_page_is_challenge": status.analyzed_page_is_challenge,
+    }
+
+
+def _serialize_website_type(wt) -> dict | None:
+    """Serialize website technology info."""
+    if not wt:
+        return None
+    return {
+        "technology": wt.technology,
+        "confidence": wt.confidence,
+        "evidence": wt.evidence[:5],
+        "cms": wt.cms,
+        "framework": wt.framework,
+        "language": wt.language,
+        "server": wt.server,
+        "cdn": wt.cdn,
+    }
+
+
+def _serialize_report_metadata(meta) -> dict | None:
+    """Serialize report execution metadata."""
+    if not meta:
+        return None
+    return {
+        "target_url": meta.target_url,
+        "analysis_date": meta.analysis_date,
+        "analysis_started": meta.analysis_started,
+        "analysis_completed": meta.analysis_completed,
+        "country": meta.country,
+        "device": meta.device,
+        "search_engine": meta.search_engine,
+        "crawler_mode": meta.crawler_mode,
+        "analysis_duration_seconds": meta.analysis_duration_seconds,
+        "pages_crawled": meta.pages_crawled,
+    }
+
+
 @router.post("/analyze", response_model=SiteAnalyzeResponse)
 async def analyze_site(
     body: SiteAnalyzeRequest,
@@ -202,6 +456,7 @@ async def analyze_site(
             max_pages=body.max_pages,
             max_keywords=body.max_keywords,
             country=body.country,
+            target_countries=body.target_countries or None,
             device=body.device,
             competitors=body.competitors or None,
             deep_aio=body.deep_aio,
@@ -233,6 +488,23 @@ async def analyze_site(
         architecture=_serialize_architecture(result.architecture),
         aio=_serialize_aio(result.aio),
         geo=_serialize_geo(result.geo),
+        country_rankings=(
+            [_serialize_country_ranking(cr) for cr in result.country_rankings]
+            if result.country_rankings else None
+        ),
+        content_breakdown=_serialize_breakdown(result.content_breakdown),
+        ranking_breakdown=_serialize_breakdown(result.ranking_breakdown),
+        architecture_breakdown=_serialize_breakdown(result.architecture_breakdown),
+        aio_breakdown=_serialize_breakdown(result.aio_breakdown),
+        geo_breakdown=_serialize_breakdown(result.geo_breakdown),
+        entity_analysis=_serialize_entity_analysis(result.entity_analysis),
+        performance_summary=_serialize_performance_summary(result.performance_summary),
+        search_opportunities=_serialize_search_opportunities(result.search_opportunities),
+        crux_metrics=_serialize_crux_metrics(result.crux_metrics),
+        crux_status=result.crux_status,
+        access_status=_serialize_access_status(result.access_status),
+        website_type=_serialize_website_type(result.website_type),
+        report_metadata=_serialize_report_metadata(result.report_metadata),
         recommendations=[_serialize_recommendation(r) for r in result.recommendations],
     )
 
@@ -256,6 +528,7 @@ async def analyze_site_pdf(
             max_pages=body.max_pages,
             max_keywords=body.max_keywords,
             country=body.country,
+            target_countries=body.target_countries or None,
             device=body.device,
             competitors=body.competitors or None,
             deep_aio=body.deep_aio,
@@ -273,9 +546,20 @@ async def analyze_site_pdf(
     try:
         pdf_bytes = renderer.render(result)
     except PDFGenerationError as exc:
+        logger = request.app.state.logger if hasattr(request.app.state, 'logger') else None
+        if logger:
+            logger.exception('PDF generation failed for %s', body.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
+            detail=f'PDF generation failed: {exc!s}',
+        ) from exc
+    except Exception as exc:
+        logger = request.app.state.logger if hasattr(request.app.state, 'logger') else None
+        if logger:
+            logger.exception('PDF rendering failed for %s', body.domain)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f'PDF rendering failed: {type(exc).__name__}: {exc!s}',
         ) from exc
 
     filename = f"site_analysis_{result.domain.replace('.', '_')}_{result.analyzed_at.strftime('%Y%m%d')}.pdf"

@@ -1,5 +1,6 @@
 """Shared fixtures."""
 
+import os
 from types import SimpleNamespace
 
 import httpx
@@ -7,6 +8,19 @@ import pytest
 
 from sie.api.app import create_app
 from sie.config import Settings
+
+
+@pytest.fixture(autouse=True)
+def _clear_sie_env(monkeypatch):
+    """Remove all SIE_ env vars so tests get clean defaults.
+
+    pydantic-settings reads os.environ even when ``_env_file=None``.
+    The .env file in the repo root exports production values that
+    break tests asserting default behaviour.  This fixture provides
+    hermetic isolation.
+    """
+    for key in [k for k in os.environ if k.startswith("SIE_")]:
+        monkeypatch.delenv(key, raising=False)
 
 
 @pytest.fixture

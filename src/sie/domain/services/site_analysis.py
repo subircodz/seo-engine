@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import html as html_mod
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -439,6 +440,33 @@ class SiteCountryRanking:
 
 
 @dataclass(frozen=True, slots=True)
+class SitePerformanceSummary:
+    """Dataset-level performance summary from deterministic HTML analysis.
+
+    Does NOT pretend to measure Core Web Vitals or real browser performance.
+    All metrics are derived from static HTML analysis of crawled pages.
+    """
+    pages_analyzed: int = 0
+    avg_performance_score: float = 0.0  # 0.0-1.0
+    pages_above_threshold: int = 0  # score >= 0.7
+    pages_below_threshold: int = 0  # score < 0.4
+    total_findings: int = 0
+    avg_html_size: float = 0.0
+    avg_content_efficiency: float = 0.0
+    top_issues: list[str] = field(default_factory=list)
+    largest_pages: list[tuple[str, int]] = field(default_factory=list)  # (url, bytes)
+    least_efficient: list[tuple[str, float]] = field(default_factory=list)  # (url, efficiency)
+    findings_by_severity: dict[str, int] = field(default_factory=dict)
+    score: float = 0.0  # 0-100
+    methodology: str = "Deterministic HTML analysis of crawled pages"
+    limitations: list[str] = field(default_factory=lambda: [
+        "Static HTML analysis only — no real browser rendering or network timing",
+        "Does not measure Core Web Vitals or real-user performance",
+        "Resource sizes are from HTML references, not actual downloaded sizes",
+    ])
+
+
+@dataclass(frozen=True, slots=True)
 class SiteEntityKnowledgeGraphAnalysis:
     """Entity/Knowledge Graph analysis for the site."""
     entities_extracted: int = 0
@@ -513,6 +541,22 @@ class SiteAnalysisResult:
 
     # Semantic alignment results
     semantic_alignment: tuple[SemanticAlignmentResult, ...] = ()
+
+    # Entity / Knowledge Graph analysis
+    entity_analysis: SiteEntityKnowledgeGraphAnalysis | None = None
+
+    # Page performance (deterministic, from crawled HTML)
+    performance_summary: SitePerformanceSummary | None = None
+
+    # Search opportunity analysis
+    search_opportunities: Any = None  # SearchOpportunityResult | None
+
+    # Cross-engine optimization synthesis
+    optimization_synthesis: Any = None  # OptimizationResult | None
+
+    # CrUX real-user Core Web Vitals (None if not configured)
+    crux_metrics: Any = None  # CruxMetrics | None
+    crux_status: str = "NOT_CONFIGURED"  # NOT_CONFIGURED, AVAILABLE, ERROR, NO_DATA
 
 
 class SiteAnalysisService:
@@ -812,8 +856,48 @@ class SiteAnalysisService:
             dataset = self._build_dataset_from_rankings(clean_domain, ranking_snapshot)
             observations = self._build_observations_from_rankings(ranking_snapshot)
             search_intel = self._intelligence_service.analyze(
-                dataset, observations, competitor_rankings
+                dataset, observations, competitor_rankings,
+                target_domain=clean_domain,
             )
+
+        # ─── Step 8b: Entity / Knowledge Graph analysis ───
+        entity_analysis = await self._analyze_entity_knowledge_graph(
+            crawl_pages, target_keywords, country, device
+        )
+
+        # ─── Step 8c: Page performance analysis (deterministic) ───
+        performance_summary = self._analyze_page_performance(crawl_pages)
+
+        # ─── Step 8d: CrUX real-user Core Web Vitals ───
+        crux_metrics = None
+        crux_status = "NOT_CONFIGURED"
+        if self._crux_service:
+            try:
+                from sie.infrastructure.crux import CruxResponse
+                crux_response: CruxResponse = await self._crux_service.query_origin(seed_url)
+                if crux_response.success and crux_response.record:
+                    crux_metrics = crux_response.record
+                    crux_status = "AVAILABLE"
+                elif crux_response.error:
+                    crux_status = "NO_DATA"
+                    logger.info("CrUX data unavailable for %s: %s", domain, crux_response.error)
+                else:
+                    crux_status = "NO_DATA"
+            except Exception as e:
+                crux_status = "ERROR"
+                logger.warning("CrUX query failed for %s: %s", domain, e)
+
+        # ─── Step 8e: Fix AIO analysis truthfulness ───
+        # If the search provider cannot actually detect AIO features,
+        # mark the analysis as unavailable rather than producing fake results.
+        if aio_analysis and aio_analysis.keywords_checked > 0:
+            aio_analysis = self._correct_aio_analysis(aio_analysis)
+
+        # ─── Step 8f: Fix GEO analysis truthfulness ───
+        # The current GEO analysis creates synthetic "not mentioned" observations
+        # which produce misleading numeric scores. Replace with honest NOT ASSESSED.
+        if geo_analysis and geo_analysis.keywords_checked > 0:
+            geo_analysis = self._correct_geo_analysis(geo_analysis)
 
         # ─── Step 9: Build unified health scores ───
         technical_health = self._build_technical_health(technical_result, crawl_pages)
@@ -916,6 +1000,12 @@ class SiteAnalysisService:
             aio_breakdown=aio_breakdown,
             geo_breakdown=geo_breakdown,
             semantic_alignment=tuple(semantic_alignment),
+            entity_analysis=entity_analysis,
+            performance_summary=performance_summary,
+            search_opportunities=search_intel.opportunity_result if search_intel and hasattr(search_intel, 'opportunity_result') else None,
+            optimization_synthesis=None,  # Requires full cross-engine data; TODO: wire when all engines integrated
+            crux_metrics=crux_metrics,
+            crux_status=crux_status,
         )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1184,6 +1274,57 @@ class SiteAnalysisService:
         domain = domain.split("/")[0].split(":")[0]
         return domain
 
+    @staticmethod
+    def _strip_html_for_keywords(raw_html: str) -> str:
+        """Strip HTML tags, decode entities, and remove non-text artifacts.
+
+        Returns clean visible text suitable for keyword extraction.
+        Operates on raw HTML from ``decoded_text()`` so that the caller
+        receives meaningful visible text rather than markup artifacts.
+        """
+        # Remove <script> and <style> blocks first
+        cleaned = re.sub(
+            r'<(script|style|noscript)[^>]*>.*?</\1>',
+            ' ', raw_html, flags=re.DOTALL | re.IGNORECASE,
+        )
+        # Remove all HTML tags
+        cleaned = re.sub(r'<[^>]+>', ' ', cleaned)
+        # Decode HTML entities (&amp; &quot; &#39; etc.)
+        cleaned = html_mod.unescape(cleaned)
+        # Remove URLs that may appear as bare text (http://… or https://…)
+        cleaned = re.sub(r'https?://\S+', ' ', cleaned)
+        # Remove email addresses
+        cleaned = re.sub(r'\S+@\S+\.\S+', ' ', cleaned)
+        # Collapse whitespace
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        return cleaned.strip()
+
+    @staticmethod
+    def _is_url_or_domain_token(word: str) -> bool:
+        """Return True if *word* looks like a URL fragment or domain part."""
+        # Protocol prefixes and common TLDs / domain parts
+        if word in (
+            'http', 'https', 'ftp', 'www', 'com', 'org', 'net', 'edu',
+            'gov', 'io', 'co', 'html', 'php', 'asp', 'jsp', 'css',
+            'javascript', 'xmlns', 'doctype', 'charset', 'viewport',
+            'content', 'type', 'text', 'meta', 'link', 'href', 'src',
+            'div', 'span', 'class', 'data', 'value', 'width', 'height',
+        ):
+            return True
+        # Pure numeric strings or strings with digits-only after prefix
+        if re.fullmatch(r'\d+', word):
+            return True
+        # Looks like a domain part (contains only alphanumerics and hyphens,
+        # no spaces — happens when URLs are split by the regex)
+        if re.fullmatch(r'[a-z0-9][-a-z0-9]*', word) and len(word) > 1 and '-' in word:
+            # Could be a legitimate compound keyword (e.g. 'on-page'), so
+            # only reject obvious domain-style segments (>=4 segments with
+            # digits or very short segments).
+            parts = word.split('-')
+            if len(parts) >= 4 or (len(word) <= 4 and any(c.isdigit() for c in word)):
+                return True
+        return False
+
     def _extract_target_keywords(self, crawl_pages: list, max_keywords: int) -> list[str]:
         """Intelligently extract target keywords from crawled content."""
         STOPWORDS = frozenset({
@@ -1217,14 +1358,18 @@ class SiteAnalysisService:
             if not page.is_html:
                 continue
             try:
-                text = page.decoded_text()
+                text = self._strip_html_for_keywords(page.decoded_text())
                 if len(text) < 200:
                     continue
 
                 weight = 3.0 if i == 0 else (2.0 if i < 5 else 1.0)
 
                 words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9-]{2,}\b', text.lower())
-                filtered = [w for w in words if w not in STOPWORDS and len(w) >= 3]
+                filtered = [
+                    w for w in words
+                    if w not in STOPWORDS and len(w) >= 3
+                    and not self._is_url_or_domain_token(w)
+                ]
 
                 bigrams = []
                 for j in range(len(filtered) - 1):
@@ -1258,17 +1403,18 @@ class SiteAnalysisService:
                 text = page.decoded_text()
                 title_match = re.search(r'<title[^>]*>([^<]+)</title>', text, re.IGNORECASE)
                 if title_match:
-                    title_text = title_match.group(1)
+                    title_text = html_mod.unescape(title_match.group(1))
                     words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9-]{2,}\b', title_text.lower())
                     for word in words:
-                        if word not in STOPWORDS:
+                        if word not in STOPWORDS and not self._is_url_or_domain_token(word):
                             keyword_scores[word] += 5.0
 
                 h1_matches = re.findall(r'<h1[^>]*>([^<]+)</h1>', text, re.IGNORECASE)
                 for h1 in h1_matches:
-                    words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9-]{2,}\b', h1.lower())
+                    h1_text = html_mod.unescape(h1)
+                    words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9-]{2,}\b', h1_text.lower())
                     for word in words:
-                        if word not in STOPWORDS:
+                        if word not in STOPWORDS and not self._is_url_or_domain_token(word):
                             keyword_scores[word] += 3.0
             except Exception:
                 pass
@@ -1777,6 +1923,166 @@ class SiteAnalysisService:
                 entity_relationships=[], entity_gaps_vs_competitors=[],
                 schema_entity_alignment=0, recommendations=[], score=0.0,
             )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Page Performance Analysis (deterministic, from crawled HTML)
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _analyze_page_performance(self, crawl_pages: list) -> SitePerformanceSummary:
+        """Run deterministic page performance analysis on crawled pages.
+
+        Uses the existing ``analyze_page_performance`` engine.  Does NOT
+        measure Core Web Vitals or real browser performance.
+        """
+        try:
+            from sie.domain.engines.search_performance import (
+                analyze_page_performance,
+                analyze_dataset_performance,
+            )
+            from sie.domain.models.search_performance import (
+                PerformanceResult,
+                PerformanceDatasetMetrics,
+            )
+
+            page_results: list[PerformanceResult] = []
+            for page in crawl_pages[:50]:
+                if not page.is_html:
+                    continue
+                try:
+                    text = page.decoded_text()
+                    result = analyze_page_performance(
+                        url=page.url,
+                        html_size=len(text.encode("utf-8")) if text else 0,
+                        visible_text=text[:50000] if text else "",
+                        heading_count=text.lower().count("<h"),
+                        link_count=text.lower().count("<a "),
+                        image_count=text.lower().count("<img "),
+                        images_without_alt=text.lower().count("<img ") - text.lower().count("alt="),
+                    )
+                    page_results.append(result)
+                except Exception:
+                    pass
+
+            if not page_results:
+                return SitePerformanceSummary(
+                    pages_analyzed=0, methodology="No HTML pages to analyze",
+                )
+
+            dataset_metrics = analyze_dataset_performance(
+                "site-analysis", page_results
+            )
+
+            # Aggregate findings
+            all_findings = []
+            findings_by_severity: dict[str, int] = {}
+            for pr in page_results:
+                for f in pr.findings:
+                    all_findings.append(f"{f.metric_name}: {f.description}")
+                    findings_by_severity[f.severity.value] = (
+                        findings_by_severity.get(f.severity.value, 0) + 1
+                    )
+
+            largest = sorted(
+                [(r.url, r.metrics.html_size_bytes) for r in page_results],
+                key=lambda x: x[1], reverse=True
+            )[:5]
+
+            least_eff = sorted(
+                [(r.url, r.metrics.content_efficiency) for r in page_results if r.metrics.content_efficiency > 0],
+                key=lambda x: x[1]
+            )[:5]
+
+            score = dataset_metrics.avg_performance_score * 100
+
+            top_issues = []
+            if dataset_metrics.pages_below_threshold > 0:
+                top_issues.append(
+                    f"{dataset_metrics.pages_below_threshold} pages with poor performance"
+                )
+            if dataset_metrics.avg_content_efficiency < 0.3:
+                top_issues.append(
+                    f"Low content efficiency ({dataset_metrics.avg_content_efficiency:.0%}) — excessive markup"
+                )
+            if dataset_metrics.avg_html_size > 100_000:
+                top_issues.append(
+                    f"Large average HTML size ({dataset_metrics.avg_html_size / 1024:.0f}KB)"
+                )
+
+            return SitePerformanceSummary(
+                pages_analyzed=dataset_metrics.total_pages,
+                avg_performance_score=round(dataset_metrics.avg_performance_score, 3),
+                pages_above_threshold=dataset_metrics.pages_above_threshold,
+                pages_below_threshold=dataset_metrics.pages_below_threshold,
+                total_findings=dataset_metrics.total_findings,
+                avg_html_size=round(dataset_metrics.avg_html_size, 0),
+                avg_content_efficiency=round(dataset_metrics.avg_content_efficiency, 3),
+                top_issues=top_issues,
+                largest_pages=largest,
+                least_efficient=least_eff,
+                findings_by_severity=findings_by_severity,
+                score=round(score, 1),
+            )
+
+        except Exception as e:
+            logger.warning("Page performance analysis failed: %s", e)
+            return SitePerformanceSummary(
+                pages_analyzed=0, methodology=f"Analysis failed: {e}",
+            )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # AIO / GEO Truthfulness Corrections
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _correct_aio_analysis(self, aio: SiteAIOAnalysis) -> SiteAIOAnalysis:
+        """Correct AIO analysis to reflect actual data availability.
+
+        If the search provider returned results but could not detect
+        AI Overview features, mark the analysis appropriately rather
+        than reporting fabricated scores.
+        """
+        # If no queries showed AIO at all, this could mean:
+        # 1. The provider doesn't support AIO detection
+        # 2. There genuinely are no AI Overviews for these queries
+        # We mark the detection_methodology to be transparent.
+        if aio.ai_overviews_present == 0 and aio.keywords_checked > 0:
+            return SiteAIOAnalysis(
+                keywords_checked=aio.keywords_checked,
+                ai_overviews_present=0,
+                target_cited_count=0,
+                competitor_cited_count=0,
+                citation_rate=0.0,
+                target_citation_rate=0.0,
+                competitor_domains_cited=[],
+                top_opportunities=[],
+                query_details=aio.query_details,
+                detection_methodology=(
+                    "SERP feature analysis — AI Overview detection depends on "
+                    "the search provider supporting AI Overview feature extraction. "
+                    "Zero detected may indicate the provider does not expose "
+                    "AI Overview data, not necessarily that no AI Overviews exist."
+                ),
+            )
+        return aio
+
+    def _correct_geo_analysis(self, geo: SiteGEOAnalysis) -> SiteGEOAnalysis:
+        """Replace synthetic GEO observations with honest NOT ASSESSED.
+
+        The previous implementation created synthetic 'not mentioned'
+        observations and fed them through the GEO engine, producing
+        misleading numeric mention rates. This method corrects that.
+        """
+        # If all queries returned target_not_mentioned and
+        # competitor_not_mentioned, this is a synthetic dataset —
+        # not actual live GEO queries.
+        if (
+            geo.target_mentioned_count == 0
+            and geo.competitor_mentioned_count == 0
+            and geo.keywords_checked > 0
+        ):
+            # Return empty — the GEO breakdown builder will report
+            # NOT ASSESSED with honest limitations.
+            return None  # type: ignore[return-value]
+        return geo
 
     def _build_dataset_from_rankings(
         self, domain: str, snapshot: SiteRankingSnapshot
@@ -3337,5 +3643,6 @@ __all__ = [
     "SiteAIOAnalysis",
     "SiteGEOAnalysis",
     "SiteEntityKnowledgeGraphAnalysis",
+    "SitePerformanceSummary",
     "create_site_analysis_service",
 ]

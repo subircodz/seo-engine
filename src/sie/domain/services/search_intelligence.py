@@ -124,6 +124,7 @@ class SearchIntelligenceService:
         dataset: SearchDataset,
         observations: tuple[RankingObservation, ...],
         competitor_rankings: tuple[CompetitorRanking, ...],
+        target_domain: str = "",
     ) -> SearchIntelligenceResult:
         """Run full search intelligence analysis and produce recommendations.
 
@@ -142,7 +143,7 @@ class SearchIntelligenceService:
 
         # 4. Search opportunities
         opportunity_result = self._opportunity_service.calculate_opportunities(
-            dataset, analytics, competitor_rankings
+            dataset, analytics, competitor_rankings, target_domain=target_domain
         )
 
         # 5. Build recommendations

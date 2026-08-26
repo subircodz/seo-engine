@@ -189,15 +189,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     # Add request ID middleware for correlation
     app.add_middleware(RequestIdMiddleware)
-    
+
     # Mount static files for favicon, robots.txt, etc.
     import os
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    
-    # Add request ID middleware for correlation
-    app.add_middleware(RequestIdMiddleware)
     app.include_router(audit.router)
     app.include_router(content.router)
     app.include_router(crawl.router)

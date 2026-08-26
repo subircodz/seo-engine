@@ -155,15 +155,19 @@
         .metric-label { font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 
         /* ═══ Tables ═══ */
-        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 8.5pt; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 8.5pt; table-layout: fixed; word-break: break-word; overflow-wrap: break-word; }
         th {
             background: #f1f5f9; padding: 6px 8px; text-align: left;
             font-weight: 700; font-size: 7.5pt; text-transform: uppercase;
             letter-spacing: 0.04em; color: #475569;
             border-bottom: 2px solid #cbd5e1;
         }
-        td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+        td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: top; word-break: break-word; overflow-wrap: break-word; }
         tr:hover td { background: #f8fafc; }
+        /* Keyword table: first column gets more space */
+        .kw-table th:first-child, .kw-table td:first-child { width: 30%; }
+        .kw-table th:nth-child(2), .kw-table td:nth-child(2) { width: 12%; }
+        .kw-table th:nth-child(3), .kw-table td:nth-child(3) { width: 58%; }
 
         .pos-badge {
             display: inline-block; padding: 1px 8px; border-radius: 12px;
@@ -221,8 +225,8 @@
         .issue-item.sev-critical { border-left: 4px solid #dc2626; }
         .issue-item.sev-warning { border-left: 4px solid #f59e0b; }
         .issue-item.sev-info { border-left: 4px solid #3b82f6; }
-        .issue-title { font-weight: 700; font-size: 9pt; color: #0f172a; margin-bottom: 3px; }
-        .issue-desc { font-size: 8.5pt; color: #475569; }
+        .issue-title { font-weight: 700; font-size: 9pt; color: #0f172a; margin-bottom: 3px; word-break: break-word; }
+        .issue-desc { font-size: 8.5pt; color: #475569; word-break: break-word; }
 
         /* ═══ Recommendation Cards ═══ */
         .rec-card { margin-bottom: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; page-break-inside: avoid; }
@@ -230,9 +234,9 @@
         .rec-card.high { border-left: 4px solid #ea580c; }
         .rec-card.medium { border-left: 4px solid #d97706; }
         .rec-card.low { border-left: 4px solid #16a34a; }
-        .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .rec-title { font-weight: 700; font-size: 9pt; }
-        .rec-body { font-size: 8.5pt; color: #475569; line-height: 1.5; }
+        .rec-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+        .rec-title { font-weight: 700; font-size: 9pt; word-break: break-word; flex: 1; }
+        .rec-body { font-size: 8.5pt; color: #475569; line-height: 1.5; word-break: break-word; }
         .rec-meta { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
         .rec-meta-tag { font-size: 7pt; padding: 1px 6px; background: #f1f5f9; border-radius: 10px; color: #64748b; }
 
@@ -273,6 +277,9 @@
         .mb-md { margin-bottom: 16px; }
         .mt-sm { margin-top: 8px; }
         .text-center { text-align: center; }
+        /* Prevent orphans and widows */
+        h2, h3, h4 { page-break-after: avoid; }
+        .finding, .rec-card, .issue-item, .verdict-box, .evidence-box { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -828,15 +835,15 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 18%;">Keyword</th>
-                <th style="width: 8%;">Source</th>
-                <th style="width: 8%;">Location</th>
-                <th style="width: 8%;">Engine</th>
-                <th style="width: 10%;">Position</th>
-                <th style="width: 10%;">Checked To</th>
-                <th style="width: 12%;">Status</th>
-                <th style="width: 21%;">Evidence</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 16%;">Keyword</th>
+                <th style="width: 7%;">Source</th>
+                <th style="width: 7%;">Location</th>
+                <th style="width: 7%;">Engine</th>
+                <th style="width: 8%;">Position</th>
+                <th style="width: 9%;">Checked To</th>
+                <th style="width: 10%;">Status</th>
+                <th style="width: 32%;">Evidence</th>
             </tr>
         </thead>
         <tbody>
@@ -865,7 +872,7 @@
     </table>
     {% else %}
     <h3>Top Ranking Keywords</h3>
-    <table>
+    <table class="kw-table">
         <thead>
             <tr>
                 <th style="width: 5%;">#</th>
@@ -1048,13 +1055,13 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 22%;">Keyword</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 18%;">Keyword</th>
                 <th style="width: 12%;">AI Overview?</th>
                 <th style="width: 12%;">{{ domain }} Cited?</th>
-                <th style="width: 12%;">Location</th>
-                <th style="width: 12%;">Date</th>
-                <th style="width: 25%;">Evidence</th>
+                <th style="width: 10%;">Location</th>
+                <th style="width: 10%;">Date</th>
+                <th style="width: 34%;">Evidence</th>
             </tr>
         </thead>
         <tbody>
@@ -1119,12 +1126,12 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 22%;">Query</th>
-                <th style="width: 15%;">Engine</th>
-                <th style="width: 15%;">{{ domain }} Mentioned?</th>
-                <th style="width: 20%;">Competitors Mentioned</th>
-                <th style="width: 23%;">Evidence</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 18%;">Query</th>
+                <th style="width: 12%;">Engine</th>
+                <th style="width: 14%;">{{ domain }} Mentioned?</th>
+                <th style="width: 22%;">Competitors Mentioned</th>
+                <th style="width: 30%;">Evidence</th>
             </tr>
         </thead>
         <tbody>
@@ -1206,7 +1213,7 @@
             </div>
 
             {% if cr.recommendations %}
-            <h4>What Needs to Be Done for {{ cr.country_name | upper }}</h4>
+            <h3 style="font-size: 9pt; color: #334155; text-transform: uppercase; letter-spacing: 0.04em;">What Needs to Be Done for {{ cr.country_name | upper }}</h3>
             {% for rec in cr.recommendations[:5] %}
             <div style="margin-bottom: 6px; padding: 6px 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid {% if rec.priority == 'critical' %}#dc2626{% elif rec.priority == 'high' %}#ea580c{% else %}#d97706{% endif %}; font-size: 8.5pt;">
                 <strong>{{ rec.priority | upper }}:</strong> {{ rec.title }}<br>
@@ -1216,7 +1223,7 @@
             {% endif %}
 
             {% if cr.action_items %}
-            <h4>Action Items for {{ cr.country_name | upper }}</h4>
+            <h3 style="font-size: 9pt; color: #334155; text-transform: uppercase; letter-spacing: 0.04em;">Action Items for {{ cr.country_name | upper }}</h3>
             <ul>
                 {% for item in cr.action_items %}
                 <li>{{ item }}</li>

@@ -1,54 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Site Analysis</h1>
+<p class="page-subtitle">Comprehensive SEO, AIO, and GEO intelligence for any website. Get actionable recommendations to dominate search results.</p>
 
-<div class="card glass" style="margin-bottom: 16px;">
+<div class="card glass fade-in" style="margin-bottom: 16px;">
     <h2>Analyze a Website</h2>
-    <p style="color: var(--text-secondary); margin: 8px 0 14px; font-size: 0.85rem;">
-        Enter a domain to get a complete SEO health check: technical audit, content analysis, 
-        current rankings, AI Overview (AIO) analysis, Generative Engine (GEO) analysis,
-        and prioritized recommendations to dominate search results.
-    </p>
     <form id="site-analysis-form" onsubmit="event.preventDefault(); analyzeSite();">
         <div class="grid grid-4" style="margin-top: 12px;">
             <div style="grid-column: span 2;">
                 <label for="input-domain">Website Domain</label>
-                <input type="url" id="input-domain" name="domain" placeholder="example.com or https://example.com" autocomplete="url" required aria-describedby="domain-hint">
+                <input type="text" id="input-domain" name="domain" placeholder="example.com or https://example.com" autocomplete="url" required aria-describedby="domain-hint">
                 <span id="domain-hint" class="form-hint">Enter a domain (e.g., example.com or https://example.com)</span>
             </div>
             <div>
                 <label for="input-max-pages">Max Pages to Crawl</label>
-                <input type="number" id="input-max-pages" name="max_pages" value="100" min="1" max="500" aria-describedby="max-pages-hint">
-                <span id="max-pages-hint" class="form-hint">Maximum pages to crawl (1-500)</span>
+                <input type="number" id="input-max-pages" name="max_pages" value="100" min="1" max="500">
             </div>
             <div>
                 <label for="input-max-keywords">Max Keywords to Check</label>
-                <input type="number" id="input-max-keywords" name="max_keywords" value="50" min="1" max="200" aria-describedby="max-keywords-hint">
-                <span id="max-keywords-hint" class="form-hint">Maximum keywords to analyze (1-200)</span>
+                <input type="number" id="input-max-keywords" name="max_keywords" value="50" min="1" max="200">
             </div>
         </div>
         <div class="grid grid-4" style="margin-top: 12px;">
             <div>
-                <label for="input-country">Country</label>
-                <select id="input-country" name="country" aria-describedby="country-hint">
-                </select>
-                <span id="country-hint" class="form-hint">Target country for search results</span>
+                <label for="input-country">Primary Country</label>
+                <select id="input-country" name="country"></select>
             </div>
             <div>
                 <label for="input-device">Device</label>
-                <select id="input-device" name="device" aria-describedby="device-hint">
+                <select id="input-device" name="device">
                     <option value="desktop">Desktop</option>
                     <option value="mobile">Mobile</option>
                 </select>
-                <span id="device-hint" class="form-hint">Device type for search results</span>
             </div>
             <div>
                 <label for="input-competitors">Competitors (optional)</label>
-                <input type="text" id="input-competitors" name="competitors" placeholder="competitor1.com, competitor2.com" autocomplete="off" aria-describedby="competitors-hint">
-                <small id="competitors-hint" class="form-hint">Comma-separated domains</small>
+                <input type="text" id="input-competitors" name="competitors" placeholder="competitor1.com, competitor2.com" autocomplete="off">
             </div>
-            <div style="display: flex; align-items: flex-end;">
-                <button type="submit" class="btn btn-primary" id="analyze-btn">Analyze Site</button>
+        </div>
+        <div class="grid grid-4" style="margin-top: 12px;">
+            <div style="grid-column: span 3;">
+                <label for="input-target-countries">Target Countries for Ranking Analysis (optional)</label>
+                <select id="input-target-countries" multiple size="3" style="height: auto; min-height: 60px;" aria-describedby="countries-hint"></select>
+                <span id="countries-hint" class="form-hint">Hold Ctrl/Cmd to select multiple. Analyze visibility across different markets.</span>
+            </div>
+            <div></div>
+            <div style="display: flex; align-items: flex-end; gap: 8px;">
+                <button type="submit" class="btn btn-primary" id="analyze-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Analyze Site
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="downloadPdf()" id="pdf-btn" disabled style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    PDF
+                </button>
             </div>
         </div>
         <fieldset style="margin-top: 12px; border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 12px;">
@@ -62,10 +67,6 @@
                     <input type="checkbox" id="input-deep-geo" name="deep_geo" checked>
                     <label for="input-deep-geo" style="margin: 0; font-weight: 500;">Deep Generative Engine (GEO) Analysis</label>
                 </div>
-                <div></div>
-                <div style="display: flex; align-items: flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="downloadPdf()" id="pdf-btn" disabled style="display: none;" aria-disabled="true">Download PDF Report</button>
-                </div>
             </div>
         </fieldset>
     </form>
@@ -75,444 +76,453 @@
 <div id="analysis-results"></div>
 
 <script>
-// ISO 3166-1 alpha-2 country codes
-const COUNTRIES = [
-    ["AF","Afghanistan"],["AX","Åland Islands"],["AL","Albania"],["DZ","Algeria"],["AS","American Samoa"],
-    ["AD","Andorra"],["AO","Angola"],["AI","Anguilla"],["AQ","Antarctica"],["AG","Antigua and Barbuda"],
-    ["AR","Argentina"],["AM","Armenia"],["AW","Aruba"],["AU","Australia"],["AT","Austria"],
-    ["AZ","Azerbaijan"],["BS","Bahamas"],["BH","Bahrain"],["BD","Bangladesh"],["BB","Barbados"],
-    ["BY","Belarus"],["BE","Belgium"],["BZ","Belize"],["BJ","Benin"],["BM","Bermuda"],
-    ["BT","Bhutan"],["BO","Bolivia"],["BQ","Bonaire"],["BA","Bosnia and Herzegovina"],["BW","Botswana"],
-    ["BV","Bouvet Island"],["BR","Brazil"],["IO","British Indian Ocean Territory"],["BN","Brunei Darussalam"],["BG","Bulgaria"],
-    ["BF","Burkina Faso"],["BI","Burundi"],["CV","Cabo Verde"],["KH","Cambodia"],["CM","Cameroon"],
-    ["CA","Canada"],["KY","Cayman Islands"],["CF","Central African Republic"],["TD","Chad"],["CL","Chile"],
-    ["CN","China"],["CX","Christmas Island"],["CC","Cocos (Keeling) Islands"],["CO","Colombia"],["KM","Comoros"],
-    ["CG","Congo"],["CD","Congo (DRC)"],["CK","Cook Islands"],["CR","Costa Rica"],["CI","Côte d'Ivoire"],
-    ["HR","Croatia"],["CU","Cuba"],["CW","Curaçao"],["CY","Cyprus"],["CZ","Czechia"],
-    ["DK","Denmark"],["DJ","Djibouti"],["DM","Dominica"],["DO","Dominican Republic"],["EC","Ecuador"],
-    ["EG","Egypt"],["SV","El Salvador"],["GQ","Equatorial Guinea"],["ER","Eritrea"],["EE","Estonia"],
-    ["SZ","Eswatini"],["ET","Ethiopia"],["FK","Falkland Islands"],["FO","Faroe Islands"],["FJ","Fiji"],
-    ["FI","Finland"],["FR","France"],["GF","French Guiana"],["PF","French Polynesia"],["TF","French Southern Territories"],
-    ["GA","Gabon"],["GM","Gambia"],["GE","Georgia"],["DE","Germany"],["GH","Ghana"],
-    ["GI","Gibraltar"],["GR","Greece"],["GL","Greenland"],["GD","Grenada"],["GP","Guadeloupe"],
-    ["GU","Guam"],["GT","Guatemala"],["GG","Guernsey"],["GN","Guinea"],["GW","Guinea-Bissau"],
-    ["GY","Guyana"],["HT","Haiti"],["HM","Heard Island and McDonald Islands"],["VA","Holy See"],["HN","Honduras"],
-    ["HK","Hong Kong"],["HU","Hungary"],["IS","Iceland"],["IN","India"],["ID","Indonesia"],
-    ["IR","Iran"],["IQ","Iraq"],["IE","Ireland"],["IM","Isle of Man"],["IL","Israel"],
-    ["IT","Italy"],["JM","Jamaica"],["JP","Japan"],["JE","Jersey"],["JO","Jordan"],
-    ["KZ","Kazakhstan"],["KE","Kenya"],["KI","Kiribati"],["KP","Korea (North)"],["KR","Korea (South)"],
-    ["KW","Kuwait"],["KG","Kyrgyzstan"],["LA","Lao PDR"],["LV","Latvia"],["LB","Lebanon"],
-    ["LS","Lesotho"],["LR","Liberia"],["LY","Libya"],["LI","Liechtenstein"],["LT","Lithuania"],
-    ["LU","Luxembourg"],["MO","Macao"],["MG","Madagascar"],["MW","Malawi"],["MY","Malaysia"],
-    ["MV","Maldives"],["ML","Mali"],["MT","Malta"],["MH","Marshall Islands"],["MQ","Martinique"],
-    ["MR","Mauritania"],["MU","Mauritius"],["YT","Mayotte"],["MX","Mexico"],["FM","Micronesia"],
-    ["MD","Moldova"],["MC","Monaco"],["MN","Mongolia"],["ME","Montenegro"],["MS","Montserrat"],
-    ["MA","Morocco"],["MZ","Mozambique"],["MM","Myanmar"],["NA","Namibia"],["NR","Nauru"],
-    ["NP","Nepal"],["NL","Netherlands"],["NC","New Caledonia"],["NZ","New Zealand"],["NI","Nicaragua"],
-    ["NE","Niger"],["NG","Nigeria"],["NU","Niue"],["NF","Norfolk Island"],["MK","North Macedonia"],
-    ["MP","Northern Mariana Islands"],["NO","Norway"],["OM","Oman"],["PK","Pakistan"],["PW","Palau"],
-    ["PS","Palestine"],["PA","Panama"],["PG","Papua New Guinea"],["PY","Paraguay"],["PE","Peru"],
-    ["PH","Philippines"],["PN","Pitcairn"],["PL","Poland"],["PT","Portugal"],["PR","Puerto Rico"],
-    ["QA","Qatar"],["RE","Réunion"],["RO","Romania"],["RU","Russian Federation"],["RW","Rwanda"],
-    ["BL","Saint Barthélemy"],["SH","Saint Helena"],["KN","Saint Kitts and Nevis"],["LC","Saint Lucia"],["MF","Saint Martin (French)"],
-    ["PM","Saint Pierre and Miquelon"],["VC","Saint Vincent and the Grenadines"],["WS","Samoa"],["SM","San Marino"],["ST","Sao Tome and Principe"],
-    ["SA","Saudi Arabia"],["SN","Senegal"],["RS","Serbia"],["SC","Seychelles"],["SL","Sierra Leone"],
-    ["SG","Singapore"],["SX","Sint Maarten"],["SK","Slovakia"],["SI","Slovenia"],["SB","Solomon Islands"],
-    ["SO","Somalia"],["ZA","South Africa"],["GS","South Georgia"],["SS","South Sudan"],["ES","Spain"],
-    ["LK","Sri Lanka"],["SD","Sudan"],["SR","Suriname"],["SJ","Svalbard and Jan Mayen"],["SE","Sweden"],
-    ["CH","Switzerland"],["SY","Syrian Arab Republic"],["TW","Taiwan"],["TJ","Tajikistan"],["TZ","Tanzania"],
-    ["TH","Thailand"],["TL","Timor-Leste"],["TG","Togo"],["TK","Tokelau"],["TO","Tonga"],
-    ["TT","Trinidad and Tobago"],["TN","Tunisia"],["TR","Türkiye"],["TM","Turkmenistan"],["TC","Turks and Caicos Islands"],
-    ["TV","Tuvalu"],["UG","Uganda"],["UA","Ukraine"],["AE","United Arab Emirates"],["GB","United Kingdom"],
-    ["US","United States"],["UM","US Minor Outlying Islands"],["UY","Uruguay"],["UZ","Uzbekistan"],["VU","Vanuatu"],
-    ["VE","Venezuela"],["VN","Viet Nam"],["VG","Virgin Islands (British)"],["VI","Virgin Islands (US)"],["WF","Wallis and Futuna"],
-    ["EH","Western Sahara"],["YE","Yemen"],["ZM","Zambia"],["ZW","Zimbabwe"]
-];
+// Country codes
+const COUNTRIES=[["AF","Afghanistan"],["AX","Aland Islands"],["AL","Albania"],["DZ","Algeria"],["AS","American Samoa"],["AD","Andorra"],["AO","Angola"],["AI","Anguilla"],["AQ","Antarctica"],["AG","Antigua and Barbuda"],["AR","Argentina"],["AM","Armenia"],["AW","Aruba"],["AU","Australia"],["AT","Austria"],["AZ","Azerbaijan"],["BS","Bahamas"],["BH","Bahrain"],["BD","Bangladesh"],["BB","Barbados"],["BY","Belarus"],["BE","Belgium"],["BZ","Belize"],["BJ","Benin"],["BM","Bermuda"],["BT","Bhutan"],["BO","Bolivia"],["BA","Bosnia and Herzegovina"],["BW","Botswana"],["BR","Brazil"],["BN","Brunei Darussalam"],["BG","Bulgaria"],["BF","Burkina Fili"],["BI","Burundi"],["CV","Cabo Verde"],["KH","Cambodia"],["CM","Cameroon"],["CA","Canada"],["KY","Cayman Islands"],["TD","Chad"],["CL","Chile"],["CN","China"],["CO","Colombia"],["KM","Comoros"],["CG","Congo"],["CD","Congo (DRC)"],["CR","Costa Rica"],["CI","Cote d'Ivoire"],["HR","Croatia"],["CU","Cuba"],["CY","Cyprus"],["CZ","Czechia"],["DK","Denmark"],["DJ","Djibouti"],["DM","Dominica"],["DO","Dominican Republic"],["EC","Ecuador"],["EG","Egypt"],["SV","El Salvador"],["GQ","Equatorial Guinea"],["ER","Eritrea"],["EE","Estonia"],["ET","Ethiopia"],["FI","Finland"],["FR","France"],["GA","Gabon"],["GM","Gambia"],["GE","Georgia"],["DE","Germany"],["GH","Ghana"],["GR","Greece"],["GD","Grenada"],["GT","Guatemala"],["GN","Guinea"],["GW","Guinea-Bissau"],["GY","Guyana"],["HT","Haiti"],["HN","Honduras"],["HK","Hong Kong"],["HU","Hungary"],["IS","Iceland"],["IN","India"],["ID","Indonesia"],["IR","Iran"],["IQ","Iraq"],["IE","Ireland"],["IL","Israel"],["IT","Italy"],["JM","Jamaica"],["JP","Japan"],["JO","Jordan"],["KZ","Kazakhstan"],["KE","Kenya"],["KR","Korea (South)"],["KW","Kuwait"],["KG","Kyrgyzstan"],["LA","Lao PDR"],["LV","Latvia"],["LB","Lebanon"],["LT","Lithuania"],["LU","Luxembourg"],["MG","Madagascar"],["MW","Malawi"],["MY","Malaysia"],["MV","Maldives"],["ML","Mali"],["MT","Malta"],["MX","Mexico"],["MD","Moldova"],["MN","Mongolia"],["MA","Morocco"],["MZ","Mozambique"],["MM","Myanmar"],["NA","Namibia"],["NP","Nepal"],["NL","Netherlands"],["NZ","New Zealand"],["NI","Nicaragua"],["NG","Nigeria"],["MK","North Macedonia"],["NO","Norway"],["OM","Oman"],["PK","Pakistan"],["PA","Panama"],["PG","Papua New Guinea"],["PY","Paraguay"],["PE","Peru"],["PH","Philippines"],["PL","Poland"],["PT","Portugal"],["QA","Qatar"],["RO","Romania"],["RU","Russian Federation"],["RW","Rwanda"],["SA","Saudi Arabia"],["SN","Senegal"],["RS","Serbia"],["SC","Seychelles"],["SG","Singapore"],["SK","Slovakia"],["SI","Slovenia"],["SO","Somalia"],["ZA","South Africa"],["ES","Spain"],["LK","Sri Lanka"],["SD","Sudan"],["SE","Sweden"],["CH","Switzerland"],["TW","Taiwan"],["TZ","Tanzania"],["TH","Thailand"],["TG","Togo"],["TT","Trinidad and Tobago"],["TN","Tunisia"],["TR","Turkiye"],["TC","Turks and Caicos Islands"],["UG","Uganda"],["UA","Ukraine"],["AE","United Arab Emirates"],["GB","United Kingdom"],["US","United States"],["UY","Uruguay"],["UZ","Uzbekistan"],["VE","Venezuela"],["VN","Viet Nam"],["YE","Yemen"],["ZM","Zambia"],["ZW","Zimbabwe"]];
 
-// Populate country dropdown
-(function() {
-    var select = document.getElementById('input-country');
-    COUNTRIES.forEach(function(c) {
-        var opt = document.createElement('option');
-        opt.value = c[0].toLowerCase();
-        opt.textContent = c[0] + ' - ' + c[1];
-        if (c[0].toLowerCase() === 'us') opt.selected = true;
-        select.appendChild(opt);
+(function(){
+    var s=document.getElementById('input-country');
+    var tc=document.getElementById('input-target-countries');
+    COUNTRIES.forEach(function(c){
+        var o1=document.createElement('option');o1.value=c[0].toLowerCase();o1.textContent=c[0]+' - '+c[1];if(c[0].toLowerCase()==='us')o1.selected=true;s.appendChild(o1);
+        var o2=document.createElement('option');o2.value=c[0].toLowerCase();o2.textContent=c[0]+' - '+c[1];tc.appendChild(o2);
     });
 })();
 
-function sanitizeDomain(input) {
-    if (!input) return '';
-    var domain = input.trim().toLowerCase();
-    domain = domain.replace(/^https?:\/\//, '');
-    domain = domain.replace(/^www\./, '');
-    domain = domain.split('/')[0];
-    domain = domain.split(':')[0];
-    return domain;
+function sanitizeDomain(i){if(!i)return'';var d=i.trim().toLowerCase();d=d.replace(/^https?:\/\//,'');d=d.replace(/^www\./,'');d=d.split('/')[0].split(':')[0];return d;}
+
+// Toast notification
+function showToast(msg,type){
+    var t=document.createElement('div');t.className='toast toast-'+(type||'info');t.textContent=msg;
+    document.body.appendChild(t);
+    setTimeout(function(){t.style.animation='toastOut 0.3s ease forwards';setTimeout(function(){t.remove();},300);},3500);
 }
 
-async function analyzeSite() {
-    var rawDomain = document.getElementById('input-domain').value.trim();
-    if (!rawDomain) { alert('Domain is required'); return; }
-
-    var domain = sanitizeDomain(rawDomain);
-    var maxPages = parseInt(document.getElementById('input-max-pages').value) || 100;
-    var maxKeywords = parseInt(document.getElementById('input-max-keywords').value) || 50;
-    var country = document.getElementById('input-country').value;
-    var device = document.getElementById('input-device').value;
-    var competitors = document.getElementById('input-competitors').value
-        .split(',')
-        .map(function(d) { return sanitizeDomain(d); })
-        .filter(function(d) { return d; });
-    var deepAio = document.getElementById('input-deep-aio').checked;
-    var deepGeo = document.getElementById('input-deep-geo').checked;
-
-    var statusEl = document.getElementById('analysis-status');
-    var resultsEl = document.getElementById('analysis-results');
-    var btn = document.getElementById('analyze-btn');
-    var pdfBtn = document.getElementById('pdf-btn');
-
-    btn.disabled = true;
-    pdfBtn.disabled = true;
-    pdfBtn.style.display = 'none';
-    btn.textContent = 'Analyzing...';
-    statusEl.style.display = 'block';
-    statusEl.innerHTML = '<div class="card glass"><div class="loading">&#8987; Starting analysis for ' + domain + '...</div></div>';
-    resultsEl.innerHTML = '';
-
-    try {
-        var resp = await fetch('/api/site/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                domain: domain,
-                max_pages: maxPages,
-                max_keywords: maxKeywords,
-                country: country,
-                device: device,
-                competitors: competitors,
-                deep_aio: deepAio,
-                deep_geo: deepGeo
-            })
-        });
-
-        if (!resp.ok) {
-            var err = await resp.json().catch(function() { return { detail: 'Analysis failed' }; });
-            statusEl.innerHTML = '<div class="error-box">&#10060; ' + (err.detail || 'Analysis failed') + '</div>';
-            btn.disabled = false;
-            btn.textContent = 'Analyze Site';
-            return;
-        }
-
-        var data = await resp.json();
-        lastAnalysisData = data;
-        statusEl.innerHTML = '<div class="success-box">&#9989; Analysis complete for ' + data.domain + '</div>';
-        pdfBtn.disabled = false;
-        pdfBtn.style.display = 'inline-flex';
-        renderResults(data, resultsEl);
-
-    } catch (e) {
-        statusEl.innerHTML = '<div class="error-box">&#10060; Error: ' + (e.message || e) + '</div>';
-    }
-
-    btn.disabled = false;
-    btn.textContent = 'Analyze Site';
+// Loading skeleton UI
+function showLoadingSkeleton(domain){
+    var el=document.getElementById('analysis-status');
+    el.style.display='block';
+    el.innerHTML=
+        '<div class="card glass fade-in" style="margin-bottom:16px;">'+
+        '<div class="progress-steps">'+
+        '<div class="progress-step done">Crawling</div>'+
+        '<div class="progress-step active">Auditing</div>'+
+        '<div class="progress-step">Rankings</div>'+
+        '<div class="progress-step">AIO/GEO</div>'+
+        '<div class="progress-step">Report</div>'+
+        '</div>'+
+        '<div style="padding:20px 0;text-align:center;">'+
+        '<div class="spinner" style="font-size:1.5rem;color:var(--primary);">&#9696;</div>'+
+        '<p style="margin-top:12px;color:var(--text-secondary);font-size:0.9rem;">Analyzing <strong>'+domain+'</strong> &mdash; crawling pages, auditing technical SEO, discovering rankings...</p>'+
+        '<p style="margin-top:4px;color:var(--text-muted);font-size:0.75rem;">This may take 60-180 seconds depending on site size</p>'+
+        '</div></div>';
 }
 
-var lastAnalysisData = null;
-
-async function downloadPdf() {
-    if (!lastAnalysisData) {
-        alert('No analysis data available. Run analysis first.');
-        return;
-    }
-
-    var rawDomain = document.getElementById('input-domain').value.trim();
-    var domain = sanitizeDomain(rawDomain);
-    var maxPages = parseInt(document.getElementById('input-max-pages').value) || 100;
-    var maxKeywords = parseInt(document.getElementById('input-max-keywords').value) || 50;
-    var country = document.getElementById('input-country').value;
-    var device = document.getElementById('input-device').value;
-    var competitors = document.getElementById('input-competitors').value
-        .split(',')
-        .map(function(d) { return sanitizeDomain(d); })
-        .filter(function(d) { return d; });
-    var deepAio = document.getElementById('input-deep-aio').checked;
-    var deepGeo = document.getElementById('input-deep-geo').checked;
-
-    var statusEl = document.getElementById('analysis-status');
-    var resultsEl = document.getElementById('analysis-results');
-    var btn = document.getElementById('analyze-btn');
-    var pdfBtn = document.getElementById('pdf-btn');
-
-    btn.disabled = true;
-    pdfBtn.disabled = true;
-    pdfBtn.textContent = 'Generating PDF...';
-    statusEl.innerHTML = '<div class="card glass"><div class="loading">&#8987; Generating comprehensive PDF report...</div></div>';
-
-    try {
-        var resp = await fetch('/api/site/analyze/pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                domain: domain,
-                max_pages: maxPages,
-                max_keywords: maxKeywords,
-                country: country,
-                device: device,
-                competitors: competitors,
-                deep_aio: deepAio,
-                deep_geo: deepGeo
-            })
-        });
-
-        if (!resp.ok) {
-            var err = await resp.json().catch(function() { return { detail: 'PDF generation failed' }; });
-            statusEl.innerHTML = '<div class="error-box">&#10060; ' + (err.detail || 'PDF generation failed') + '</div>';
-            btn.disabled = false;
-            pdfBtn.disabled = false;
-            pdfBtn.textContent = 'Download PDF Report';
-            return;
-        }
-
-        var blob = await resp.blob();
-        var url = window.URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'site_analysis_' + domain.replace(/\./g, '_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-
-        statusEl.innerHTML = '<div class="success-box">&#9989; PDF report downloaded successfully!</div>';
-
-    } catch (e) {
-        statusEl.innerHTML = '<div class="error-box">&#10060; Error: ' + (e.message || e) + '</div>';
-    }
-
-    btn.disabled = false;
-    pdfBtn.disabled = false;
-    pdfBtn.textContent = 'Download PDF Report';
+// SVG Score Ring
+function scoreRing(label,score,color,size){
+    size=size||100;
+    var r=(size/2)-8;var c=2*Math.PI*r;var offset=c-(score/100)*c;
+    var gradientId='grad-'+label.replace(/\s+/g,'-');
+    return '<div class="score-ring-container" style="margin:8px;">'+
+        '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+
+        '<defs><linearGradient id="'+gradientId+'" x1="0%" y1="0%" x2="100%" y2="100%">'+
+        '<stop offset="0%" style="stop-color:'+color+';stop-opacity:1"/>'+
+        '<stop offset="100%" style="stop-color:'+color+';stop-opacity:0.6"/>'+
+        '</linearGradient></defs>'+
+        '<circle class="score-ring-bg" cx="'+(size/2)+'" cy="'+(size/2)+'" r="'+r+'" stroke-width="6"/>'+
+        '<circle class="score-ring-fill" cx="'+(size/2)+'" cy="'+(size/2)+'" r="'+r+'" stroke-width="6"'+
+        ' stroke="url(#'+gradientId+')" stroke-dasharray="'+c+'" stroke-dashoffset="'+offset+'"'+
+        ' transform="rotate(-90 '+size/2+' '+size/2+')"/>'+
+        '</svg>'+
+        '<div class="score-ring-label"><div class="score-ring-value" style="color:'+color+'">'+score.toFixed(0)+'</div>'+
+        '<div class="score-ring-text">'+label+'</div></div></div>';
 }
 
-function renderResults(data, container) {
-    var html = '';
+function getScoreColor(s){if(s>=80)return'var(--success)';if(s>=60)return'var(--warning)';if(s>=40)return'var(--info)';return'var(--danger)';}
+function statCard(v,l,t){var c='';if(t==='success')c='var(--success)';else if(t==='warning')c='var(--warning)';else if(t==='danger')c='var(--danger)';else if(t==='info')c='var(--info)';var s=c?'color:'+c:'';return'<div class="stat"><div class="value count-up" style="'+s+'">'+v+'</div><div class="label">'+l+'</div></div>';}
 
-    // Score cards - 7 columns now
-    html += '<div class="card glass"><h2>Overall Health Scores</h2>';
-    html += '<div class="grid grid-7" style="margin-top: 12px;">';
-    html += scoreCard('Overall', data.overall_score, getScoreColor(data.overall_score));
-    html += scoreCard('Technical', data.technical_score, getScoreColor(data.technical_score));
-    html += scoreCard('Content', data.content_score, getScoreColor(data.content_score));
-    html += scoreCard('Rankings', data.ranking_score, getScoreColor(data.ranking_score));
-    html += scoreCard('Architecture', data.architecture_score, getScoreColor(data.architecture_score));
-    html += scoreCard('AIO', data.aio_score, getScoreColor(data.aio_score));
-    html += scoreCard('GEO', data.geo_score, getScoreColor(data.geo_score));
-    html += '</div></div>';
+// V3 CategoryScore breakdown rendering
+function renderMetricTable(metrics){
+    if(!metrics||metrics.length===0)return'';
+    var h='<div style="overflow-x:auto;margin-top:12px;">';
+    h+='<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">';
+    h+='<thead><tr style="background:var(--surface);border-bottom:2px solid var(--glass-border);">';
+    h+='<th style="padding:8px 10px;text-align:left;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Metric</th>';
+    h+='<th style="padding:8px 10px;text-align:center;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Weight</th>';
+    h+='<th style="padding:8px 10px;text-align:center;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Expected</th>';
+    h+='<th style="padding:8px 10px;text-align:center;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Score</th>';
+    h+='<th style="padding:8px 10px;text-align:center;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Status</th>';
+    h+='<th style="padding:8px 10px;text-align:center;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Confidence</th>';
+    h+='<th style="padding:8px 10px;text-align:left;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);">Evidence</th>';
+    h+='</tr></thead><tbody>';
+    metrics.forEach(function(m){
+        var sc=m.normalized_score>=80?'badge-success':m.normalized_score>=60?'badge-warning':m.normalized_score>=40?'badge-info':'badge-danger';
+        h+='<tr style="border-bottom:1px solid var(--glass-border);">';
+        h+='<td style="padding:8px 10px;"><strong>'+m.metric_name+'</strong>';
+        if(m.category)h+='<div style="font-size:0.7rem;color:var(--text-muted);">'+m.category+'</div>';
+        h+='</td>';
+        h+='<td style="padding:8px 10px;text-align:center;">'+m.weight.toFixed(0)+'%</td>';
+        h+='<td style="padding:8px 10px;text-align:center;">'+m.expected.toFixed(0)+'</td>';
+        h+='<td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--'+(m.normalized_score>=80?'success':m.normalized_score>=60?'warning':m.normalized_score>=40?'info':'danger')+');">'+m.normalized_score.toFixed(0)+'</td>';
+        h+='<td style="padding:8px 10px;text-align:center;"><span class="badge '+sc+'">'+m.status+'</span></td>';
+        h+='<td style="padding:8px 10px;text-align:center;font-size:0.75rem;">'+m.confidence+'</td>';
+        h+='<td style="padding:8px 10px;font-size:0.75rem;color:var(--text-secondary);">'+m.evidence+'</td>';
+        h+='</tr>';
+    });
+    h+='</tbody></table></div>';
+    return h;
+}
 
-    // Rankings summary
-    if (data.rankings) {
-        var r = data.rankings;
-        html += '<div class="card glass"><h2>Search Visibility</h2>';
-        html += '<div class="grid grid-4" style="margin-top: 12px;">';
-        html += statCard(r.keywords_in_top_3, 'Top 3', 'success');
-        html += statCard(r.keywords_in_top_10, 'Top 10', 'warning');
-        html += statCard(r.keywords_in_top_20, 'Top 20', 'info');
-        html += statCard(r.keywords_not_ranking, 'Not Ranking', 'danger');
-        html += '</div>';
-        html += '<div style="margin-top: 16px;">';
-        html += '<strong>Visibility: ' + (r.visibility_score * 100).toFixed(1) + '%</strong> | ';
-        html += '<strong>Est. Monthly Traffic: ' + r.estimated_monthly_traffic.toLocaleString() + '</strong>';
-        html += '</div>';
-        if (r.top_keywords && r.top_keywords.length > 0) {
-            html += '<h3 style="margin-top: 16px;">Top Ranking Keywords</h3>';
-            html += '<table style="margin-top:10px;width:100%"><thead><tr><th>Keyword</th><th>Position</th><th>URL</th></tr></thead><tbody>';
-            r.top_keywords.forEach(function(kw) {
-                var badge = kw.position <= 3 ? 'badge-success' : kw.position <= 10 ? 'badge-warning' : 'badge-info';
-                html += '<tr><td><strong>' + kw.keyword + '</strong></td><td><span class="badge ' + badge + '">#' + kw.position + '</span></td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + kw.url + '</td></tr>';
-            });
-            html += '</tbody></table>';
+function renderCategoryBreakdown(breakdown,icon){
+    if(!breakdown)return'';
+    var h='';
+    var borderColor=breakdown.score_status==='ASSESSED'?(breakdown.overall_score>=60?'var(--success)':'var(--warning)'):'var(--glass-border)';
+    h+='<div class="card glass fade-in" style="border-left:4px solid '+borderColor+';">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
+    h+='<h2>'+(icon||'')+' '+breakdown.category_name+'</h2>';
+    if(breakdown.overall_score!==null&&breakdown.overall_score!==undefined){
+        h+='<span class="badge '+(breakdown.overall_score>=80?'badge-success':breakdown.overall_score>=60?'badge-warning':breakdown.overall_score>=40?'badge-info':'badge-danger')+'" style="font-size:1rem;padding:6px 14px;">'+breakdown.overall_score.toFixed(0)+'/100</span>';
+    }
+    h+='</div>';
+    h+='<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">'+breakdown.scoring_methodology+'</div>';
+
+    if(breakdown.score_status==='NOT ASSESSED'){
+        h+='<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:16px;margin-bottom:8px;">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+        h+='<span class="badge badge-info">NOT ASSESSED</span>';
+        h+='</div>';
+        if(breakdown.limitations&&breakdown.limitations.length>0){
+            h+='<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:8px;">';
+            h+='<strong>Limitations:</strong><ul style="margin:4px 0 0 18px;">';
+            breakdown.limitations.forEach(function(lim){h+='<li>'+lim+'</li>';});
+            h+='</ul></div>';
         }
-        html += '</div>';
+        h+='</div>';
+    }else if(breakdown.score_status==='INSUFFICIENT DATA'){
+        h+='<div style="background:var(--surface);border:1px solid var(--warning);border-radius:8px;padding:16px;margin-bottom:8px;">';
+        h+='<span class="badge badge-warning">INSUFFICIENT DATA</span>';
+        h+='<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:8px;">Coverage: '+(breakdown.data_coverage*100).toFixed(0)+'%</div>';
+        h+='</div>';
+    }else{
+        // ASSESSED - show metrics table
+        h+='<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px;">';
+        h+='<span>Sample: <strong>'+breakdown.sample_size+'</strong></span>';
+        h+='<span>Coverage: <strong>'+(breakdown.data_coverage*100).toFixed(0)+'%</strong></span>';
+        h+='<span>Confidence: <strong>'+breakdown.confidence+'</strong></span>';
+        h+='</div>';
+        h+=renderMetricTable(breakdown.metrics);
     }
 
-    // AIO Analysis
-    if (data.aio) {
-        var a = data.aio;
-        html += '<div class="card glass" style="border-left: 4px solid #8b5cf6;"><h2>AI Overview (AIO) Analysis</h2>';
-        html += '<div class="grid grid-4" style="margin-top: 12px;">';
-        html += statCard(a.keywords_checked, 'Keywords Checked');
-        html += statCard(a.ai_overviews_present, 'AIOs Present', a.ai_overviews_present > 0 ? 'success' : 'info');
-        html += statCard(a.target_cited_count, 'Target Cited', a.target_cited_count > 0 ? 'success' : 'danger');
-        html += statCard((a.target_citation_rate * 100).toFixed(1) + '%', 'Citation Rate', a.target_citation_rate >= 0.5 ? 'success' : a.target_citation_rate >= 0.3 ? 'warning' : 'danger');
-        html += '</div>';
-        if (a.competitor_cited_count > 0) {
-            html += '<p style="margin-top: 12px;"><strong>Competitors Cited:</strong> ' + a.competitor_cited_count + ' times';
-            if (a.competitor_domains_cited && a.competitor_domains_cited.length > 0) {
-                html += ' | <strong>Top Domains:</strong> ' + a.competitor_domains_cited.slice(0,5).join(', ');
-            }
-            html += '</p>';
+    if(breakdown.confidence_factors&&breakdown.confidence_factors.length>0){
+        h+='<div style="background:var(--surface);border-left:3px solid var(--primary);border-radius:0 8px 8px 0;padding:12px 16px;margin-top:12px;font-size:0.8rem;">';
+        h+='<strong style="color:var(--primary);">Confidence Factors</strong><ul style="margin:4px 0 0 18px;">';
+        breakdown.confidence_factors.forEach(function(f){h+='<li>'+f+'</li>';});
+        h+='</ul></div>';
+    }
+    h+='</div>';
+    return h;
+}
+
+var lastAnalysisData=null;
+
+async function analyzeSite(){
+    var raw=document.getElementById('input-domain').value.trim();
+    if(!raw){showToast('Please enter a domain','error');return;}
+    var domain=sanitizeDomain(raw);
+    var maxPages=parseInt(document.getElementById('input-max-pages').value)||100;
+    var maxKeywords=parseInt(document.getElementById('input-max-keywords').value)||50;
+    var country=document.getElementById('input-country').value;
+    var device=document.getElementById('input-device').value;
+    var competitors=document.getElementById('input-competitors').value.split(',').map(function(d){return sanitizeDomain(d);}).filter(function(d){return d;});
+    var deepAio=document.getElementById('input-deep-aio').checked;
+    var deepGeo=document.getElementById('input-deep-geo').checked;
+    var targetCountries=[];
+    var tcSelect=document.getElementById('input-target-countries');
+    for(var i=0;i<tcSelect.options.length;i++){if(tcSelect.options[i].selected&&tcSelect.options[i].value!==country){targetCountries.push(tcSelect.options[i].value);}}
+
+    var btn=document.getElementById('analyze-btn');
+    var pdfBtn=document.getElementById('pdf-btn');
+    var resultsEl=document.getElementById('analysis-results');
+    btn.disabled=true;pdfBtn.disabled=true;pdfBtn.style.display='none';
+    btn.innerHTML='<span class="spinner">&#9696;</span> Analyzing...';
+    resultsEl.innerHTML='';
+    showLoadingSkeleton(domain);
+
+    try{
+        var resp=await fetch('/api/site/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({domain:domain,max_pages:maxPages,max_keywords:maxKeywords,country:country,target_countries:targetCountries,device:device,competitors:competitors,deep_aio:deepAio,deep_geo:deepGeo})});
+        if(!resp.ok){var err=await resp.json().catch(function(){return{detail:'Analysis failed'};});document.getElementById('analysis-status').innerHTML='<div class="error-box">&#10060; '+(err.detail||'Analysis failed')+'</div>';btn.disabled=false;btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Analyze Site';return;}
+        var data=await resp.json();lastAnalysisData=data;
+        document.getElementById('analysis-status').innerHTML='<div class="success-box fade-in">&#9989; Analysis complete for <strong>'+data.domain+'</strong></div>';
+        pdfBtn.disabled=false;pdfBtn.style.display='inline-flex';
+        renderResults(data,resultsEl);
+        showToast('Analysis complete for '+data.domain,'success');
+    }catch(e){document.getElementById('analysis-status').innerHTML='<div class="error-box">&#10060; Error: '+(e.message||e)+'</div>';}
+    btn.disabled=false;btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Analyze Site';
+}
+
+async function downloadPdf(){
+    if(!lastAnalysisData){showToast('Run analysis first','error');return;}
+    var raw=document.getElementById('input-domain').value.trim();
+    var domain=sanitizeDomain(raw);
+    var maxPages=parseInt(document.getElementById('input-max-pages').value)||100;
+    var maxKeywords=parseInt(document.getElementById('input-max-keywords').value)||50;
+    var country=document.getElementById('input-country').value;
+    var device=document.getElementById('input-device').value;
+    var competitors=document.getElementById('input-competitors').value.split(',').map(function(d){return sanitizeDomain(d);}).filter(function(d){return d;});
+    var deepAio=document.getElementById('input-deep-aio').checked;
+    var deepGeo=document.getElementById('input-deep-geo').checked;
+    var targetCountries2=[];
+    var tcSelect2=document.getElementById('input-target-countries');
+    for(var i=0;i<tcSelect2.options.length;i++){if(tcSelect2.options[i].selected&&tcSelect2.options[i].value!==country){targetCountries2.push(tcSelect2.options[i].value);}}
+    var btn=document.getElementById('analyze-btn');
+    var pdfBtn=document.getElementById('pdf-btn');
+    pdfBtn.disabled=true;pdfBtn.textContent='Generating...';
+    try{
+        var resp=await fetch('/api/site/analyze/pdf',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({domain:domain,max_pages:maxPages,max_keywords:maxKeywords,country:country,target_countries:targetCountries2,device:device,competitors:competitors,deep_aio:deepAio,deep_geo:deepGeo})});
+        if(!resp.ok){var err=await resp.json().catch(function(){return{detail:'PDF failed'};});showToast(err.detail||'PDF generation failed','error');pdfBtn.disabled=false;pdfBtn.textContent='PDF';return;}
+        var blob=await resp.blob();var url=window.URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='site_analysis_'+domain.replace(/\./g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf';document.body.appendChild(a);a.click();window.URL.revokeObjectURL(url);document.body.removeChild(a);
+        showToast('PDF downloaded successfully','success');
+    }catch(e){showToast('PDF error: '+(e.message||e),'error');}
+    pdfBtn.disabled=false;pdfBtn.textContent='PDF';
+}
+
+function renderResults(data,c){
+    var html='';
+    // Score rings
+    html+='<div class="card glass fade-in"><h2>Overall Health Scores</h2>';
+    html+='<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:16px;">';
+    html+=scoreRing('Overall',data.overall_score,getScoreColor(data.overall_score),110);
+    html+=scoreRing('Technical',data.technical_score,getScoreColor(data.technical_score),90);
+    html+=scoreRing('Content',data.content_score,getScoreColor(data.content_score),90);
+    html+=scoreRing('Rankings',data.ranking_score,getScoreColor(data.ranking_score),90);
+    html+=scoreRing('Architecture',data.architecture_score,getScoreColor(data.architecture_score),90);
+    html+=scoreRing('AIO',data.aio_score,getScoreColor(data.aio_score),90);
+    html+=scoreRing('GEO',data.geo_score,getScoreColor(data.geo_score),90);
+    html+='</div></div>';
+
+    // Rankings
+    if(data.rankings){
+        var r=data.rankings;
+        html+='<div class="card glass fade-in"><h2>Search Visibility</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(r.keywords_in_top_3,'Top 3','success');
+        html+=statCard(r.keywords_in_top_10,'Top 10','warning');
+        html+=statCard(r.keywords_in_top_20,'Top 20','info');
+        html+=statCard(r.keywords_not_ranking,'Not Ranking','danger');
+        html+='</div>';
+        html+='<div style="margin-top:16px;padding:12px;background:var(--surface);border-radius:var(--radius-sm);">';
+        html+='<strong>Visibility: '+(r.visibility_score*100).toFixed(1)+'%</strong> &mdash; ';
+        html+='<strong>Est. Monthly Traffic: '+r.estimated_monthly_traffic.toLocaleString()+'</strong></div>';
+        if(r.top_keywords&&r.top_keywords.length>0){
+            html+='<h3 style="margin-top:16px;">Top Ranking Keywords</h3>';
+            html+='<div class="table-scroll"><table style="margin-top:10px;width:100%"><thead><tr><th style="width:35%">Keyword</th><th style="width:15%">Position</th><th style="width:50%">URL</th></tr></thead><tbody>';
+            r.top_keywords.forEach(function(kw){var b=kw.position<=3?'badge-success':kw.position<=10?'badge-warning':'badge-info';html+='<tr><td><strong>'+kw.keyword+'</strong></td><td><span class="badge '+b+'">#'+kw.position+'</span></td><td style="word-break:break-all;font-size:0.8rem;color:var(--text-muted);">'+kw.url+'</td></tr>';});
+            html+='</tbody></table></div>';
         }
-        if (a.top_opportunities && a.top_opportunities.length > 0) {
-            html += '<h3 style="margin-top: 16px;">AIO Citation Opportunities</h3>';
-            a.top_opportunities.slice(0,5).forEach(function(opp) {
-                html += '<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;">';
-                html += '<strong>' + opp.keyword + '</strong> - ' + opp.action;
-                if (opp.competitor_cited) {
-                    html += ' <span class="badge badge-info">' + opp.competitor_cited + ' competitors cited</span>';
-                }
-                html += '</div>';
-            });
-        }
-        html += '</div>';
+        html+='</div>';
     }
 
-    // GEO Analysis
-    if (data.geo) {
-        var g = data.geo;
-        html += '<div class="card glass" style="border-left: 4px solid #10b981;"><h2>Generative Engine (GEO) Analysis</h2>';
-        html += '<div class="grid grid-4" style="margin-top: 12px;">';
-        html += statCard(g.keywords_checked, 'Keywords Checked');
-        html += statCard(g.target_mentioned_count, 'Target Mentioned', g.target_mentioned_count > 0 ? 'success' : 'danger');
-        html += statCard(g.competitor_mentioned_count, 'Competitor Mentions', g.competitor_mentioned_count > 0 ? 'warning' : 'info');
-        html += statCard((g.mention_rate * 100).toFixed(1) + '%', 'Mention Rate', g.mention_rate >= 0.3 ? 'success' : g.mention_rate >= 0.15 ? 'warning' : 'danger');
-        html += '</div>';
-        if (g.competitor_domains_mentioned && g.competitor_domains_mentioned.length > 0) {
-            html += '<p style="margin-top: 12px;"><strong>Competitors Mentioned:</strong> ' + g.competitor_domains_mentioned.slice(0,5).join(', ') + '</p>';
+    // AIO
+    if(data.aio){
+        var a=data.aio;
+        html+='<div class="card glass fade-in" style="border-left:4px solid #8b5cf6;"><h2>AI Overview (AIO) Analysis</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(a.keywords_checked,'Keywords Checked');
+        html+=statCard(a.ai_overviews_present,'AIOs Present',a.ai_overviews_present>0?'success':'info');
+        html+=statCard(a.target_cited_count,'Target Cited',a.target_cited_count>0?'success':'danger');
+        html+=statCard((a.target_citation_rate*100).toFixed(1)+'%','Citation Rate',a.target_citation_rate>=0.5?'success':a.target_citation_rate>=0.3?'warning':'danger');
+        html+='</div>';
+        if(a.competitor_cited_count>0){html+='<p style="margin-top:12px;"><strong>Competitors Cited:</strong> '+a.competitor_cited_count+' times';if(a.competitor_domains_cited&&a.competitor_domains_cited.length>0){html+=' | <strong>Top:</strong> '+a.competitor_domains_cited.slice(0,5).join(', ');}html+='</p>';}
+        if(a.top_opportunities&&a.top_opportunities.length>0){
+            html+='<h3 style="margin-top:16px;">AIO Citation Opportunities</h3>';
+            a.top_opportunities.slice(0,5).forEach(function(o){html+='<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;"><strong>'+o.keyword+'</strong> - '+o.action;if(o.competitor_cited){html+=' <span class="badge badge-info">'+o.competitor_cited+' competitors cited</span>';}html+='</div>';});
         }
-        if (g.top_opportunities && g.top_opportunities.length > 0) {
-            html += '<h3 style="margin-top: 16px;">GEO Opportunities</h3>';
-            g.top_opportunities.slice(0,5).forEach(function(opp) {
-                html += '<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;">';
-                html += '<strong>' + opp.keyword + '</strong> - ' + opp.action;
-                if (opp.competitors_mentioned) {
-                    html += ' <span class="badge badge-info">' + opp.competitors_mentioned + ' competitors mentioned</span>';
-                }
-                html += '</div>';
-            });
-        }
-        html += '</div>';
+        html+='</div>';
     }
 
-    // Technical health
-    if (data.technical) {
-        var t = data.technical;
-        html += '<div class="card glass"><h2>Technical Health</h2>';
-        html += '<div class="grid grid-4" style="margin-top: 12px;">';
-        html += statCard(t.pages_crawled, 'Pages Crawled');
-        html += statCard(t.critical_issues, 'Critical', 'danger');
-        html += statCard(t.warning_issues, 'Warnings', 'warning');
-        html += statCard(t.info_issues, 'Info', 'info');
-        html += '</div>';
-        html += '<div style="margin-top: 12px;">';
-        html += '<div class="grid grid-3">';
-        html += '<div><strong>Indexable:</strong> ' + t.indexable_pages + '</div>';
-        html += '<div><strong>Avg Load:</strong> ' + t.avg_load_time_ms + 'ms</div>';
-        html += '<div><strong>Core Web Vitals:</strong> <span class="badge ' + (t.core_web_vitals_pass ? 'badge-success' : 'badge-danger') + '">' + (t.core_web_vitals_pass ? 'Pass' : 'Fail') + '</span></div>';
-        html += '</div></div>';
-        if (t.top_issues && t.top_issues.length > 0) {
-            html += '<h3 style="margin-top: 16px;">Top Issues</h3>';
-            html += '<ul style="margin-top: 8px;">';
-            t.top_issues.forEach(function(issue) {
-                var badge = issue.severity === 'critical' ? 'badge-danger' : issue.severity === 'warning' ? 'badge-warning' : 'badge-info';
-                html += '<li><span class="badge ' + badge + '">' + issue.severity + '</span> ' + issue.message + (issue.url ? ' <small>(' + issue.url + ')</small>' : '') + '</li>';
-            });
-            html += '</ul>';
+    // GEO
+    if(data.geo){
+        var g=data.geo;
+        html+='<div class="card glass fade-in" style="border-left:4px solid #10b981;"><h2>Generative Engine (GEO) Analysis</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(g.keywords_checked,'Keywords Checked');
+        html+=statCard(g.target_mentioned_count,'Target Mentioned',g.target_mentioned_count>0?'success':'danger');
+        html+=statCard(g.competitor_mentioned_count,'Competitor Mentions',g.competitor_mentioned_count>0?'warning':'info');
+        html+=statCard((g.mention_rate*100).toFixed(1)+'%','Mention Rate',g.mention_rate>=0.3?'success':g.mention_rate>=0.15?'warning':'danger');
+        html+='</div>';
+        if(g.competitor_domains_mentioned&&g.competitor_domains_mentioned.length>0){html+='<p style="margin-top:12px;"><strong>Competitors Mentioned:</strong> '+g.competitor_domains_mentioned.slice(0,5).join(', ')+'</p>';}
+        if(g.top_opportunities&&g.top_opportunities.length>0){
+            html+='<h3 style="margin-top:16px;">GEO Opportunities</h3>';
+            g.top_opportunities.slice(0,5).forEach(function(o){html+='<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;"><strong>'+o.keyword+'</strong> - '+o.action;if(o.competitors_mentioned){html+=' <span class="badge badge-info">'+o.competitors_mentioned+' competitors mentioned</span>';}html+='</div>';});
         }
-        html += '</div>';
+        html+='</div>';
     }
 
-    // Content health
-    if (data.content) {
-        var c = data.content;
-        html += '<div class="card glass"><h2>Content Quality</h2>';
-        html += '<div class="grid grid-4" style="margin-top: 12px;">';
-        html += statCard(c.pages_analyzed, 'Pages Analyzed');
-        html += statCard(Math.round(c.avg_quality_score * 100) + '%', 'Avg Quality');
-        html += statCard(c.thin_content_pages, 'Thin Content', 'warning');
-        html += statCard(c.duplicate_groups, 'Duplicates', 'danger');
-        html += '</div>';
-        if (c.top_issues && c.top_issues.length > 0) {
-            html += '<h3 style="margin-top: 16px;">Top Content Issues</h3>';
-            html += '<ul style="margin-top: 8px;">';
-            c.top_issues.forEach(function(issue) {
-                html += '<li><strong>' + issue[0] + ':</strong> ' + issue[1] + ' pages</li>';
-            });
-            html += '</ul>';
+    // Technical
+    if(data.technical){
+        var t=data.technical;
+        html+='<div class="card glass fade-in"><h2>Technical Health</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(t.pages_crawled,'Pages Crawled');
+        html+=statCard(t.critical_issues,'Critical','danger');
+        html+=statCard(t.warning_issues,'Warnings','warning');
+        html+=statCard(t.info_issues,'Info','info');
+        html+='</div>';
+        html+='<div style="margin-top:12px;"><div class="grid grid-3">';
+        html+='<div><strong>Indexable:</strong> '+t.indexable_pages+'</div>';
+        html+='<div><strong>Avg Load:</strong> '+t.avg_load_time_ms+'ms</div>';
+        html+='<div><strong>Core Web Vitals:</strong> <span class="badge '+(t.core_web_vitals_pass?'badge-success':'badge-danger')+'">'+(t.core_web_vitals_pass?'Pass':'Fail')+'</span></div>';
+        html+='</div></div>';
+        if(t.top_issues&&t.top_issues.length>0){
+            html+='<h3 style="margin-top:16px;">Top Issues</h3><ul style="margin-top:8px;list-style:none;padding:0;">';
+            t.top_issues.forEach(function(i){var b=i.severity==='critical'?'badge-danger':i.severity==='warning'?'badge-warning':'badge-info';html+='<li style="padding:6px 0;border-bottom:1px solid var(--glass-border);word-break:break-word;"><span class="badge '+b+'" style="margin-right:6px;">'+i.severity+'</span> '+i.message+(i.url?' <span style="color:var(--text-muted);font-size:0.8rem;">('+i.url+')</span>':'')+'</li>';});
+            html+='</ul>';
         }
-        html += '</div>';
+        html+='</div>';
+    }
+
+    // Content
+    if(data.content){
+        var ct=data.content;
+        html+='<div class="card glass fade-in"><h2>Content Quality</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(ct.pages_analyzed,'Pages Analyzed');
+        html+=statCard(Math.round(ct.avg_quality_score*100)+'%','Avg Quality');
+        html+=statCard(ct.thin_content_pages,'Thin Content','warning');
+        html+=statCard(ct.duplicate_groups,'Duplicates','danger');
+        html+='</div>';
+        if(ct.top_issues&&ct.top_issues.length>0){
+            html+='<h3 style="margin-top:16px;">Top Content Issues</h3><ul style="margin-top:8px;list-style:none;padding:0;">';
+            ct.top_issues.forEach(function(i){html+='<li style="padding:6px 0;border-bottom:1px solid var(--glass-border);"><strong>'+i[0].replace(/_/g,' ')+':</strong> '+i[1]+' page'+(i[1]!==1?'s':'')+'</li>';});
+            html+='</ul>';
+        }
+        html+='</div>';
     }
 
     // Architecture
-    if (data.architecture) {
-        var a = data.architecture;
-        html += '<div class="card glass"><h2>Site Architecture</h2>';
-        html += '<div class="grid grid-4" style="margin-top: 12px;">';
-        html += statCard(a.total_pages, 'Total Pages');
-        html += statCard(a.total_internal_links, 'Internal Links');
-        html += statCard(a.avg_depth.toFixed(1), 'Avg Depth');
-        html += statCard(a.orphan_pages, 'Orphans', a.orphan_pages > 0 ? 'warning' : 'success');
-        html += '</div></div>';
+    if(data.architecture){
+        var ar=data.architecture;
+        html+='<div class="card glass fade-in"><h2>Site Architecture</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(ar.total_pages,'Total Pages');
+        html+=statCard(ar.total_internal_links,'Internal Links');
+        html+=statCard(ar.avg_depth.toFixed(1),'Avg Depth');
+        html+=statCard(ar.orphan_pages,'Orphans',ar.orphan_pages>0?'warning':'success');
+        html+='</div></div>';
+    }
+
+    // Entity / Knowledge Graph Analysis
+    if(data.entity_analysis){
+        var en=data.entity_analysis;
+        html+='<div class="card glass fade-in" style="border-left:4px solid #f59e0b;"><h2>Entity / Knowledge Graph Analysis</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(en.entities_extracted,'Entities Extracted');
+        html+=statCard(en.unique_entities,'Unique Entities');
+        html+=statCard(en.wikipedia_aligned,'Wikipedia Aligned','info');
+        html+=statCard(en.score.toFixed(0)+'/100','Entity Score','info');
+        html+='</div>';
+        if(en.missing_entity_types&&en.missing_entity_types.length>0){html+='<p style="margin-top:12px;color:var(--text-secondary);"><strong>Missing Entity Types:</strong> '+en.missing_entity_types.join(', ')+'</p>';}
+        if(en.recommendations&&en.recommendations.length>0){html+='<h3 style="margin-top:12px;">Entity Recommendations</h3><ul style="margin:8px 0 0;padding:0 0 0 18px;font-size:0.85rem;color:var(--text-secondary);">';en.recommendations.forEach(function(r){html+='<li style="margin-bottom:4px;word-break:break-word;">'+r+'</li>';});html+='</ul>';}
+        html+='</div>';
+    }
+
+    // Page Performance (deterministic HTML analysis)
+    if(data.performance_summary){
+        var ps=data.performance_summary;
+        if(ps.pages_analyzed>0){
+            html+='<div class="card glass fade-in" style="border-left:4px solid #06b6d4;"><h2>Page Performance (HTML Analysis)</h2>';
+            html+='<div class="grid grid-4" style="margin-top:12px;">';
+            html+=statCard(ps.pages_analyzed,'Pages Analyzed');
+            html+=statCard(ps.score.toFixed(0)+'/100','Performance Score',ps.score>=70?'success':ps.score>=40?'warning':'danger');
+            html+=statCard(ps.pages_below_threshold,'Poor Pages','warning');
+            html+=statCard((ps.avg_content_efficiency*100).toFixed(0)+'%','Content Efficiency');
+            html+='</div>';
+            if(ps.top_issues&&ps.top_issues.length>0){html+='<h3 style="margin-top:12px;">Top Issues</h3><ul style="margin:8px 0 0;padding:0 0 0 18px;font-size:0.85rem;color:var(--text-secondary);">';ps.top_issues.forEach(function(i){html+='<li style="margin-bottom:4px;word-break:break-word;">'+i+'</li>';});html+='</ul>';}
+            if(ps.methodology){html+='<p style="margin-top:8px;font-size:0.75rem;color:var(--text-muted);"><em>'+ps.methodology+'</em></p>';}
+            html+='</div>';
+        }
+    }
+
+    // CrUX Real-User Core Web Vitals
+    if(data.crux_metrics){
+        var cx=data.crux_metrics;
+        html+='<div class="card glass fade-in" style="border-left:4px solid #10b981;"><h2>Real-User Core Web Vitals (CrUX)</h2>';
+        html+='<div class="grid grid-4" style="margin-top:12px;">';
+        html+=statCard(cx.lcp_p75+'ms','LCP p75',cx.lcp_p75<=2500?'success':'danger');
+        html+=statCard(cx.inp_p75+'ms','INP p75',cx.inp_p75<=200?'success':'danger');
+        html+=statCard(cx.cls_p75.toFixed(3),'CLS p75',cx.cls_p75<=0.1?'success':'danger');
+        html+=statCard(cx.ttfb_p75+'ms','TTFB p75',cx.ttfb_p75<=800?'success':'warning');
+        html+='</div>';
+        html+='<div style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary);">';
+        html+='Good %: LCP '+(cx.lcp_good).toFixed(1)+'% | INP '+(cx.inp_good).toFixed(1)+'% | CLS '+(cx.cls_good).toFixed(1)+'%';
+        html+='</div>';
+        html+='</div>';
+    }else if(data.crux_status&&data.crux_status!=='NOT_CONFIGURED'){
+        html+='<div class="card glass fade-in"><h2>Real-User Core Web Vitals (CrUX)</h2>';
+        html+='<p style="color:var(--text-secondary);margin-top:8px;">CrUX data '+data.crux_status.toLowerCase()+'. Add CRUX_API_KEY to enable.</p></div>';
+    }
+
+    // V3 CategoryScore Breakdowns
+    html+=renderCategoryBreakdown(data.content_breakdown,'');
+    html+=renderCategoryBreakdown(data.ranking_breakdown,'');
+    html+=renderCategoryBreakdown(data.architecture_breakdown,'');
+    html+=renderCategoryBreakdown(data.aio_breakdown,'');
+    html+=renderCategoryBreakdown(data.geo_breakdown,'');
+
+    // Country Rankings
+    if(data.country_rankings&&data.country_rankings.length>0){
+        html+='<div class="card glass fade-in" style="border-left:4px solid #06b6d4;"><h2>Country-Wise Ranking Analysis</h2>';
+        html+='<p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px;">Visibility across different target markets with specific action items.</p>';
+        data.country_rankings.forEach(function(cr){
+            html+='<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:16px;margin-bottom:12px;">';
+            html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><strong style="font-size:1.1rem;">'+cr.country_name+' ('+cr.country_code.toUpperCase()+')</strong>';
+            var cc=cr.overall_score>=70?'badge-success':cr.overall_score>=40?'badge-warning':'badge-danger';
+            html+='<span class="badge '+cc+'">'+cr.overall_score.toFixed(0)+'/100</span></div>';
+            html+='<div class="grid grid-4" style="margin-bottom:12px;">';
+            html+=statCard(cr.seo_score.toFixed(0),'SEO');
+            html+=statCard(cr.aio_score.toFixed(0),'AIO');
+            html+=statCard(cr.geo_score.toFixed(0),'GEO');
+            html+=statCard(cr.keywords_ranking,'Keywords Ranking');
+            html+='</div>';
+            if(cr.recommendations&&cr.recommendations.length>0){
+                html+='<h3 style="font-size:0.85rem;color:var(--text-secondary);margin:12px 0 8px;">What Needs to Be Done for '+cr.country_name.toUpperCase()+'</h3>';
+                cr.recommendations.slice(0,5).forEach(function(rec){
+                    var rpc=rec.priority==='critical'?'badge-danger':rec.priority==='high'?'badge-danger':rec.priority==='medium'?'badge-warning':'badge-success';
+                    html+='<div style="padding:8px 12px;background:var(--bg);border-radius:6px;margin-bottom:6px;border-left:3px solid '+(rec.priority==='critical'?'var(--danger)':rec.priority==='high'?'var(--danger)':rec.priority==='medium'?'var(--warning)':'var(--success)')+';">';
+                    html+='<span class="badge '+rpc+'" style="margin-right:6px;">'+rec.priority.toUpperCase()+'</span><strong style="font-size:0.85rem;">'+rec.title+'</strong>';
+                    html+='<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;word-break:break-word;">'+rec.description+'</div></div>';
+                });
+            }
+            if(cr.action_items&&cr.action_items.length>0){
+                html+='<h3 style="font-size:0.85rem;color:var(--text-secondary);margin:12px 0 6px;">Action Items</h3><ul style="margin:0;padding:0 0 0 18px;font-size:0.85rem;color:var(--text-secondary);">';
+                cr.action_items.forEach(function(item){html+='<li style="margin-bottom:4px;word-break:break-word;">'+item+'</li>';});
+                html+='</ul>';
+            }
+            html+='</div>';
+        });
+        html+='</div>';
     }
 
     // Recommendations
-    if (data.recommendations && data.recommendations.length > 0) {
-        html += '<div class="card glass"><h2>Prioritized Recommendations</h2>';
-        data.recommendations.forEach(function(rec) {
-            var priorityClass = rec.priority === 'critical' ? 'severity-high' : rec.priority === 'high' ? 'severity-high' : rec.priority === 'medium' ? 'severity-medium' : 'severity-low';
-            var badgeClass = rec.priority === 'critical' ? 'badge-danger' : rec.priority === 'high' ? 'badge-danger' : rec.priority === 'medium' ? 'badge-warning' : 'badge-success';
-            html += '<div class="' + priorityClass + '" style="padding:16px;margin-bottom:12px;">';
-            html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
-            html += '<strong>' + rec.title + '</strong>';
-            html += '<span class="badge ' + badgeClass + '">' + rec.priority.toUpperCase() + '</span>';
-            html += '</div>';
-            html += '<div style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:8px;">' + rec.description + '</div>';
-            if (rec.affected_keywords && rec.affected_keywords.length > 0) {
-                html += '<div style="font-size:0.8rem;color:var(--text-muted);">Keywords: ' + rec.affected_keywords.join(', ') + '</div>';
-            }
-            html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Confidence: ' + Math.round(rec.confidence * 100) + '%';
-            if (rec.supporting_metrics && Object.keys(rec.supporting_metrics).length > 0) {
-                html += ' | Metrics: ' + JSON.stringify(rec.supporting_metrics);
-            }
-            html += '</div>';
-            html += '</div>';
+    if(data.recommendations&&data.recommendations.length>0){
+        html+='<div class="card glass fade-in"><h2>Prioritized Recommendations</h2>';
+        data.recommendations.forEach(function(rec){
+            var pc=rec.priority==='critical'?'severity-high':rec.priority==='high'?'severity-high':rec.priority==='medium'?'severity-medium':'severity-low';
+            var bc=rec.priority==='critical'?'badge-danger':rec.priority==='high'?'badge-danger':rec.priority==='medium'?'badge-warning':'badge-success';
+            html+='<div class="'+pc+'" style="padding:14px 16px;margin-bottom:10px;">';
+            html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;"><strong style="word-break:break-word;flex:1;">'+rec.title+'</strong><span class="badge '+bc+'" style="flex-shrink:0;">'+rec.priority.toUpperCase()+'</span></div>';
+            html+='<div style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:6px;word-break:break-word;">'+rec.description+'</div>';
+            if(rec.affected_keywords&&rec.affected_keywords.length>0){html+='<div style="font-size:0.75rem;color:var(--text-muted);word-break:break-word;">Keywords: '+rec.affected_keywords.slice(0,10).join(', ')+'</div>';}
+            html+='<div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Confidence: '+Math.round(rec.confidence*100)+'%';
+            if(rec.supporting_metrics&&Object.keys(rec.supporting_metrics).length>0){html+=' | Metrics: '+JSON.stringify(rec.supporting_metrics);}
+            html+='</div></div>';
         });
-        html += '</div>';
+        html+='</div>';
     }
 
-    if (!html) {
-        html = '<div class="card glass"><div class="empty-state"><h2>No Results</h2><p>Analysis completed but no data returned.</p></div></div>';
-    }
-
-    container.innerHTML = html;
-}
-
-function scoreCard(label, score, color) {
-    return '<div class="stat" style="text-align:center;">' +
-        '<div class="value" style="color:' + color + ';font-size:2.5rem;">' + score.toFixed(1) + '</div>' +
-        '<div class="label">' + label + '</div>' +
-    '</div>';
-}
-
-function statCard(value, label, type) {
-    var color = '';
-    if (type === 'success') color = 'var(--success)';
-    else if (type === 'warning') color = 'var(--warning)';
-    else if (type === 'danger') color = 'var(--danger)';
-    else if (type === 'info') color = 'var(--info)';
-    var style = color ? 'color:' + color : '';
-    return '<div class="stat" style="text-align:center;">' +
-        '<div class="value" style="' + style + '">' + value + '</div>' +
-        '<div class="label">' + label + '</div>' +
-    '</div>';
-}
-
-function getScoreColor(score) {
-    if (score >= 80) return 'var(--success)';
-    if (score >= 60) return 'var(--warning)';
-    if (score >= 40) return 'var(--info)';
-    return 'var(--danger)';
+    if(!html){html='<div class="card glass"><div class="empty-state"><h2>No Results</h2><p>Analysis completed but no data returned.</p></div></div>';}
+    c.innerHTML=html;
 }
 </script>
 {% endblock %}

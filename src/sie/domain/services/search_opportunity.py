@@ -192,14 +192,22 @@ class SearchOpportunityService:
         dataset: SearchDataset,
         analytics_result: SearchAnalyticsResult,
         competitor_rankings: tuple[CompetitorRanking, ...],
+        target_domain: str = "",
     ) -> SearchOpportunityResult:
         """Calculate all SEO opportunities for the dataset.
 
         Combines competitor gap analysis, weak ranking detection, and content
         gap identification into a single actionable result.
+
+        Args:
+            target_domain: The actual target domain (e.g. "example.com").
+                When empty, the method attempts to derive it from keyword
+                observations — falling back to an empty string rather than
+                a fabricated placeholder.
         """
-        # Extract target domain from dataset metadata
-        target_domain = self._derive_target_domain(analytics_result)
+        # Try to derive target domain from observations if not provided
+        if not target_domain:
+            target_domain = self._derive_target_domain(analytics_result)
 
         # Calculate all opportunity types
         competitor_gaps = self._calculate_competitor_gaps(
@@ -208,7 +216,7 @@ class SearchOpportunityService:
         weak_rankings = self._calculate_weak_rankings(
             analytics_result, competitor_rankings, target_domain
         )
-        content_gaps = self._calculate_content_gaps(analytics_result, competitor_rankings)
+        content_gaps = self._calculate_content_gaps(analytics_result, competitor_rankings, target_domain)
 
         # Aggregate all opportunities
         all_opps = list(competitor_gaps) + list(weak_rankings)
@@ -223,9 +231,15 @@ class SearchOpportunityService:
         )
 
     def _derive_target_domain(self, analytics_result: SearchAnalyticsResult) -> str:
-        """Derive target domain from analytics metadata."""
-        # Placeholder — actual implementation would depend on dataset
-        return "example.com"
+        """Derive target domain from analytics metadata.
+
+        Attempts to extract the target domain from keyword observation data.
+        Returns empty string when no reliable domain can be determined —
+        never returns a fabricated placeholder.
+        """
+        # KeywordRankingMetrics does not store target_domain directly;
+        # this is the best we can do without explicit domain input.
+        return ""
 
     # ------------------------------------------------------------------
     # Competitor gaps
@@ -419,6 +433,7 @@ class SearchOpportunityService:
         self,
         analytics_result: SearchAnalyticsResult,
         competitor_rankings: tuple[CompetitorRanking, ...],
+        target_domain: str = "",
     ) -> tuple[ContentGapOpportunity, ...]:
         """Calculate content gaps through competitor analysis.
 
@@ -467,7 +482,7 @@ class SearchOpportunityService:
             opportunities.append(
                 ContentGapOpportunity(
                     keyword=keyword,
-                    target_domain="example.com",
+                    target_domain=target_domain,
                     competitor_domains=comp_domains,
                     competitor_urls=comp_urls,
                     competitor_positions=comp_positions,

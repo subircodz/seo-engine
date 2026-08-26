@@ -80,7 +80,7 @@ class TestUnsupportedProvider:
 
     def test_raises_config_error(self) -> None:
         settings = SearchProviderSettings(
-            enabled=True, provider_name="serpapi", base_url="https://api.serpapi.com"
+            enabled=True, provider_name="bing", base_url="https://api.bing.com"
         )
         with pytest.raises(SearchProviderConfigError, match="Unsupported search provider"):
             create_search_provider(settings)

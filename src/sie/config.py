@@ -133,16 +133,23 @@ class SearchProviderSettings(BaseModel):
     # SSRF protection: allow localhost/private IPs (dev only)
     allow_localhost: bool = False
 
+    def _masked_key(self) -> str:
+        """Return masked API key for safe display."""
+        return "'***'" if self.api_key else "''"
+
     def __repr__(self) -> str:
         """Mask the API key to prevent accidental secret leakage in logs."""
-        key_display = "'***'" if self.api_key else "''"
         return (
             f"SearchProviderSettings(enabled={self.enabled!r}, "
             f"provider_name={self.provider_name!r}, "
             f"base_url={self.base_url!r}, "
-            f"api_key={key_display}, "
+            f"api_key={self._masked_key()}, "
             f"timeout_seconds={self.timeout_seconds!r})"
         )
+
+    def __str__(self) -> str:
+        """Mask the API key to prevent accidental secret leakage in str()."""
+        return self.__repr__()
 
 
 class CruxSettings(BaseModel):

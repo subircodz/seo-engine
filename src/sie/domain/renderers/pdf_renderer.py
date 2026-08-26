@@ -34,7 +34,7 @@ class PDFRenderer:
     Supports headers, footers, page numbering, and professional layouts.
     """
 
-    TEMPLATE_DIR = pathlib.Path(__file__).parent.parent.parent.parent / "templates"
+    TEMPLATE_DIR = pathlib.Path(__file__).parent.parent.parent / "templates"
 
     def __init__(self) -> None:
         try:
@@ -132,13 +132,31 @@ class PDFRenderer:
         }
 
         # Add data attributes to context
-        if hasattr(data, '__dict__'):
-            # Object with attributes
+        if hasattr(data, '__dataclass_fields__'):
+            # dataclass (including slotted) — use fields()
+            import dataclasses
+            for f in dataclasses.fields(data):
+                if not f.name.startswith('_'):
+                    context[f.name] = getattr(data, f.name)
+        elif hasattr(data, '__dict__'):
+            # Regular object with __dict__
             for key, value in data.__dict__.items():
                 if not key.startswith('_'):
                     context[key] = value
         elif isinstance(data, dict):
             context.update(data)
+
+        # Ensure country is in context for PDF header
+        if 'country' not in context:
+            context['country'] = context.get('country', '')
+
+        # Ensure access_status and website_type are in context
+        if 'access_status' not in context:
+            context['access_status'] = None
+        if 'website_type' not in context:
+            context['website_type'] = None
+        if 'report_metadata' not in context:
+            context['report_metadata'] = None
 
         return template.render(**context)
 

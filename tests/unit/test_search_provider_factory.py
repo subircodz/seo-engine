@@ -108,7 +108,7 @@ class TestMissingHttpBaseUrl:
 
 class TestUnsupportedProvider:
     def test_unknown_provider_raises(self):
-        settings = SearchProviderSettings(enabled=True, provider_name="serpapi")
+        settings = SearchProviderSettings(enabled=True, provider_name="bing")
         with pytest.raises(SearchProviderConfigError, match="Unsupported search provider"):
             create_search_provider(settings)
 

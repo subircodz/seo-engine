@@ -76,7 +76,41 @@ One-click generation of polished reports with:
 - **Dark mode by default** (easy on the eyes)
 - **Light mode toggle** (persists your preference)
 - **Glassmorphism design** — modern, clean, responsive
+- **SVG circular score rings** — animated progress indicators for all health scores
+- **Loading skeletons** — professional shimmer animations during analysis
+- **Toast notifications** — non-blocking success/error messages
+- **Micro-interactions** — card hover lifts, button glow effects, fade-in animations
 - **7 pages**: Dashboard, Live Search, Datasets, Intelligence, Industry, Reports, API Docs
+
+### 🔍 **Site Analysis (One-Click Full Audit)**
+Enter any domain and get a comprehensive intelligence report:
+- **Technical SEO audit** — crawl health, critical issues, Core Web Vitals, SSL, robots.txt
+- **Content quality analysis** — thin content, duplicates, readability, keyword stuffing
+- **Site architecture** — internal linking, orphan pages, crawl depth
+- **Ranking discovery** — intelligent keyword extraction from content, position tracking
+- **AI Overview (AIO) analysis** — which queries trigger AI answers, citation opportunities
+- **Generative Engine (GEO) analysis** — visibility in ChatGPT, Perplexity, and other AI search
+- **Prioritized recommendations** — sorted by impact with confidence scores
+- **PDF export** — professional reports with scores, findings, and action items
+- **Competitor comparison** — optional side-by-side ranking analysis
+
+### 🌍 **Country-Wise Ranking Analysis**
+Analyze visibility across multiple markets simultaneously:
+- **Multi-country SERP analysis** — check rankings in US, UK, India, Germany, etc.
+- **Per-country SEO/AIO/GEO scores** — understand how you perform in each market
+- **Country-specific recommendations** — tailored action items for each market (e.g., "Build backlinks from US-based authoritative sites")
+- **Market gap analysis** — identify which countries have the best growth opportunities
+
+### 📄 **Executive-Grade PDF Reports**
+PDF reports redesigned for professional client delivery:
+- **Cover page** — dark gradient with domain name and all 7 score bars
+- **Executive summary** — verdict box with key findings and priority actions (P0-P3)
+- **Score breakdown** — table explaining what each metric measures
+- **Detailed findings** — each issue includes: *Observed → Evidence → Confidence → Priority → Impact → Recommended Action*
+- **Country-wise section** — per-country analysis with specific action items
+- **Prioritized recommendations** — categorized as Critical (P0), High (P1), Medium (P2), Low (P3)
+- **Confidence levels** — HIGH = evidence-based, MEDIUM = derived data, LOW = inference
+- **Professional formatting** — proper typography, color-coded badges, page numbers, headers/footers
 
 ---
 
