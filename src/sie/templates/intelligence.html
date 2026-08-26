@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% block title %}Intelligence - SEO Intelligence Engine{% endblock %}
 {% block content %}
 <h1>Search Intelligence Analysis</h1>
 
@@ -7,8 +6,10 @@
     <h2>Configuration</h2>
     <div class="grid grid-4" style="margin-top: 12px;">
         <div>
-            <label>Dataset ID</label>
-            <input type="text" id="input-dataset" placeholder="ds-xxxxxxxxxxxx">
+            <label>Dataset</label>
+            <select id="input-dataset">
+                <option value="">Loading datasets...</option>
+            </select>
         </div>
         <div>
             <label>Target Domain</label>
@@ -26,14 +27,91 @@
 <div id="results-container"></div>
 
 <script>
+// Load datasets on page load
+async function loadDatasets() {
+    try {
+        var resp = await fetch('/api/search/datasets?limit=100');
+        if (resp.ok) {
+            var data = await resp.json();
+            var select = document.getElementById('input-dataset');
+            select.innerHTML = '<option value="">Select a dataset...</option>';
+            if (data.datasets && data.datasets.length > 0) {
+                data.datasets.forEach(function(ds) {
+                    var opt = document.createElement('option');
+                    opt.value = ds.dataset_id;
+                    var date = new Date(ds.created_at).toLocaleDateString();
+                    opt.textContent = ds.name + ' (' + ds.dataset_id + ') - ' + ds.total_keywords + ' keywords - ' + date;
+                    select.appendChild(opt);
+                });
+            } else {
+                select.innerHTML += '<option value="" disabled>No datasets found</option>';
+            }
+        }
+    } catch (e) {
+        document.getElementById('input-dataset').innerHTML = '<option value="">Failed to load</option>';
+    }
+}
+
 var params = new URLSearchParams(window.location.search);
-if (params.get('dataset')) document.getElementById('input-dataset').value = params.get('dataset');
+loadDatasets().then(function() {
+    if (params.get('dataset')) document.getElementById('input-dataset').value = params.get('dataset');
+});
 if (params.get('domain')) document.getElementById('input-domain').value = params.get('domain');
+
+var lastAnalysisData = null;
 
 function viewReport() {
     var id = document.getElementById('input-dataset').value.trim();
     if (!id) { alert('Dataset ID required'); return; }
-    window.location.href = '/reports?id=' + id;
+    if (!lastAnalysisData) { alert('Run analysis first'); return; }
+    downloadPdf(lastAnalysisData, id);
+}
+
+async function downloadPdf(data, intelligenceId) {
+    var container = document.getElementById('results-container');
+    container.innerHTML = '<div class="card glass"><div class="loading">&#8987; Generating PDF...</div></div>';
+    try {
+        var resp = await fetch('/api/reports/generate-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                intelligence_id: intelligenceId,
+                summary: 'Search Intelligence Analysis',
+                findings: (data.recommendations || []).map(function(r) {
+                    return {
+                        category: r.category || 'general',
+                        severity: r.priority || 'medium',
+                        title: r.title || '',
+                        description: r.description || '',
+                        recommendation: r.description || '',
+                        evidence_sources: r.affected_keywords || []
+                    };
+                }),
+                recommendations: (data.recommendations || []).map(function(r) {
+                    return {
+                        title: r.title || '',
+                        description: r.description || '',
+                        priority: r.priority === 'high' || r.priority === 'critical' ? 0.9 : r.priority === 'medium' ? 0.5 : 0.2
+                    };
+                })
+            })
+        });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { detail: 'PDF generation failed' }; });
+            container.innerHTML = '<div class="error-box">' + (err.detail || resp.statusText) + '</div>';
+            return;
+        }
+        var blob = await resp.blob();
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_' + intelligenceId + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        renderResults(data, container);
+    } catch (e) { container.innerHTML = '<div class="error-box">' + e.message + '</div>'; }
 }
 
 async function runIntelligence() {
@@ -54,6 +132,7 @@ async function runIntelligence() {
             return;
         }
         var data = await resp.json();
+        lastAnalysisData = data;
         renderResults(data, container);
     } catch (e) { container.innerHTML = '<div class="error-box">' + e.message + '</div>'; }
 }

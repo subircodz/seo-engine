@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from sie.api.auth import api_key_auth
 
@@ -17,6 +18,14 @@ router = APIRouter(
     tags=["reports"],
     dependencies=[Depends(api_key_auth)],
 )
+
+
+class ReportDataRequest(BaseModel):
+    """Request to generate PDF from analysis data directly."""
+    intelligence_id: str
+    summary: str = ""
+    findings: list[dict] = Field(default_factory=list)
+    recommendations: list[dict] = Field(default_factory=list)
 
 
 @router.get("/{report_id}/pdf", response_class=Response)
@@ -99,4 +108,34 @@ async def download_report_pdf(report_id: str, request: Request) -> Response:
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="report_{report_id}.pdf"'},
+    )
+
+
+@router.post("/generate-pdf", response_class=Response)
+async def generate_pdf_from_analysis(body: ReportDataRequest) -> Response:
+    """Generate PDF directly from analysis data (no database persistence required)."""
+    from sie.domain.renderers.pdf_renderer import PDFGenerationError, PDFRenderer
+
+    renderer = PDFRenderer()
+
+    report_data = {
+        "intelligence_id": body.intelligence_id,
+        "summary": body.summary or f"Search Intelligence Report - {len(body.findings)} findings, {len(body.recommendations)} recommendations",
+        "generated_at": "2026-01-01T00:00:00Z",  # placeholder
+        "findings": body.findings,
+        "recommendations": body.recommendations,
+    }
+
+    try:
+        pdf_bytes = renderer.render(report_data)
+    except PDFGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="report_{body.intelligence_id}.pdf"'},
     )
