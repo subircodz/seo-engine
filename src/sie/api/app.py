@@ -17,6 +17,7 @@ from sie.api.routes import (
     search,
     search_intelligence,
     search_performance,
+    site_analysis,
     system,
     web,
 )
@@ -189,6 +190,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(search.router)
     app.include_router(search_intelligence.router)
     app.include_router(search_performance.router)
+    app.include_router(site_analysis.router)
     app.include_router(system.router)
     app.include_router(web.router)
     return app

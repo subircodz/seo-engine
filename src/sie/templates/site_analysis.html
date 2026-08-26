@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Site Analysis</h1>
+
+<div class="card glass" style="margin-bottom: 16px;">
+    <h2>Analyze a Website</h2>
+    <p style="color: var(--text-secondary); margin: 8px 0 14px; font-size: 0.85rem;">
+        Enter a domain to get a complete SEO health check: technical audit, content analysis, 
+        current rankings, AI Overview (AIO) analysis, Generative Engine (GEO) analysis,
+        and prioritized recommendations to dominate search results.
+    </p>
+    <div class="grid grid-4" style="margin-top: 12px;">
+        <div style="grid-column: span 2;">
+            <label>Website Domain</label>
+            <input type="text" id="input-domain" placeholder="example.com or https://example.com">
+        </div>
+        <div>
+            <label>Max Pages to Crawl</label>
+            <input type="number" id="input-max-pages" value="100" min="1" max="500">
+        </div>
+        <div>
+            <label>Max Keywords to Check</label>
+            <input type="number" id="input-max-keywords" value="50" min="1" max="200">
+        </div>
+    </div>
+    <div class="grid grid-4" style="margin-top: 12px;">
+        <div>
+            <label>Country</label>
+            <select id="input-country"></select>
+        </div>
+        <div>
+            <label>Device</label>
+            <select id="input-device">
+                <option value="desktop">Desktop</option>
+                <option value="mobile">Mobile</option>
+            </select>
+        </div>
+        <div>
+            <label>Competitors (optional)</label>
+            <input type="text" id="input-competitors" placeholder="competitor1.com, competitor2.com">
+            <small style="color: var(--text-muted);">Comma-separated domains</small>
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-primary" onclick="analyzeSite()" id="analyze-btn">Analyze Site</button>
+        </div>
+    </div>
+    <div class="grid grid-4" style="margin-top: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="input-deep-aio" checked>
+            <label for="input-deep-aio" style="margin: 0; font-weight: 500;">Deep AI Overview (AIO) Analysis</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="input-deep-geo" checked>
+            <label for="input-deep-geo" style="margin: 0; font-weight: 500;">Deep Generative Engine (GEO) Analysis</label>
+        </div>
+        <div></div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-secondary" onclick="downloadPdf()" id="pdf-btn" disabled style="display: none;">Download PDF Report</button>
+        </div>
+    </div>
+</div>
+
+<div id="analysis-status" style="display: none;"></div>
+<div id="analysis-results"></div>
+
+<script>
+// ISO 3166-1 alpha-2 country codes
+const COUNTRIES = [
+    ["AF","Afghanistan"],["AX","Åland Islands"],["AL","Albania"],["DZ","Algeria"],["AS","American Samoa"],
+    ["AD","Andorra"],["AO","Angola"],["AI","Anguilla"],["AQ","Antarctica"],["AG","Antigua and Barbuda"],
+    ["AR","Argentina"],["AM","Armenia"],["AW","Aruba"],["AU","Australia"],["AT","Austria"],
+    ["AZ","Azerbaijan"],["BS","Bahamas"],["BH","Bahrain"],["BD","Bangladesh"],["BB","Barbados"],
+    ["BY","Belarus"],["BE","Belgium"],["BZ","Belize"],["BJ","Benin"],["BM","Bermuda"],
+    ["BT","Bhutan"],["BO","Bolivia"],["BQ","Bonaire"],["BA","Bosnia and Herzegovina"],["BW","Botswana"],
+    ["BV","Bouvet Island"],["BR","Brazil"],["IO","British Indian Ocean Territory"],["BN","Brunei Darussalam"],["BG","Bulgaria"],
+    ["BF","Burkina Faso"],["BI","Burundi"],["CV","Cabo Verde"],["KH","Cambodia"],["CM","Cameroon"],
+    ["CA","Canada"],["KY","Cayman Islands"],["CF","Central African Republic"],["TD","Chad"],["CL","Chile"],
+    ["CN","China"],["CX","Christmas Island"],["CC","Cocos (Keeling) Islands"],["CO","Colombia"],["KM","Comoros"],
+    ["CG","Congo"],["CD","Congo (DRC)"],["CK","Cook Islands"],["CR","Costa Rica"],["CI","Côte d'Ivoire"],
+    ["HR","Croatia"],["CU","Cuba"],["CW","Curaçao"],["CY","Cyprus"],["CZ","Czechia"],
+    ["DK","Denmark"],["DJ","Djibouti"],["DM","Dominica"],["DO","Dominican Republic"],["EC","Ecuador"],
+    ["EG","Egypt"],["SV","El Salvador"],["GQ","Equatorial Guinea"],["ER","Eritrea"],["EE","Estonia"],
+    ["SZ","Eswatini"],["ET","Ethiopia"],["FK","Falkland Islands"],["FO","Faroe Islands"],["FJ","Fiji"],
+    ["FI","Finland"],["FR","France"],["GF","French Guiana"],["PF","French Polynesia"],["TF","French Southern Territories"],
+    ["GA","Gabon"],["GM","Gambia"],["GE","Georgia"],["DE","Germany"],["GH","Ghana"],
+    ["GI","Gibraltar"],["GR","Greece"],["GL","Greenland"],["GD","Grenada"],["GP","Guadeloupe"],
+    ["GU","Guam"],["GT","Guatemala"],["GG","Guernsey"],["GN","Guinea"],["GW","Guinea-Bissau"],
+    ["GY","Guyana"],["HT","Haiti"],["HM","Heard Island and McDonald Islands"],["VA","Holy See"],["HN","Honduras"],
+    ["HK","Hong Kong"],["HU","Hungary"],["IS","Iceland"],["IN","India"],["ID","Indonesia"],
+    ["IR","Iran"],["IQ","Iraq"],["IE","Ireland"],["IM","Isle of Man"],["IL","Israel"],
+    ["IT","Italy"],["JM","Jamaica"],["JP","Japan"],["JE","Jersey"],["JO","Jordan"],
+    ["KZ","Kazakhstan"],["KE","Kenya"],["KI","Kiribati"],["KP","Korea (North)"],["KR","Korea (South)"],
+    ["KW","Kuwait"],["KG","Kyrgyzstan"],["LA","Lao PDR"],["LV","Latvia"],["LB","Lebanon"],
+    ["LS","Lesotho"],["LR","Liberia"],["LY","Libya"],["LI","Liechtenstein"],["LT","Lithuania"],
+    ["LU","Luxembourg"],["MO","Macao"],["MG","Madagascar"],["MW","Malawi"],["MY","Malaysia"],
+    ["MV","Maldives"],["ML","Mali"],["MT","Malta"],["MH","Marshall Islands"],["MQ","Martinique"],
+    ["MR","Mauritania"],["MU","Mauritius"],["YT","Mayotte"],["MX","Mexico"],["FM","Micronesia"],
+    ["MD","Moldova"],["MC","Monaco"],["MN","Mongolia"],["ME","Montenegro"],["MS","Montserrat"],
+    ["MA","Morocco"],["MZ","Mozambique"],["MM","Myanmar"],["NA","Namibia"],["NR","Nauru"],
+    ["NP","Nepal"],["NL","Netherlands"],["NC","New Caledonia"],["NZ","New Zealand"],["NI","Nicaragua"],
+    ["NE","Niger"],["NG","Nigeria"],["NU","Niue"],["NF","Norfolk Island"],["MK","North Macedonia"],
+    ["MP","Northern Mariana Islands"],["NO","Norway"],["OM","Oman"],["PK","Pakistan"],["PW","Palau"],
+    ["PS","Palestine"],["PA","Panama"],["PG","Papua New Guinea"],["PY","Paraguay"],["PE","Peru"],
+    ["PH","Philippines"],["PN","Pitcairn"],["PL","Poland"],["PT","Portugal"],["PR","Puerto Rico"],
+    ["QA","Qatar"],["RE","Réunion"],["RO","Romania"],["RU","Russian Federation"],["RW","Rwanda"],
+    ["BL","Saint Barthélemy"],["SH","Saint Helena"],["KN","Saint Kitts and Nevis"],["LC","Saint Lucia"],["MF","Saint Martin (French)"],
+    ["PM","Saint Pierre and Miquelon"],["VC","Saint Vincent and the Grenadines"],["WS","Samoa"],["SM","San Marino"],["ST","Sao Tome and Principe"],
+    ["SA","Saudi Arabia"],["SN","Senegal"],["RS","Serbia"],["SC","Seychelles"],["SL","Sierra Leone"],
+    ["SG","Singapore"],["SX","Sint Maarten"],["SK","Slovakia"],["SI","Slovenia"],["SB","Solomon Islands"],
+    ["SO","Somalia"],["ZA","South Africa"],["GS","South Georgia"],["SS","South Sudan"],["ES","Spain"],
+    ["LK","Sri Lanka"],["SD","Sudan"],["SR","Suriname"],["SJ","Svalbard and Jan Mayen"],["SE","Sweden"],
+    ["CH","Switzerland"],["SY","Syrian Arab Republic"],["TW","Taiwan"],["TJ","Tajikistan"],["TZ","Tanzania"],
+    ["TH","Thailand"],["TL","Timor-Leste"],["TG","Togo"],["TK","Tokelau"],["TO","Tonga"],
+    ["TT","Trinidad and Tobago"],["TN","Tunisia"],["TR","Türkiye"],["TM","Turkmenistan"],["TC","Turks and Caicos Islands"],
+    ["TV","Tuvalu"],["UG","Uganda"],["UA","Ukraine"],["AE","United Arab Emirates"],["GB","United Kingdom"],
+    ["US","United States"],["UM","US Minor Outlying Islands"],["UY","Uruguay"],["UZ","Uzbekistan"],["VU","Vanuatu"],
+    ["VE","Venezuela"],["VN","Viet Nam"],["VG","Virgin Islands (British)"],["VI","Virgin Islands (US)"],["WF","Wallis and Futuna"],
+    ["EH","Western Sahara"],["YE","Yemen"],["ZM","Zambia"],["ZW","Zimbabwe"]
+];
+
+// Populate country dropdown
+(function() {
+    var select = document.getElementById('input-country');
+    COUNTRIES.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c[0].toLowerCase();
+        opt.textContent = c[0] + ' - ' + c[1];
+        if (c[0].toLowerCase() === 'us') opt.selected = true;
+        select.appendChild(opt);
+    });
+})();
+
+function sanitizeDomain(input) {
+    if (!input) return '';
+    var domain = input.trim().toLowerCase();
+    domain = domain.replace(/^https?:\/\//, '');
+    domain = domain.replace(/^www\./, '');
+    domain = domain.split('/')[0];
+    domain = domain.split(':')[0];
+    return domain;
+}
+
+async function analyzeSite() {
+    var rawDomain = document.getElementById('input-domain').value.trim();
+    if (!rawDomain) { alert('Domain is required'); return; }
+
+    var domain = sanitizeDomain(rawDomain);
+    var maxPages = parseInt(document.getElementById('input-max-pages').value) || 100;
+    var maxKeywords = parseInt(document.getElementById('input-max-keywords').value) || 50;
+    var country = document.getElementById('input-country').value;
+    var device = document.getElementById('input-device').value;
+    var competitors = document.getElementById('input-competitors').value
+        .split(',')
+        .map(function(d) { return sanitizeDomain(d); })
+        .filter(function(d) { return d; });
+    var deepAio = document.getElementById('input-deep-aio').checked;
+    var deepGeo = document.getElementById('input-deep-geo').checked;
+
+    var statusEl = document.getElementById('analysis-status');
+    var resultsEl = document.getElementById('analysis-results');
+    var btn = document.getElementById('analyze-btn');
+    var pdfBtn = document.getElementById('pdf-btn');
+
+    btn.disabled = true;
+    pdfBtn.disabled = true;
+    pdfBtn.style.display = 'none';
+    btn.textContent = 'Analyzing...';
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<div class="card glass"><div class="loading">&#8987; Starting analysis for ' + domain + '...</div></div>';
+    resultsEl.innerHTML = '';
+
+    try {
+        var resp = await fetch('/api/site/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                domain: domain,
+                max_pages: maxPages,
+                max_keywords: maxKeywords,
+                country: country,
+                device: device,
+                competitors: competitors,
+                deep_aio: deepAio,
+                deep_geo: deepGeo
+            })
+        });
+
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { detail: 'Analysis failed' }; });
+            statusEl.innerHTML = '<div class="error-box">&#10060; ' + (err.detail || 'Analysis failed') + '</div>';
+            btn.disabled = false;
+            btn.textContent = 'Analyze Site';
+            return;
+        }
+
+        var data = await resp.json();
+        lastAnalysisData = data;
+        statusEl.innerHTML = '<div class="success-box">&#9989; Analysis complete for ' + data.domain + '</div>';
+        pdfBtn.disabled = false;
+        pdfBtn.style.display = 'inline-flex';
+        renderResults(data, resultsEl);
+
+    } catch (e) {
+        statusEl.innerHTML = '<div class="error-box">&#10060; Error: ' + (e.message || e) + '</div>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Analyze Site';
+}
+
+var lastAnalysisData = null;
+
+async function downloadPdf() {
+    if (!lastAnalysisData) {
+        alert('No analysis data available. Run analysis first.');
+        return;
+    }
+
+    var rawDomain = document.getElementById('input-domain').value.trim();
+    var domain = sanitizeDomain(rawDomain);
+    var maxPages = parseInt(document.getElementById('input-max-pages').value) || 100;
+    var maxKeywords = parseInt(document.getElementById('input-max-keywords').value) || 50;
+    var country = document.getElementById('input-country').value;
+    var device = document.getElementById('input-device').value;
+    var competitors = document.getElementById('input-competitors').value
+        .split(',')
+        .map(function(d) { return sanitizeDomain(d); })
+        .filter(function(d) { return d; });
+    var deepAio = document.getElementById('input-deep-aio').checked;
+    var deepGeo = document.getElementById('input-deep-geo').checked;
+
+    var statusEl = document.getElementById('analysis-status');
+    var resultsEl = document.getElementById('analysis-results');
+    var btn = document.getElementById('analyze-btn');
+    var pdfBtn = document.getElementById('pdf-btn');
+
+    btn.disabled = true;
+    pdfBtn.disabled = true;
+    pdfBtn.textContent = 'Generating PDF...';
+    statusEl.innerHTML = '<div class="card glass"><div class="loading">&#8987; Generating comprehensive PDF report...</div></div>';
+
+    try {
+        var resp = await fetch('/api/site/analyze/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                domain: domain,
+                max_pages: maxPages,
+                max_keywords: maxKeywords,
+                country: country,
+                device: device,
+                competitors: competitors,
+                deep_aio: deepAio,
+                deep_geo: deepGeo
+            })
+        });
+
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { detail: 'PDF generation failed' }; });
+            statusEl.innerHTML = '<div class="error-box">&#10060; ' + (err.detail || 'PDF generation failed') + '</div>';
+            btn.disabled = false;
+            pdfBtn.disabled = false;
+            pdfBtn.textContent = 'Download PDF Report';
+            return;
+        }
+
+        var blob = await resp.blob();
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'site_analysis_' + domain.replace(/\./g, '_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        statusEl.innerHTML = '<div class="success-box">&#9989; PDF report downloaded successfully!</div>';
+
+    } catch (e) {
+        statusEl.innerHTML = '<div class="error-box">&#10060; Error: ' + (e.message || e) + '</div>';
+    }
+
+    btn.disabled = false;
+    pdfBtn.disabled = false;
+    pdfBtn.textContent = 'Download PDF Report';
+}
+
+function renderResults(data, container) {
+    var html = '';
+
+    // Score cards - 7 columns now
+    html += '<div class="card glass"><h2>Overall Health Scores</h2>';
+    html += '<div class="grid grid-7" style="margin-top: 12px;">';
+    html += scoreCard('Overall', data.overall_score, getScoreColor(data.overall_score));
+    html += scoreCard('Technical', data.technical_score, getScoreColor(data.technical_score));
+    html += scoreCard('Content', data.content_score, getScoreColor(data.content_score));
+    html += scoreCard('Rankings', data.ranking_score, getScoreColor(data.ranking_score));
+    html += scoreCard('Architecture', data.architecture_score, getScoreColor(data.architecture_score));
+    html += scoreCard('AIO', data.aio_score, getScoreColor(data.aio_score));
+    html += scoreCard('GEO', data.geo_score, getScoreColor(data.geo_score));
+    html += '</div></div>';
+
+    // Rankings summary
+    if (data.rankings) {
+        var r = data.rankings;
+        html += '<div class="card glass"><h2>Search Visibility</h2>';
+        html += '<div class="grid grid-4" style="margin-top: 12px;">';
+        html += statCard(r.keywords_in_top_3, 'Top 3', 'success');
+        html += statCard(r.keywords_in_top_10, 'Top 10', 'warning');
+        html += statCard(r.keywords_in_top_20, 'Top 20', 'info');
+        html += statCard(r.keywords_not_ranking, 'Not Ranking', 'danger');
+        html += '</div>';
+        html += '<div style="margin-top: 16px;">';
+        html += '<strong>Visibility: ' + (r.visibility_score * 100).toFixed(1) + '%</strong> | ';
+        html += '<strong>Est. Monthly Traffic: ' + r.estimated_monthly_traffic.toLocaleString() + '</strong>';
+        html += '</div>';
+        if (r.top_keywords && r.top_keywords.length > 0) {
+            html += '<h3 style="margin-top: 16px;">Top Ranking Keywords</h3>';
+            html += '<table style="margin-top:10px;width:100%"><thead><tr><th>Keyword</th><th>Position</th><th>URL</th></tr></thead><tbody>';
+            r.top_keywords.forEach(function(kw) {
+                var badge = kw.position <= 3 ? 'badge-success' : kw.position <= 10 ? 'badge-warning' : 'badge-info';
+                html += '<tr><td><strong>' + kw.keyword + '</strong></td><td><span class="badge ' + badge + '">#' + kw.position + '</span></td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + kw.url + '</td></tr>';
+            });
+            html += '</tbody></table>';
+        }
+        html += '</div>';
+    }
+
+    // AIO Analysis
+    if (data.aio) {
+        var a = data.aio;
+        html += '<div class="card glass" style="border-left: 4px solid #8b5cf6;"><h2>AI Overview (AIO) Analysis</h2>';
+        html += '<div class="grid grid-4" style="margin-top: 12px;">';
+        html += statCard(a.keywords_checked, 'Keywords Checked');
+        html += statCard(a.ai_overviews_present, 'AIOs Present', a.ai_overviews_present > 0 ? 'success' : 'info');
+        html += statCard(a.target_cited_count, 'Target Cited', a.target_cited_count > 0 ? 'success' : 'danger');
+        html += statCard((a.target_citation_rate * 100).toFixed(1) + '%', 'Citation Rate', a.target_citation_rate >= 0.5 ? 'success' : a.target_citation_rate >= 0.3 ? 'warning' : 'danger');
+        html += '</div>';
+        if (a.competitor_cited_count > 0) {
+            html += '<p style="margin-top: 12px;"><strong>Competitors Cited:</strong> ' + a.competitor_cited_count + ' times';
+            if (a.competitor_domains_cited && a.competitor_domains_cited.length > 0) {
+                html += ' | <strong>Top Domains:</strong> ' + a.competitor_domains_cited.slice(0,5).join(', ');
+            }
+            html += '</p>';
+        }
+        if (a.top_opportunities && a.top_opportunities.length > 0) {
+            html += '<h3 style="margin-top: 16px;">AIO Citation Opportunities</h3>';
+            a.top_opportunities.slice(0,5).forEach(function(opp) {
+                html += '<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;">';
+                html += '<strong>' + opp.keyword + '</strong> - ' + opp.action;
+                if (opp.competitor_cited) {
+                    html += ' <span class="badge badge-info">' + opp.competitor_cited + ' competitors cited</span>';
+                }
+                html += '</div>';
+            });
+        }
+        html += '</div>';
+    }
+
+    // GEO Analysis
+    if (data.geo) {
+        var g = data.geo;
+        html += '<div class="card glass" style="border-left: 4px solid #10b981;"><h2>Generative Engine (GEO) Analysis</h2>';
+        html += '<div class="grid grid-4" style="margin-top: 12px;">';
+        html += statCard(g.keywords_checked, 'Keywords Checked');
+        html += statCard(g.target_mentioned_count, 'Target Mentioned', g.target_mentioned_count > 0 ? 'success' : 'danger');
+        html += statCard(g.competitor_mentioned_count, 'Competitor Mentions', g.competitor_mentioned_count > 0 ? 'warning' : 'info');
+        html += statCard((g.mention_rate * 100).toFixed(1) + '%', 'Mention Rate', g.mention_rate >= 0.3 ? 'success' : g.mention_rate >= 0.15 ? 'warning' : 'danger');
+        html += '</div>';
+        if (g.competitor_domains_mentioned && g.competitor_domains_mentioned.length > 0) {
+            html += '<p style="margin-top: 12px;"><strong>Competitors Mentioned:</strong> ' + g.competitor_domains_mentioned.slice(0,5).join(', ') + '</p>';
+        }
+        if (g.top_opportunities && g.top_opportunities.length > 0) {
+            html += '<h3 style="margin-top: 16px;">GEO Opportunities</h3>';
+            g.top_opportunities.slice(0,5).forEach(function(opp) {
+                html += '<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;">';
+                html += '<strong>' + opp.keyword + '</strong> - ' + opp.action;
+                if (opp.competitors_mentioned) {
+                    html += ' <span class="badge badge-info">' + opp.competitors_mentioned + ' competitors mentioned</span>';
+                }
+                html += '</div>';
+            });
+        }
+        html += '</div>';
+    }
+
+    // Technical health
+    if (data.technical) {
+        var t = data.technical;
+        html += '<div class="card glass"><h2>Technical Health</h2>';
+        html += '<div class="grid grid-4" style="margin-top: 12px;">';
+        html += statCard(t.pages_crawled, 'Pages Crawled');
+        html += statCard(t.critical_issues, 'Critical', 'danger');
+        html += statCard(t.warning_issues, 'Warnings', 'warning');
+        html += statCard(t.info_issues, 'Info', 'info');
+        html += '</div>';
+        html += '<div style="margin-top: 12px;">';
+        html += '<div class="grid grid-3">';
+        html += '<div><strong>Indexable:</strong> ' + t.indexable_pages + '</div>';
+        html += '<div><strong>Avg Load:</strong> ' + t.avg_load_time_ms + 'ms</div>';
+        html += '<div><strong>Core Web Vitals:</strong> <span class="badge ' + (t.core_web_vitals_pass ? 'badge-success' : 'badge-danger') + '">' + (t.core_web_vitals_pass ? 'Pass' : 'Fail') + '</span></div>';
+        html += '</div></div>';
+        if (t.top_issues && t.top_issues.length > 0) {
+            html += '<h3 style="margin-top: 16px;">Top Issues</h3>';
+            html += '<ul style="margin-top: 8px;">';
+            t.top_issues.forEach(function(issue) {
+                var badge = issue.severity === 'critical' ? 'badge-danger' : issue.severity === 'warning' ? 'badge-warning' : 'badge-info';
+                html += '<li><span class="badge ' + badge + '">' + issue.severity + '</span> ' + issue.message + (issue.url ? ' <small>(' + issue.url + ')</small>' : '') + '</li>';
+            });
+            html += '</ul>';
+        }
+        html += '</div>';
+    }
+
+    // Content health
+    if (data.content) {
+        var c = data.content;
+        html += '<div class="card glass"><h2>Content Quality</h2>';
+        html += '<div class="grid grid-4" style="margin-top: 12px;">';
+        html += statCard(c.pages_analyzed, 'Pages Analyzed');
+        html += statCard(Math.round(c.avg_quality_score * 100) + '%', 'Avg Quality');
+        html += statCard(c.thin_content_pages, 'Thin Content', 'warning');
+        html += statCard(c.duplicate_groups, 'Duplicates', 'danger');
+        html += '</div>';
+        if (c.top_issues && c.top_issues.length > 0) {
+            html += '<h3 style="margin-top: 16px;">Top Content Issues</h3>';
+            html += '<ul style="margin-top: 8px;">';
+            c.top_issues.forEach(function(issue) {
+                html += '<li><strong>' + issue[0] + ':</strong> ' + issue[1] + ' pages</li>';
+            });
+            html += '</ul>';
+        }
+        html += '</div>';
+    }
+
+    // Architecture
+    if (data.architecture) {
+        var a = data.architecture;
+        html += '<div class="card glass"><h2>Site Architecture</h2>';
+        html += '<div class="grid grid-4" style="margin-top: 12px;">';
+        html += statCard(a.total_pages, 'Total Pages');
+        html += statCard(a.total_internal_links, 'Internal Links');
+        html += statCard(a.avg_depth.toFixed(1), 'Avg Depth');
+        html += statCard(a.orphan_pages, 'Orphans', a.orphan_pages > 0 ? 'warning' : 'success');
+        html += '</div></div>';
+    }
+
+    // Recommendations
+    if (data.recommendations && data.recommendations.length > 0) {
+        html += '<div class="card glass"><h2>Prioritized Recommendations</h2>';
+        data.recommendations.forEach(function(rec) {
+            var priorityClass = rec.priority === 'critical' ? 'severity-high' : rec.priority === 'high' ? 'severity-high' : rec.priority === 'medium' ? 'severity-medium' : 'severity-low';
+            var badgeClass = rec.priority === 'critical' ? 'badge-danger' : rec.priority === 'high' ? 'badge-danger' : rec.priority === 'medium' ? 'badge-warning' : 'badge-success';
+            html += '<div class="' + priorityClass + '" style="padding:16px;margin-bottom:12px;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
+            html += '<strong>' + rec.title + '</strong>';
+            html += '<span class="badge ' + badgeClass + '">' + rec.priority.toUpperCase() + '</span>';
+            html += '</div>';
+            html += '<div style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:8px;">' + rec.description + '</div>';
+            if (rec.affected_keywords && rec.affected_keywords.length > 0) {
+                html += '<div style="font-size:0.8rem;color:var(--text-muted);">Keywords: ' + rec.affected_keywords.join(', ') + '</div>';
+            }
+            html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Confidence: ' + Math.round(rec.confidence * 100) + '%';
+            if (rec.supporting_metrics && Object.keys(rec.supporting_metrics).length > 0) {
+                html += ' | Metrics: ' + JSON.stringify(rec.supporting_metrics);
+            }
+            html += '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    if (!html) {
+        html = '<div class="card glass"><div class="empty-state"><h2>No Results</h2><p>Analysis completed but no data returned.</p></div></div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function scoreCard(label, score, color) {
+    return '<div class="stat" style="text-align:center;">' +
+        '<div class="value" style="color:' + color + ';font-size:2.5rem;">' + score.toFixed(1) + '</div>' +
+        '<div class="label">' + label + '</div>' +
+    '</div>';
+}
+
+function statCard(value, label, type) {
+    var color = '';
+    if (type === 'success') color = 'var(--success)';
+    else if (type === 'warning') color = 'var(--warning)';
+    else if (type === 'danger') color = 'var(--danger)';
+    else if (type === 'info') color = 'var(--info)';
+    var style = color ? 'color:' + color : '';
+    return '<div class="stat" style="text-align:center;">' +
+        '<div class="value" style="' + style + '">' + value + '</div>' +
+        '<div class="label">' + label + '</div>' +
+    '</div>';
+}
+
+function getScoreColor(score) {
+    if (score >= 80) return 'var(--success)';
+    if (score >= 60) return 'var(--warning)';
+    if (score >= 40) return 'var(--info)';
+    return 'var(--danger)';
+}
+</script>
+{% endblock %}

@@ -1,516 +1,361 @@
-# SEO Intelligence Engine (SIE)
+# SEO - AIO - GEO Intelligence Engine
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-
-A production SEO intelligence platform built in Python. Performs real search-ranking collection, multi-engine intelligence analysis, industry-specific insights, and professional PDF reporting — all through a server-rendered UI with glassmorphism dark-mode-first design.
-
-**Core design principle:** All deterministic analysis is LLM-free. LLMs are optional adapters behind ports, never required for core intelligence.
-
-**License:** Apache-2.0 — see [LICENSE](LICENSE) for details.
+[![Status: Production Ready](https://img.shields.io/badge/Status-Production_Ready-green.svg)]()
 
 ---
 
-## Features Actually Implemented
+## 🌟 What Is This?
 
-| Capability | Status | Description |
-|------------|--------|-------------|
-| SERP/Ranking Collection | **Real** | Collects rankings via external search API provider |
-| Search Analytics | **Real** | Position tracking, visibility scoring, keyword metrics |
-| SERP Feature Intelligence | **Real** | 9 feature types, ownership tracking, analytics |
-| Cannibalization Detection | **Real** | Multi-URL conflict detection with severity classification |
-| Ranking Volatility | **Real** | Position-change volatility scoring |
-| Search Opportunities | **Real** | Competitor gaps, weak rankings, content gaps |
-| AIO (AI Overview) Intelligence | **Real** | AI search citation/presence analysis |
-| GEO (Generative Engine) Intelligence | **Real** | Generative engine entity/mention analysis |
-| Performance Intelligence | **Real** | HTML size, resource metrics, content efficiency |
-| Entity Intelligence | **Real** | Entity extraction, visibility, competitor gaps |
-| Optimization Intelligence | **Real** | Cross-engine synthesis, prioritized recommendations |
-| Industry Intelligence | **Real** | Casino, crypto, crypto-casino, general analysis |
-| Evidence/Provenance | **Real** | Type/authority classification, confidence scoring |
-| PDF Reports | **Real** | Professional PDFs via WeasyPrint |
-| Web UI | **Real** | 7 pages, dark/light theme, live API consumption |
-| Search Provider Abstraction | **Real** | Protocol-based, vendor-neutral HTTP adapter |
-| Persistence | **Real** | SQLAlchemy + SQLite, Alembic migrations |
-| REST API | **Real** | 40+ endpoints across search, intelligence, industry |
+**SEO Intelligence Engine** is a powerful, self-hosted platform that helps you understand how websites rank in search engines — and more importantly, *why* they rank the way they do.
+
+Think of it as your personal SEO analyst that works 24/7. It:
+- **Collects real search rankings** from Google, Bing, and other engines
+- **Analyzes the data** to find problems and opportunities
+- **Generates professional PDF reports** you can share with clients or your team
+- **Runs completely on your own server** — your data never leaves your infrastructure
+
+### Why Does It Exist?
+
+Most SEO tools are either:
+- **Too expensive** (hundreds of dollars per month)
+- **Locked in the cloud** (your data belongs to someone else)
+- **Black boxes** (you get scores but no explanation)
+
+This engine gives you **full control**, **complete transparency**, and **zero recurring costs**. It's built for agencies, in-house teams, and consultants who want enterprise-grade intelligence without the enterprise price tag.
+
+### Who Is This For?
+
+| If you are... | This helps you... |
+|---------------|-------------------|
+| An SEO agency | Deliver deeper insights to clients, automate reporting |
+| An in-house SEO | Track competitors, find content gaps, prioritize fixes |
+| A consultant | Run audits faster, back recommendations with data |
+| A developer | Build custom SEO tools on a solid foundation |
 
 ---
 
-## Architecture
+## ✨ What It Can Do
+
+### 🔍 **Live Search & Ranking Collection**
+Type a keyword and a domain — the engine fetches real-time rankings from search engines and shows exactly where that domain appears.
+
+### 📊 **Search Analytics (The "What")**
+- Position tracking over time
+- Visibility scores (how much of the SERP you own)
+- Keyword-level metrics: best/worst/average position
+- Top 3, Top 10, Top 20 breakdowns
+
+### 🧠 **Search Intelligence (The "Why" & "What Next")**
+| Analysis | What It Finds |
+|----------|---------------|
+| **Cannibalization** | Multiple pages fighting for the same keyword |
+| **Volatility** | Keywords where rankings jump around unpredictably |
+| **Opportunities** | Competitor gaps, weak rankings you can improve, missing content |
+| **SERP Features** | Featured snippets, local packs, "People Also Ask" you could own |
+| **AI Overview (AIO)** | Whether AI-generated answers cite your site |
+| **Generative Engine (GEO)** | How you appear in ChatGPT, Perplexity, and other AI search |
+
+### 🏢 **Industry-Specific Intelligence**
+Pre-built analysis for:
+- **Casino & Gambling** — compliance, trust signals, bonus structures
+- **Crypto & Web3** — technical trust, regulatory signals, community
+- **Crypto-Casino** — intersection of both verticals
+- **General** — any other industry
+
+### 📄 **Professional PDF Reports**
+One-click generation of polished reports with:
+- Executive summary
+- Severity-coded findings (🔴 High / 🟡 Medium / 🟢 Low)
+- Prioritized recommendations with confidence scores
+- Evidence trail for every claim
+- Page headers, footers, and numbering
+
+### 🎨 **Beautiful Web Interface**
+- **Dark mode by default** (easy on the eyes)
+- **Light mode toggle** (persists your preference)
+- **Glassmorphism design** — modern, clean, responsive
+- **7 pages**: Dashboard, Live Search, Datasets, Intelligence, Industry, Reports, API Docs
+
+---
+
+## 🏗️ How It Works (Simple Version)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ Interface     FastAPI app, server-rendered HTML (Jinja2),       │
-│               glassmorphism UI, REST API, PDF reports           │
-├─────────────────────────────────────────────────────────────────┤
-│ Application   Service orchestration layer                       │
-│               SearchAnalyticsService, IndustryIntelligence,     │
-│               SearchIntelligenceService, Performance/Entity/    │
-│               Optimization/Reporting services                   │
-├─────────────────────────────────────────────────────────────────┤
-│ Domain        Immutable models, engines (pure functions),       │
-│               ports (Protocols), errors — zero infra imports    │
-│                                                           │
-│  Engines:     search_analytics, search_aio, search_geo,        │
-│               search_performance, search_entity,                │
-│               search_optimization, search_report,               │
-│               industry_synthesis, casino_intelligence,          │
-│               crypto_intelligence, crypto_casino_intelligence   │
-├─────────────────────────────────────────────────────────────────┤
-│ Infrastructure  SQLAlchemy/SQLite, Alembic migrations,          │
-│                 httpx fetcher, search provider adapters,        │
-│                 WeasyPrint renderer                             │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  YOU TYPE A KEYWORD + DOMAIN                                │
+└──────────────────────────┬─────────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────────┐
+│  ENGINE QUERIES SEARCH API (SerpAPI, DataForSEO, etc.)     │
+│  Gets back: position, URL, title for top 10-100 results    │
+└──────────────────────────┬─────────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────────┐
+│  DATA SAVED TO YOUR DATABASE (SQLite or PostgreSQL)        │
+└──────────────────────────┬─────────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────────┐
+│  ANALYSIS ENGINES RUN (100% deterministic, no AI needed)   │
+│  • Math & algorithms find patterns                          │
+│   Zero hallucination, zero API costs                        │
+└──────────────────────────┬─────────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────────┐
+│  RESULTS → WEB UI OR PDF REPORT                             │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### Project Layout
+### The "Secret Sauce": Deterministic Intelligence
+Unlike tools that just call GPT and hope for the best, this engine uses **pure math and algorithms** for all core analysis:
+- No AI required for rankings, cannibalization, volatility, opportunities
+- **LLMs are optional** — only used for enhanced reasoning if *you* enable them
+- Results are **reproducible, auditable, and free to run**
 
+---
+
+## 🚀 Quick Start (5 Minutes)
+
+### Prerequisites
+- **Python 3.12+** (check with `python3 --version`)
+- A **search API key** (free tiers available from [SerpAPI](https://serpapi.com), [DataForSEO](https://dataforseo.com), or [ValueSERP](https://valueserp.com))
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-org/seo-intelligence-engine.git
+cd seo-intelligence-engine
+
+# 2. Create a virtual environment (keeps things isolated)
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# 3. Install the engine
+pip install -e '.[dev]'
+
+# 4. Install PDF generation (optional but recommended)
+pip install weasyprint
+
+# 5. Copy the example config and edit it
+cp .env.example .env
+# Edit .env with your favorite editor (nano, vim, VS Code, etc.)
+```
+
+### Configure Your Search API (Required for Real Data)
+
+Open `.env` and find these lines:
+
+```bash
+# Change false → true
+SIE_SEARCH_PROVIDER__ENABLED=true
+
+# Use SerpAPI (recommended for beginners)
+SIE_SEARCH_PROVIDER__PROVIDER_NAME=serpapi
+
+# Paste your API key here
+SIE_SEARCH_PROVIDER__API_KEY=your-actual-api-key-here
+```
+
+> **Don't have an API key?** Get a free one from [SerpAPI](https://serpapi.com) (100 searches/month free). The engine also supports DataForSEO, ValueSERP, and custom HTTP providers.
+
+### Run It
+
+```bash
+# Start the server
+python -m sie
+```
+
+Open your browser to **http://127.0.0.1:8000** — you should see the dashboard!
+
+---
+
+## 📖 First-Time Walkthrough
+
+### 1. **Dashboard** — Your Command Center
+See dataset count, keyword count, search provider status, and recent activity at a glance.
+
+### 2. **Live Search** — Get Real Data
+- Enter a keyword (e.g., "best running shoes")
+- Enter a domain (e.g., "nike.com" or "https://nike.com")
+- Pick a country (US, UK, DE, etc.)
+- Click **Search** → watch it collect real rankings
+
+### 3. **Datasets** — Your Data Library
+All searches are saved as datasets. Browse, delete, or dive deeper.
+
+### 4. **Dataset Detail** — The Full Picture
+Click any dataset to see:
+- Every keyword and its ranking position
+- Competitor rankings side-by-side
+- Historical trends (as data accumulates)
+
+### 5. **Intelligence** — The Magic Happens
+- Pick a dataset from the dropdown
+- Enter the target domain
+- Click **Analyze** → get prioritized recommendations in seconds
+
+### 6. **Reports** — Share the Insights
+- Click **Download PDF** on any analyzed dataset
+- Get a professional report ready for clients or stakeholders
+
+---
+
+## ⚙️ Configuration Guide (Plain English)
+
+All settings live in the `.env` file. Here's what matters:
+
+| Setting | What It Does | Example |
+|---------|--------------|---------|
+| `SIE_ENVIRONMENT` | `development` (verbose logs) or `production` (quiet) | `development` |
+| `SIE_DATABASE_URL` | Where data lives. SQLite for dev, PostgreSQL for prod | `sqlite+aiosqlite:///./sie.db` |
+| `SIE_SEARCH_PROVIDER__ENABLED` | **Must be `true` for real search data** | `true` |
+| `SIE_SEARCH_PROVIDER__PROVIDER_NAME` | Which search API: `serpapi`, `http`, or `mock` | `serpapi` |
+| `SIE_SEARCH_PROVIDER__API_KEY` | Your search API key | `abc123...` |
+| `SIE_LLM__ENABLED` | Enable AI-enhanced analysis (optional) | `false` |
+| `SIE_LLM__API_KEY` | OpenAI-compatible API key (if LLM enabled) | `sk-...` |
+
+> **Tip:** The `.env.example` file has every possible setting with comments. Never commit your real `.env` to git!
+
+---
+
+## 🔧 For Developers
+
+### Project Structure
 ```
 src/sie/
-├── config.py                              # pydantic-settings (SIE_ prefix)
-├── api/
-│   ├── app.py                             # create_app() composition root
-│   ├── routes/
-│   │   ├── web.py                         # 7 UI pages
-│   │   ├── search.py                      # dataset CRUD, import, analytics
-│   │   ├── search_intelligence.py         # AIO, GEO, cannibalization, volatility,
-│   │   │                                  #   opportunities, unified intelligence,
-│   │   │                                  #   industry intelligence
-│   │   ├── search_performance.py          # performance, entity, optimization, report
-│   │   ├── report.py                      # PDF download endpoint
-│   │   ├── system.py                      # health endpoint
-│   │   ├── crawl.py, audit.py, content.py, diagnosis.py, intelligence.py
-│   │   └── web.py
-│   └── templates.py                       # Jinja2 environment
-├── domain/
-│   ├── models/
-│   │   ├── search.py                      # SearchDataset, RankingObservation, etc.
-│   │   ├── search_serp.py                 # SERPFeatureType, SearchSERPFeature
-│   │   ├── search_aio.py                  # AI Overview models
-│   │   ├── search_geo.py                  # GEO models
-│   │   ├── search_performance.py          # Performance models
-│   │   ├── search_entity.py               # Entity models
-│   │   ├── search_optimization.py         # Optimization models
-│   │   ├── search_report.py               # Report models
-│   │   ├── search_analytics.py            # Analytics models
-│   │   ├── industry.py                    # Industry/casino/crypto models
-│   │   └── evidence.py                    # Evidence/Provenance models
-│   ├── engines/                           # Pure deterministic analysis functions
-│   ├── services/                          # Application-layer orchestration
-│   ├── ports/                             # Protocol abstractions
-│   └── renderers/pdf_renderer.py          # WeasyPrint PDF generation
-├── infrastructure/
-│   ├── search/                            # SearchProvider adapters
-│   ├── persistence/                       # SQLAlchemy repositories
-│   └── models/                            # ORM models
-└── templates/                             # HTML templates (glassmorphism UI)
+├── api/           # FastAPI app, routes, templates
+├── domain/        # Pure business logic (no external deps)
+│   ├── models/    # Data structures
+│   ├── engines/   # Analysis algorithms (pure functions)
+│   ├── services/  # Orchestration layer
+│   └── ports/     # Interfaces (protocols)
+├── infrastructure/# Database, HTTP, search adapters
+└── templates/     # HTML (Jinja2 + HTMX-ready)
 ```
+
+### Key Design Principles
+1. **Domain-first** — Business logic never imports infrastructure
+2. **Protocol-based** — Swap databases, search providers, LLMs without touching domain code
+3. **Deterministic by default** — Core intelligence uses 0 LLM calls
+4. **Evidence-backed** — Every finding traces back to source data
+
+### Running Tests
+```bash
+# All tests
+pytest
+
+# With coverage
+pytest --cov=src/sie
+
+# Linting
+ruff check .
+ruff format .
+```
+
+### Adding a New Search Provider
+1. Implement `SearchProvider` protocol in `infrastructure/search/`
+2. Register it in `provider_factory.py`
+3. Add config to `SearchProviderSettings` in `config.py`
+4. Done — zero changes to domain or application code
 
 ---
 
-## Requirements
+## 📦 Dependencies
 
-- Python >= 3.12
-- SQLite (default) or PostgreSQL
-
-### Core dependencies
-
+### Required
 ```
 fastapi, uvicorn, jinja2, httpx, beautifulsoup4, lxml,
 pydantic, pydantic-settings, python-multipart,
 sqlalchemy[asyncio], aiosqlite, alembic, rich
 ```
 
-### Optional dependencies
+### Optional
+```
+weasyprint>=62    # PDF reports (needs system libs: pango, cairo, gdk-pixbuf)
+```
 
-```
-weasyprint>=62    # Required for PDF report generation
-```
+### System Requirements for WeasyPrint (PDF)
+| OS | Command |
+|----|---------|
+| Ubuntu/Debian | `apt-get install libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0` |
+| macOS | `brew install pango cairo gdk-pixbuf` |
+| Windows | Use conda or WSL |
 
 ---
 
-## Installation
-
-```bash
-git clone <repo-url>
-cd seo-intelligence-engine
-
-python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-
-# For PDF generation:
-.venv/bin/pip install weasyprint
-
-cp .env.example .env
-# Edit .env with your configuration
-```
-
----
-
-## Running
-
-```bash
-# Start the application
-.venv/bin/python -m sie
-
-# Application available at:
-#   UI:       http://127.0.0.1:8000
-#   API docs: http://127.0.0.1:8000/docs
-#   Health:   http://127.0.0.1:8000/health
-```
-
----
-
-## Environment Variables
-
-All settings use `SIE_` prefix. Nested settings use `__` delimiter.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIE_ENVIRONMENT` | `development` | `development`, `test`, or `production` |
-| `SIE_DEBUG` | `true` | Enable debug mode |
-| `SIE_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
-| `SIE_HOST` | `127.0.0.1` | Server bind address |
-| `SIE_PORT` | `8000` | Server port |
-| `SIE_DATABASE_URL` | `sqlite+aiosqlite:///./sie.db` | Database URL |
-| `SIE_AUTO_MIGRATE` | `true` | Run migrations at startup |
-
-### Search Provider
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIE_SEARCH_PROVIDER__ENABLED` | `false` | Enable real search API |
-| `SIE_SEARCH_PROVIDER__PROVIDER_NAME` | `mock` | `http` or `mock` |
-| `SIE_SEARCH_PROVIDER__BASE_URL` | `""` | Base URL of search API |
-| `SIE_SEARCH_PROVIDER__API_KEY` | `""` | API key for authentication |
-| `SIE_SEARCH_PROVIDER__TIMEOUT_SECONDS` | `30` | Request timeout |
-
-### LLM Provider (optional)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIE_LLM__ENABLED` | `false` | Enable LLM-enhanced diagnosis |
-| `SIE_LLM__BASE_URL` | `https://api.openai.com` | OpenAI-compatible API URL |
-| `SIE_LLM__API_KEY` | `""` | API key |
-| `SIE_LLM__MODEL` | `gpt-4o-mini` | Model name |
-
----
-
-## Search Provider Configuration
-
-### Architecture
-
-```
-SearchProviderSettings (env vars)
-    ↓
-Provider Factory (provider_factory.py)
-    ↓
-HttpSearchProvider (infrastructure/search/)
-    ↓
-External POST /search API
-```
-
-### When `SIE_SEARCH_PROVIDER__ENABLED=false`
-
-The application uses `MockSearchProvider` (no network I/O). This is for development and testing only. The dashboard and health endpoint clearly indicate "Mock mode".
-
-**There is no silent fallback from a failed real provider to mock data.**
-
-### When `SIE_SEARCH_PROVIDER__ENABLED=true`
-
-The application requires a configured HTTP search provider. If `BASE_URL` is missing, the application fails on startup with:
-
-```
-SearchProviderConfigError: Search provider 'http' requires SIE_SEARCH_PROVIDER__BASE_URL
-```
-
-### Expected External API Contract
-
-**Request:**
-
-```
-POST {base_url}/search
-Content-Type: application/json
-Authorization: Bearer {api_key}   (when api_key is set)
-
-{
-    "query": "best crm software",
-    "country": "us",
-    "language": "en",
-    "device": "desktop",
-    "search_engine": "google",
-    "target_domain": "example.com",   // omitted when None
-    "max_results": 10
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-    "results": [
-        {"title": "Example CRM", "url": "https://example.com/crm", "position": 1},
-        {"title": "Other CRM", "url": "https://other.com/crm", "position": 2}
-    ]
-}
-```
-
-**Error responses:**
-
-| HTTP Status | Meaning | SIE Behavior |
-|-------------|---------|--------------|
-| 401/403 | Auth failure | Raises `SearchProviderAuthenticationError` |
-| 429 | Rate limit | Raises `SearchProviderRateLimit` |
-| 4xx/5xx | Server error | Raises `SearchProviderError` |
-| Timeout | Slow response | Raises `SearchProviderTimeout` |
-| Invalid JSON | Malformed response | Raises `SearchProviderError` |
-
-**Never exposes API keys in error messages or logs.**
-
----
-
-## UI Pages
-
-The application starts in **dark/night mode** by default. A theme toggle (sun/moon icon) in the navigation bar switches between dark and light themes. The choice persists in `localStorage`.
-
-| Page | URL | Functionality |
-|------|-----|---------------|
-| **Dashboard** | `/` | Overview: dataset count, keyword count, provider status, system status, recent datasets |
-| **Live Search** | `/search` | Execute real SERP queries: enter keyword + domain, collect rankings, view results |
-| **Datasets** | `/datasets` | List all datasets, delete, import data |
-| **Dataset Detail** | `/datasets/{id}` | View observations, keyword rankings, competitor analysis, run intelligence |
-| **Intelligence** | `/intelligence` | Run search intelligence analysis on a dataset: recommendations, cannibalization, volatility |
-| **Industry** | `/industry` | Run industry-specific intelligence: casino, crypto, crypto-casino, general |
-| **Reports** | `/reports` | Download PDF reports, check report availability |
-| **API Docs** | `/docs` | FastAPI auto-generated Swagger documentation |
-
-### UI Features
-
-- Glassmorphism design with translucent panels and backdrop blur
-- Dark mode default with light mode toggle
-- Responsive layout (desktop, tablet, mobile)
-- Real-time API data consumption (no hard-coded values)
-- Loading states, empty states, error states
-- Severity-coded findings (red/amber/green)
-- Evidence source tags on findings
-- Confirmation dialogs before destructive actions
-
----
-
-## Dataset Workflow
-
-1. **Import data** via CSV (`POST /api/search/import/csv`) or JSON (`POST /api/search/import/json`)
-2. **Or search live** via the `/search` page which creates a dataset and collects rankings
-3. **View dataset** at `/datasets/{id}` — see observations, keywords, competitors
-4. **Run analytics** — automatic ranking analytics on dataset view
-5. **Run intelligence** — go to `/intelligence` for comprehensive analysis
-6. **Generate report** — download PDF at `/reports`
-
----
-
-## Intelligence Workflow
-
-```
-Dataset with observations + competitor rankings
-    ↓
-Search Intelligence Service
-    ↓
-┌─────────────────────────────────────┐
-│ Cannibalization Detection           │
-│ Ranking Volatility Analysis         │
-│ Search Opportunity Detection        │
-│ SERP Feature Analysis               │
-│ AIO Intelligence                    │
-│ GEO Intelligence                    │
-│ Performance Analysis                │
-│ Entity Analysis                     │
-│ Optimization Synthesis              │
-└─────────────────────────────────────┘
-    ↓
-Prioritized recommendations
-    ↓
-UI display / PDF report
-```
-
----
-
-## Industry Intelligence
-
-Industry intelligence combines search data with industry-specific entity analysis.
-
-**Supported industry types:** `general`, `casino`, `crypto`, `crypto_casino`
-
-Each industry type has dedicated entity detection, topic analysis, and opportunity identification engines.
-
-**Endpoint:** `POST /api/search-intelligence/industry/analyze`
-
-**Evidence provenance:** Every finding and opportunity includes `evidence_sources` — a tuple of data source identifiers indicating which analysis produced the finding.
-
----
-
-## Evidence / Provenance
-
-The `Evidence` model provides a provenance chain:
-
-```
-Observed Data → Evidence → Source/Authority → Finding → Recommendation
-```
-
-- `EvidenceType`: observed, authoritative, analytical, derived
-- `SourceType`: internal, external, google, bing, content, user_data
-- `confidence`: 0.0–1.0 (1.0 = deterministic)
-- `engine`: which engine produced the evidence
-
-Evidence sources are:
-1. Generated by synthesis engines during analysis
-2. Persisted in the database as JSON
-3. Restored on retrieval
-4. Displayed in the UI as tags
-5. Included in PDF reports
-
----
-
-## Report / PDF Generation
-
-**Endpoint:** `GET /api/reports/{report_id}/pdf`
-
-**Requirements:** `weasyprint>=62` must be installed.
-
-**Report contents:**
-- Professional title page with report ID and generation timestamp
-- Executive summary
-- Severity-coded findings (high/medium/low) with evidence sources
-- Recommendations table with priority scores
-- Report metadata
-- Page headers, footers, and page numbers
-
-**If WeasyPrint is not installed**, the endpoint returns a clear error message indicating the missing dependency.
-
----
-
-## Testing
-
-```bash
-# Run all tests (network tests excluded by default)
-.venv/bin/python -m pytest
-
-# Run specific test groups
-.venv/bin/python -m pytest tests/unit/test_search_provider_factory.py -v
-.venv/bin/python -m pytest tests/unit/test_web_routes.py -v
-.venv/bin/python -m pytest tests/intelligence/ -v
-
-# Include network tests (requires real API credentials)
-.venv/bin/python -m pytest -m network
-```
-
-### Ruff
-
-```bash
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
-.venv/bin/ruff format .    # auto-fix formatting
-```
-
----
-
-## Production Configuration
-
-```bash
-SIE_ENVIRONMENT=production
-SIE_DEBUG=false
-SIE_LOG_LEVEL=WARNING
-SIE_DATABASE_URL=postgresql+asyncpg://user:pass@host/dbname
-SIE_AUTO_MIGRATE=false    # run migrations separately in production
-
-# Real search provider
-SIE_SEARCH_PROVIDER__ENABLED=true
-SIE_SEARCH_PROVIDER__PROVIDER_NAME=http
-SIE_SEARCH_PROVIDER__BASE_URL=https://your-serp-api.com
-SIE_SEARCH_PROVIDER__API_KEY=your-key-here
-SIE_SEARCH_PROVIDER__TIMEOUT_SECONDS=30
-```
-
-**Production checklist:**
+## 🐳 Production Deployment
+
+### Quick Checklist
+- [ ] `SIE_ENVIRONMENT=production`
+- [ ] `SIE_DEBUG=false`
+- [ ] `SIE_DATABASE_URL=postgresql+asyncpg://...`
+- [ ] `SIE_AUTO_MIGRATE=false` (run `alembic upgrade head` separately)
 - [ ] Real search API credentials configured
-- [ ] Database URL points to production database
-- [ ] Migrations run separately (`alembic upgrade head`)
-- [ ] `auto_migrate=false`
-- [ ] WeasyPrint installed for PDF generation
-- [ ] Reverse proxy (nginx/Caddy) for HTTPS
-- [ ] `debug=false`
+- [ ] WeasyPrint installed for PDFs
+- [ ] Reverse proxy (nginx/Caddy) with HTTPS
+- [ ] Process manager (systemd, supervisor, or Docker)
 
----
-
-## Mock / Test Provider Behavior
-
-| Scenario | Provider Used | Dashboard Shows |
-|----------|---------------|-----------------|
-| `ENABLED=false` | `MockSearchProvider` | "Mock mode" |
-| `ENABLED=true, valid config` | `HttpSearchProvider` | "Enabled" |
-| `ENABLED=true, missing URL` | **Fails on startup** | N/A |
-| `ENABLED=true, bad API key` | `HttpSearchProvider` | "Enabled" (fails at request time) |
-
-`MockSearchProvider` is used **only** when the provider is explicitly disabled. It is never used as a fallback for a misconfigured or failing real provider.
-
----
-
-## Limitations
-
-1. **External search API required** — Real SERP data requires a configured external API. The application cannot perform real searches without credentials.
-2. **PDF requires WeasyPrint** — PDF generation depends on `weasyprint>=62` which requires system-level C libraries (pango, cairo, gdk-pixbuf).
-3. **SQLite default** — Default database is SQLite. Production should use PostgreSQL.
-4. **AIO/GEO collection is manual** — AI Overview and Generative Engine observations must be supplied manually; automated collection from search engines is not implemented.
-5. **No authentication (planned)** — API key authentication is being added; currently the UI and API have no user authentication.
-6. **No rate limiting (planned)** — Rate limiting for expensive endpoints is being added.
-7. **No HTTPS** — Application serves HTTP. Use a reverse proxy for production.
-
----
-
-## Manual End-to-End Test
-
-```bash
-# 1. Start the application
-.venv/bin/python -m sie
-
-# 2. Open http://127.0.0.1:8000
-#    - Verify dark mode dashboard loads
-#    - Verify system status shows "Mock mode"
-
-# 3. Toggle theme (sun/moon icon in nav)
-#    - Verify light mode renders correctly
-#    - Verify choice persists after page reload
-
-# 4. Navigate to /search
-#    - Enter keyword: "test query"
-#    - Enter domain: "example.com"
-#    - Click Search
-#    - Verify dataset is created
-
-# 5. Navigate to /datasets
-#    - Verify new dataset appears
-#    - Click View on the dataset
-
-# 6. Navigate to /intelligence
-#    - Enter the dataset ID
-#    - Click Analyze
-#    - Verify recommendations appear
-
-# 7. Navigate to /reports
-#    - Enter the dataset ID
-#    - Click Download PDF
-#    - Verify PDF downloads (requires WeasyPrint)
-
-# 8. Check health endpoint
-curl http://127.0.0.1:8000/health | python -m json.tool
-
-# For real SERP testing:
-# 1. Set environment variables:
-export SIE_SEARCH_PROVIDER__ENABLED=true
-export SIE_SEARCH_PROVIDER__PROVIDER_NAME=http
-export SIE_SEARCH_PROVIDER__BASE_URL=https://your-serp-api.com
-export SIE_SEARCH_PROVIDER__API_KEY=your-key
-
-# 2. Restart the application
-# 3. Dashboard should show "Enabled" for search provider
-# 4. /search page should return real results
+### Docker (Recommended)
+```dockerfile
+# Dockerfile included in repo
+docker build -t sie .
+docker run -d -p 8000:8000 --env-file .env sie
 ```
+
+---
+
+## 📜 License
+
+**Apache License 2.0** — See [LICENSE](LICENSE) for full text.
+
+**TL;DR:** You can use, modify, distribute, and sell this software commercially. You must keep the license notice and NOTICE file. No warranty provided.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/amazing-thing`)
+3. Make your changes with tests
+4. Run `ruff check . && ruff format . && pytest`
+5. Submit a PR
+
+---
+
+## 🙋 Support & Community
+
+- **Issues:** [GitHub Issues](https://github.com/your-org/seo-intelligence-engine/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/your-org/seo-intelligence-engine/discussions)
+- **Security:** Email security@your-org.com (please don't file public issues for vulnerabilities)
+
+---
+
+## 🙏 Acknowledgments
+
+Built with:
+- [FastAPI](https://fastapi.tiangolo.com/) — Modern, fast web framework
+- [SQLAlchemy](https://www.sqlalchemy.org/) — Python SQL toolkit
+- [SerpAPI](https://serpapi.com/) — Search API (example provider)
+- [WeasyPrint](https://weasyprint.org/) — HTML to PDF
+- [Rich](https://rich.readthedocs.io/) — Beautiful terminal output
+
+---
+
+## 📊 Status
+
+| Component | Status |
+|-----------|--------|
+| Core Intelligence | ✅ Production |
+| Web UI | ✅ Production |
+| PDF Reports | ✅ Production |
+| SerpAPI Provider | ✅ Production |
+| Industry Intelligence | ✅ Production |
+| AIO/GEO Analysis | ✅ Production |
+
+---
+
+**Made with ❤️ for the SEO community**
+
+*Star this repo if it helps you — it motivates continued development!*

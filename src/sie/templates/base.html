@@ -156,6 +156,8 @@
         .grid-2 { grid-template-columns: repeat(2, 1fr); }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .grid-7 { grid-template-columns: repeat(7, 1fr); }
 
         /* ── Stats ────────────────────────────────────────────────── */
         .stat { text-align: center; padding: 16px; }
@@ -258,7 +260,7 @@
 
         /* ── Responsive ───────────────────────────────────────────── */
         @media (max-width: 768px) {
-            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .grid-2, .grid-3, .grid-4, .grid-5, .grid-7 { grid-template-columns: 1fr; }
             .container { padding: 16px; }
             nav { padding: 0 12px; flex-wrap: wrap; height: auto; min-height: 48px; }
             nav a { padding: 4px 8px; font-size: 0.8rem; }
@@ -268,8 +270,9 @@
 </head>
 <body>
     <nav>
-        <a href="/" class="brand">SEO Intelligence Engine</a>
+        <a href="/" class="brand">SEO - AIO - GEO Intelligence Engine</a>
         <a href="/" {% if active_page == 'dashboard' %}class="active"{% endif %}>Dashboard</a>
+        <a href="/site" {% if active_page == 'site' %}class="active"{% endif %}>Site Analysis</a>
         <a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a>
         <a href="/datasets" {% if active_page == 'datasets' %}class="active"{% endif %}>Datasets</a>
         <a href="/intelligence" {% if active_page == 'intelligence' %}class="active"{% endif %}>Intelligence</a>

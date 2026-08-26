@@ -86,3 +86,12 @@ async def reports_page(request: Request) -> HTMLResponse:
         name="reports.html",
         context=_ctx(request, active_page="reports"),
     )
+
+
+@router.get("/site", response_class=HTMLResponse)
+async def site_analysis_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="site_analysis.html",
+        context=_ctx(request, active_page="site"),
+    )

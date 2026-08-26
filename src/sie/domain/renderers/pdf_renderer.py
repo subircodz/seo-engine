@@ -47,12 +47,16 @@ class PDFRenderer:
             ) from exc
 
         self._jinja_env = Environment(autoescape=False)
+        # Add custom filters
+        self._jinja_env.filters['percentage'] = lambda x: f"{x*100:.1f}%"
+        self._jinja_env.filters['number_format'] = lambda x: f"{x:,}"
+        self._jinja_env.filters['tojson'] = lambda x: __import__('json').dumps(x, default=str)
 
     def render(self, report_data: Any) -> bytes:
         """Render a structured report to PDF bytes.
 
         Args:
-            report_data: IntelligenceReport or dict-like object.
+            report_data: IntelligenceReport, SiteAnalysisResult, or dict-like object.
 
         Returns:
             PDF content as bytes.
@@ -67,7 +71,7 @@ class PDFRenderer:
         to avoid blocking the event loop.
 
         Args:
-            report_data: IntelligenceReport or dict-like object.
+            report_data: IntelligenceReport, SiteAnalysisResult, or dict-like object.
 
         Returns:
             PDF content as bytes.
@@ -78,7 +82,13 @@ class PDFRenderer:
 
     def _build_html(self, data: Any) -> str:
         """Build HTML from report data using Jinja2 template."""
-        template_path = self.TEMPLATE_DIR / "reports" / "report.html"
+        # Determine template based on data type
+        if hasattr(data, 'domain') and hasattr(data, 'overall_score'):
+            # SiteAnalysisResult
+            template_path = self.TEMPLATE_DIR / "reports" / "site_analysis.html"
+        else:
+            # IntelligenceReport or other
+            template_path = self.TEMPLATE_DIR / "reports" / "report.html"
 
         if template_path.exists():
             try:
@@ -92,13 +102,44 @@ class PDFRenderer:
 
     def _render_template(self, template, data: Any) -> str:
         """Render a Jinja2 template with report data."""
+        # Add helper functions to context
+        def score_class(score):
+            if score >= 80:
+                return "excellent"
+            elif score >= 60:
+                return "good"
+            elif score >= 40:
+                return "fair"
+            return "poor"
+
+        def score_rating(score):
+            if score >= 80:
+                return "Excellent"
+            elif score >= 60:
+                return "Good"
+            elif score >= 40:
+                return "Fair"
+            return "Poor"
+
+        def estimate_traffic(position):
+            ctr = {1: 0.30, 2: 0.15, 3: 0.10, 4: 0.07, 5: 0.05, 6: 0.04, 7: 0.03, 8: 0.03, 9: 0.02, 10: 0.02}
+            return int(1000 * ctr.get(position, 0.01))
+
         context = {
-            "summary": getattr(data, "summary", "Report generated"),
-            "generated_at": getattr(data, "generated_at", "Unknown"),
-            "intelligence_id": getattr(data, "intelligence_id", None),
-            "findings": self._extract_findings(data),
-            "recommendations": self._extract_recommendations(data),
+            "score_class": score_class,
+            "score_rating": score_rating,
+            "estimate_traffic": estimate_traffic,
         }
+
+        # Add data attributes to context
+        if hasattr(data, '__dict__'):
+            # Object with attributes
+            for key, value in data.__dict__.items():
+                if not key.startswith('_'):
+                    context[key] = value
+        elif isinstance(data, dict):
+            context.update(data)
+
         return template.render(**context)
 
     def _extract_findings(self, data: Any) -> list[dict]:
