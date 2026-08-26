@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from sie.api.auth import api_key_auth
 from sie.domain.engines.search_aio import analyze_aio_observations
 from sie.domain.engines.search_geo import analyze_geo_observations
 from sie.domain.models.industry import IndustryType
@@ -22,7 +23,11 @@ from sie.domain.services.search_intelligence import (
 )
 from sie.domain.services.search_opportunity import SearchOpportunityResult
 
-router = APIRouter(prefix="/api/search-intelligence", tags=["search-intelligence"])
+router = APIRouter(
+    prefix="/api/search-intelligence",
+    tags=["search-intelligence"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 
 def _industry_service(request: Request) -> IndustryIntelligenceService:
@@ -45,7 +50,7 @@ class AIOverviewObservationRequest(BaseModel):
 
 class AIOAnalysisRequest(BaseModel):
     dataset_id: str
-    observations: list[AIOverviewObservationRequest]
+    observations: list[AIOverviewObservationRequest] = Field(max_length=1000)
     total_keywords: int = 0
 
 
@@ -97,7 +102,7 @@ class GEOObservationRequest(BaseModel):
 
 class GEOAnalysisRequest(BaseModel):
     dataset_id: str
-    observations: list[GEOObservationRequest]
+    observations: list[GEOObservationRequest] = Field(max_length=1000)
     total_keywords: int = 0
 
 
@@ -612,7 +617,7 @@ class IndustryIntelligenceRequest(BaseModel):
     dataset_id: str
     industry_type: str = "general"
     target_domain: str = ""
-    content: str = ""
+    content: str = Field(default="", max_length=100000)
     confidence_threshold: float = 0.5
 
 

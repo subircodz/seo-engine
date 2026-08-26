@@ -55,6 +55,11 @@ def _create_http(settings: SearchProviderSettings) -> SearchProvider:
         base_url=settings.base_url,
         api_key=settings.api_key,
         timeout_seconds=settings.timeout_seconds,
+        connect_timeout_seconds=settings.connect_timeout_seconds,
+        read_timeout_seconds=settings.read_timeout_seconds,
+        write_timeout_seconds=settings.write_timeout_seconds,
+        pool_timeout_seconds=settings.pool_timeout_seconds,
+        allow_localhost=settings.allow_localhost,
     )
 
 

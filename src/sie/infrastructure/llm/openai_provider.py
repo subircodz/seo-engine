@@ -35,7 +35,15 @@ class OpenAICompatibleProvider:
     model:
         Model identifier sent in the request body.
     timeout_seconds:
-        Per-request timeout.
+        Per-request timeout (legacy, used if granular timeouts not provided).
+    connect_timeout_seconds:
+        TCP connection timeout.
+    read_timeout_seconds:
+        Response body read timeout.
+    write_timeout_seconds:
+        Request body write timeout.
+    pool_timeout_seconds:
+        Connection pool acquisition timeout.
     client:
         Optional pre-configured ``httpx.AsyncClient`` (for testing).
     """
@@ -47,6 +55,10 @@ class OpenAICompatibleProvider:
         api_key: str = "",
         model: str = "gpt-4o-mini",
         timeout_seconds: float = 60.0,
+        connect_timeout_seconds: float = 10.0,
+        read_timeout_seconds: float = 60.0,
+        write_timeout_seconds: float = 30.0,
+        pool_timeout_seconds: float = 10.0,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
@@ -58,8 +70,16 @@ class OpenAICompatibleProvider:
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
+        # Use granular timeouts for better control
+        timeout = httpx.Timeout(
+            connect=connect_timeout_seconds,
+            read=read_timeout_seconds,
+            write=write_timeout_seconds,
+            pool=pool_timeout_seconds,
+        )
+
         self._client = client or httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout_seconds),
+            timeout=timeout,
             headers=headers,
         )
         self._owns_client = client is None

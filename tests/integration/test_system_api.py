@@ -9,7 +9,7 @@ async def test_health_reports_ok(client):
     assert body["status"] == "ok"
     assert body["database"] == "ok"
     assert body["environment"] == "test"
-    assert body["app"] == "SEO Intelligence Engine"
+    assert body["app_name"] == "SEO Intelligence Engine"
 
 
 async def test_index_renders_html(client):

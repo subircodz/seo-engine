@@ -27,7 +27,13 @@ __all__ = [
     "extract_casino_entities",
 ]
 
-_PATTERN_GAME_NAME = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b")
+# Casino-specific game name patterns - only match known casino game terms
+_PATTERN_GAME_NAME = re.compile(
+    r"\b("
+    r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}"
+    r"(?:\s+(?:Slot|Game|Jackpot|Roulette|Blackjack|Baccarat|Poker|Craps|Keno|Bingo))?"
+    r")\b"
+)
 _PATTERN_DOMAIN = re.compile(r"\b([a-zA-Z0-9][a-zA-Z0-9-]+\.[a-zA-Z]{2,})\b")
 _PATTERN_CURRENCY = re.compile(
     r"\b(btc|BTC|eth|ETH|usdt|USDT|usdc|USDC|trxbank|sol|SOL)\b", re.IGNORECASE
@@ -35,6 +41,13 @@ _PATTERN_CURRENCY = re.compile(
 _PATTERN_GAME_PROVIDER = re.compile(
     r"\b(NetEnt|Pragmatic|Play\'n\sGo|Yggdrasil|Microgaming|Quickspin|EVO|RTP)\b", re.IGNORECASE
 )
+
+# Known casino game keywords for more precise matching
+_CASINO_GAME_KEYWORDS = frozenset({
+    "slot", "slots", "jackpot", "roulette", "blackjack", "baccarat", "poker",
+    "craps", "keno", "bingo", "video poker", "live dealer", "table game",
+    "progressive", "megaways", "hold and win", "free spins", "bonus game",
+})
 
 _MIN_ENTITY_LENGTH = 2
 _MAX_ENTITY_LENGTH = 100
@@ -62,15 +75,26 @@ def extract_casino_entities(
 
     candidates: Counter[str] = Counter()
 
+    # Extract casino game names - only keep those with casino-related keywords
     for match in _PATTERN_GAME_NAME.finditer(text):
         phrase = match.group(1).strip()
         if len(phrase) >= _MIN_ENTITY_LENGTH and len(phrase) <= _MAX_ENTITY_LENGTH:
-            candidates[phrase] += 1
+            phrase_lower = phrase.lower()
+            # Only count as casino game if it contains casino-related keywords
+            if any(kw in phrase_lower for kw in _CASINO_GAME_KEYWORDS):
+                candidates[phrase] += 1
 
-    for match in _PATTERN_DOMAIN.finditer(text):
-        domain = match.group(1).strip()
-        if len(domain) >= _MIN_ENTITY_LENGTH:
-            candidates[domain] += 1
+    # Extract known game providers
+    for match in _PATTERN_GAME_PROVIDER.finditer(text):
+        provider = match.group(1).strip()
+        if len(provider) >= _MIN_ENTITY_LENGTH:
+            candidates[provider] += 1
+
+    # Extract currency mentions
+    for match in _PATTERN_CURRENCY.finditer(text):
+        currency = match.group(1).strip().upper()
+        if len(currency) >= _MIN_ENTITY_LENGTH:
+            candidates[currency] += 1
 
     entities: list[CasinoEntity] = []
     for entity_text, freq in candidates.most_common(max_entities):
@@ -114,8 +138,8 @@ def _classify_casino_entity(text: str) -> CasinoEntityType:
         return CasinoEntityType.DEPOSIT
     if any(word in text_lower for word in ["withdrawal", "payout", "request", "bonus"]):
         return CasinoEntityType.WITHDRAWAL
-    if "." in text and not text.startswith("www"):
-        return CasinoEntityType.CASINO
+    # Removed: domain classification (". in text") - domains are not casino entities
+    # Currency codes (BTC, ETH, etc.) are handled by _PATTERN_CURRENCY
     return CasinoEntityType.OTHER
 
 
@@ -134,8 +158,8 @@ def _estimate_casino_entity_confidence(text: str, frequency: int) -> float:
     elif frequency >= 3:
         base += 0.1
 
-    if "." in text:
-        base += 0.15
+    # Removed: "." in text boost - domains are not casino entities
+    # Game providers and known casino terms get implicit confidence from pattern matching
 
     return round(min(1.0, base), 2)
 

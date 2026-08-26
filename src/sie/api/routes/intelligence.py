@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+from sie.api.auth import api_key_auth
+
+router = APIRouter(
+    prefix="/api/intelligence",
+    tags=["intelligence"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 
 # ── request / response models ───────────────────────────────────────────────

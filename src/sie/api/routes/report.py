@@ -5,12 +5,18 @@ Phase 12D: PDF export layer.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
+
+from sie.api.auth import api_key_auth
 
 __all__ = ["router"]
 
-router = APIRouter(prefix="/api/reports", tags=["reports"])
+router = APIRouter(
+    prefix="/api/reports",
+    tags=["reports"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 
 @router.get("/{report_id}/pdf", response_class=Response)

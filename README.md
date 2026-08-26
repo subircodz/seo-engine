@@ -1,8 +1,13 @@
 # SEO Intelligence Engine (SIE)
 
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+
 A production SEO intelligence platform built in Python. Performs real search-ranking collection, multi-engine intelligence analysis, industry-specific insights, and professional PDF reporting — all through a server-rendered UI with glassmorphism dark-mode-first design.
 
 **Core design principle:** All deterministic analysis is LLM-free. LLMs are optional adapters behind ports, never required for core intelligence.
+
+**License:** Apache-2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
@@ -454,9 +459,10 @@ SIE_SEARCH_PROVIDER__TIMEOUT_SECONDS=30
 1. **External search API required** — Real SERP data requires a configured external API. The application cannot perform real searches without credentials.
 2. **PDF requires WeasyPrint** — PDF generation depends on `weasyprint>=62` which requires system-level C libraries (pango, cairo, gdk-pixbuf).
 3. **SQLite default** — Default database is SQLite. Production should use PostgreSQL.
-4. **No authentication** — The UI and API have no user authentication.
-5. **No rate limiting** — No API rate limiting is implemented.
-6. **No HTTPS** — Application serves HTTP. Use a reverse proxy for production.
+4. **AIO/GEO collection is manual** — AI Overview and Generative Engine observations must be supplied manually; automated collection from search engines is not implemented.
+5. **No authentication (planned)** — API key authentication is being added; currently the UI and API have no user authentication.
+6. **No rate limiting (planned)** — Rate limiting for expensive endpoints is being added.
+7. **No HTTPS** — Application serves HTTP. Use a reverse proxy for production.
 
 ---
 

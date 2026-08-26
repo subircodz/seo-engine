@@ -7,6 +7,7 @@ Uses WeasyPrint for HTML-to-PDF conversion with professional styling.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import pathlib
 from typing import Any
@@ -57,7 +58,23 @@ class PDFRenderer:
             PDF content as bytes.
         """
         html = self._build_html(report_data)
-        return self._render_html(html)
+        return self._render_html_sync(html)
+
+    async def render_async(self, report_data: Any) -> bytes:
+        """Render a structured report to PDF bytes (async version).
+
+        Offloads the blocking WeasyPrint rendering to a thread pool
+        to avoid blocking the event loop.
+
+        Args:
+            report_data: IntelligenceReport or dict-like object.
+
+        Returns:
+            PDF content as bytes.
+        """
+        html = self._build_html(report_data)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._render_html_sync, html)
 
     def _build_html(self, data: Any) -> str:
         """Build HTML from report data using Jinja2 template."""
@@ -148,7 +165,11 @@ class PDFRenderer:
 <html><head><meta charset="utf-8"><title>Report</title></head>
 <body><h1>Intelligence Report</h1><p>{summary}</p><p>Generated: {generated_at}</p></body></html>"""
 
-    def _render_html(self, html: str) -> bytes:
-        """Convert HTML string to PDF."""
+    def _render_html_sync(self, html: str) -> bytes:
+        """Convert HTML string to PDF (synchronous, blocking)."""
         doc = self._weasyprint.HTML(string=html).render()
         return doc.write_pdf()
+
+    def _render_html(self, html: str) -> bytes:
+        """Deprecated alias for _render_html_sync."""
+        return self._render_html_sync(html)

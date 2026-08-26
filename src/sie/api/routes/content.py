@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 
+from sie.api.auth import api_key_auth
 from sie.domain.models.content import (
     ContentAnalysisConfig,
     ContentComparison,
@@ -18,7 +19,11 @@ from sie.domain.models.content import (
     QualityTier,
 )
 
-router = APIRouter(prefix="/api/content", tags=["content"])
+router = APIRouter(
+    prefix="/api/content",
+    tags=["content"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 
 # ── request / response models ─────────────────────────────────────────────────

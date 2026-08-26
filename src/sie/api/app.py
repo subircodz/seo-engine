@@ -1,9 +1,11 @@
 """FastAPI application factory -- the Phase 3 composition root."""
 
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from sie.api.routes import (
     audit,
@@ -33,9 +35,32 @@ from sie.infrastructure.parsing.html_parser import Bs4PageParser
 from sie.infrastructure.persistence.database import Database
 from sie.infrastructure.persistence.migrations import run_migrations
 from sie.infrastructure.persistence.repositories import SqlAlchemyCrawlRunRepository
-from sie.logging import get_logger, setup_logging
+from sie.logging import get_logger, set_request_id, setup_logging
 
 logger = get_logger(__name__)
+
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    """Middleware to generate and track request IDs for correlation."""
+
+    async def dispatch(self, request: Request, call_next):
+        # Generate or extract request ID
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+
+        # Set request ID in context variable for logging
+        set_request_id(request_id)
+        request.state.request_id = request_id
+
+        # Process request
+        response = await call_next(request)
+
+        # Add request ID to response headers
+        response.headers["X-Request-ID"] = request_id
+
+        # Clear request ID from context
+        set_request_id(None)
+
+        return response
 
 
 def _log_event_factory():
@@ -55,7 +80,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
-        app.state.database = Database(settings.database_url)
+        db_cfg = settings.database
+        app.state.database = Database(
+            settings.database_url,
+            pool_size=db_cfg.pool_size,
+            max_overflow=db_cfg.max_overflow,
+            pool_timeout=db_cfg.pool_timeout,
+            pool_recycle=db_cfg.pool_recycle,
+        )
         logger.info("database driver: %s", settings.database_url.split("://")[0])
 
         if settings.auto_migrate:
@@ -63,7 +95,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         cs = settings.crawler
         fetcher = RetryingFetcher(
-            HttpxFetcher(user_agent=cs.user_agent, timeout_seconds=cs.request_timeout_seconds),
+            HttpxFetcher(
+                user_agent=cs.user_agent,
+                timeout_seconds=cs.request_timeout_seconds,
+                connect_timeout_seconds=cs.connect_timeout_seconds,
+                read_timeout_seconds=cs.read_timeout_seconds,
+                write_timeout_seconds=cs.write_timeout_seconds,
+                pool_timeout_seconds=cs.pool_timeout_seconds,
+                allow_localhost=cs.allow_localhost,
+            ),
             max_retries=cs.max_retries,
             base_delay_seconds=cs.retry_backoff_seconds,
         )
@@ -95,6 +135,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 api_key=llm_cfg.api_key,
                 model=llm_cfg.model,
                 timeout_seconds=llm_cfg.timeout_seconds,
+                connect_timeout_seconds=llm_cfg.connect_timeout_seconds,
+                read_timeout_seconds=llm_cfg.read_timeout_seconds,
+                write_timeout_seconds=llm_cfg.write_timeout_seconds,
+                pool_timeout_seconds=llm_cfg.pool_timeout_seconds,
             )
             logger.info(
                 "LLM provider enabled: model=%s base_url=%s",
@@ -134,6 +178,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
+    # Add request ID middleware for correlation
+    app.add_middleware(RequestIdMiddleware)
     app.include_router(audit.router)
     app.include_router(content.router)
     app.include_router(crawl.router)

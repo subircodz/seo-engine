@@ -69,6 +69,7 @@ class CrawlPageRecord:
     status_code: int | None = None
     fetched_at: datetime | None = None
     html_size: int | None = None
+    html_content: bytes | None = None
     error_message: str | None = None
     content_type: str | None = None
     depth: int = 0

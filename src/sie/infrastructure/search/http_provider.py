@@ -40,7 +40,7 @@ header.  When the key is empty no Authorization header is sent (for local or
 key-free providers).
 
 Lifecycle
---------
+---------
 The adapter manages its own ``httpx.AsyncClient`` when none is injected.
 Injected clients (for testing) are never closed by the adapter.
 """
@@ -60,6 +60,7 @@ from sie.domain.ports.search_provider import (
     SearchProviderRateLimit,
     SearchProviderTimeout,
 )
+from sie.domain.security.ssrf import validate_url
 from sie.logging import get_logger
 
 logger = get_logger(__name__)
@@ -78,10 +79,21 @@ class HttpSearchProvider:
     api_key:
         Optional bearer token.  Empty string means no auth header is sent.
     timeout_seconds:
-        Per-request timeout.
+        Per-request timeout (legacy, used if granular timeouts not provided).
+    connect_timeout_seconds:
+        TCP connection timeout.
+    read_timeout_seconds:
+        Response body read timeout.
+    write_timeout_seconds:
+        Request body write timeout.
+    pool_timeout_seconds:
+        Connection pool acquisition timeout.
     client:
         Optional pre-configured ``httpx.AsyncClient`` (for testing).
         When provided the adapter will **not** close it on ``close()``.
+    allow_localhost:
+        If True, allow connections to localhost/private IPs.
+        ONLY enable for development/testing. Default: False.
     """
 
     def __init__(
@@ -90,18 +102,37 @@ class HttpSearchProvider:
         base_url: str,
         api_key: str = "",
         timeout_seconds: float = 30.0,
+        connect_timeout_seconds: float = 5.0,
+        read_timeout_seconds: float = 30.0,
+        write_timeout_seconds: float = 10.0,
+        pool_timeout_seconds: float = 5.0,
         client: httpx.AsyncClient | None = None,
+        allow_localhost: bool = False,
     ) -> None:
+        # Validate base_url against SSRF attacks
+        safe, error = validate_url(base_url, allow_localhost=allow_localhost)
+        if not safe:
+            raise SearchProviderError(f"Invalid base_url (SSRF protection): {error}")
+
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout_seconds = timeout_seconds
+        self._allow_localhost = allow_localhost
 
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
+        # Use granular timeouts for better control
+        timeout = httpx.Timeout(
+            connect=connect_timeout_seconds,
+            read=read_timeout_seconds,
+            write=write_timeout_seconds,
+            pool=pool_timeout_seconds,
+        )
+
         self._client = client or httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout_seconds),
+            timeout=timeout,
             headers=headers,
         )
         self._owns_client = client is None

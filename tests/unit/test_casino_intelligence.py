@@ -94,18 +94,28 @@ class TestExtractCasinoEntities:
         assert result == ()
 
     def test_extract_with_game_name(self):
-        text = "Play the Fortune Wheel game for huge prizes."
+        # Must contain casino-related keywords to be extracted
+        text = "Play the Fortune Wheel Slot game for huge prizes."
         result = extract_casino_entities(text)
         assert len(result) > 0
+        # Should extract "Fortune Wheel Slot" as it contains "Slot"
+        names = [e.name for e in result]
+        assert any("Fortune Wheel Slot" in n for n in names)
 
-    def test_extract_with_domain(self):
-        text = "Visit example.com for the best casino online."
+    def test_extract_with_game_provider(self):
+        text = "Games from NetEnt and Pragmatic are popular."
         result = extract_casino_entities(text)
-        texts = [e.name for e in result]
-        assert any("example.com" in t for t in texts)
+        names = [e.name for e in result]
+        assert "NetEnt" in names or "Pragmatic" in names
+
+    def test_extract_with_currency(self):
+        text = "Deposit with BTC or ETH for instant play."
+        result = extract_casino_entities(text)
+        names = [e.name for e in result]
+        assert "BTC" in names or "ETH" in names
 
     def test_deterministic(self):
-        text = "The Fortune Wheel is a popular game."
+        text = "The Fortune Wheel Slot is a popular game."
         r1 = extract_casino_entities(text)
         r2 = extract_casino_entities(text)
         assert len(r1) == len(r2)
@@ -115,13 +125,21 @@ class TestExtractCasinoEntities:
 
     def test_min_frequency_filter(self):
         text = (
-            "Alpha Casino released a new game. "
-            "Alpha Casino is known for quality. "
+            "Mega Slot released a new game. "
+            "Mega Slot is known for quality. "
             "Beta Casino announced sports."
         )
         result = extract_casino_entities(text, min_frequency=2)
         texts = [e.name for e in result]
-        assert any("Alpha" in t for t in texts)
+        # "Mega Slot" appears twice and contains "Slot" keyword
+        assert any("Mega Slot" in t for t in texts)
+
+    def test_domain_not_extracted(self):
+        """Domains should not be extracted as casino entities."""
+        text = "Visit example.com for the best casino online."
+        result = extract_casino_entities(text)
+        texts = [e.name for e in result]
+        assert "example.com" not in texts
 
 
 class TestClassifyCasinoIntent:
@@ -154,12 +172,14 @@ class TestAnalyzeCasinoContent:
         assert result.total_entities == 0
 
     def test_with_entities(self):
-        content = "Play games at example.com casino with huge bonuses and Bitcoin deposits."
+        content = "Play Mega Slot games with huge bonuses and BTC deposits at our casino."
         result = analyze_casino_content(content)
         assert result.total_entities > 0
+        # Should find entities by type
+        assert "game" in result.entities_by_type or "currency" in result.entities_by_type
 
     def test_content_gaps(self):
-        content = "Play games at example.com."
+        content = "Play Mega Slot games at our casino."
         result = analyze_casino_content(content)
         assert isinstance(result.content_gaps, tuple)
 

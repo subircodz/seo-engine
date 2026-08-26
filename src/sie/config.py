@@ -20,7 +20,16 @@ class CrawlerSettings(BaseModel):
     """Politeness and scope defaults consumed by the Crawler Engine."""
 
     user_agent: str = "Mozilla/5.0 (compatible; SEOIntelligenceEngine/0.1)"
+
+    # Granular timeouts (seconds)
+    connect_timeout_seconds: float = Field(default=5.0, gt=0)
+    read_timeout_seconds: float = Field(default=20.0, gt=0)
+    write_timeout_seconds: float = Field(default=10.0, gt=0)
+    pool_timeout_seconds: float = Field(default=5.0, gt=0)
+
+    # Legacy single timeout (used if granular not set)
     request_timeout_seconds: float = Field(default=20.0, gt=0)
+
     max_concurrent_requests: int = Field(default=10, ge=1)
     rate_limit_per_host: float = Field(default=1.0, gt=0)
     respect_robots_txt: bool = True
@@ -30,6 +39,9 @@ class CrawlerSettings(BaseModel):
     visited_cache_size: int = Field(default=100_000, ge=100)
     max_retries: int = Field(default=2, ge=0)
     retry_backoff_seconds: float = Field(default=0.5, gt=0)
+
+    # SSRF protection: allow localhost/private IPs (dev only)
+    allow_localhost: bool = False
 
 
 class AuditSettings(BaseModel):
@@ -72,7 +84,16 @@ class LLMSettings(BaseModel):
     base_url: str = "https://api.openai.com"
     api_key: str = ""
     model: str = "gpt-4o-mini"
+
+    # Granular timeouts (seconds)
+    connect_timeout_seconds: float = Field(default=10.0, gt=0)
+    read_timeout_seconds: float = Field(default=60.0, gt=0)
+    write_timeout_seconds: float = Field(default=30.0, gt=0)
+    pool_timeout_seconds: float = Field(default=10.0, gt=0)
+
+    # Legacy single timeout
     timeout_seconds: float = Field(default=60.0, gt=0)
+
     max_tokens: int = Field(default=4096, ge=256)
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
 
@@ -99,7 +120,18 @@ class SearchProviderSettings(BaseModel):
     provider_name: str = "mock"
     base_url: str = ""
     api_key: str = ""
+
+    # Granular timeouts (seconds)
+    connect_timeout_seconds: float = Field(default=5.0, gt=0)
+    read_timeout_seconds: float = Field(default=30.0, gt=0)
+    write_timeout_seconds: float = Field(default=10.0, gt=0)
+    pool_timeout_seconds: float = Field(default=5.0, gt=0)
+
+    # Legacy single timeout
     timeout_seconds: float = Field(default=30.0, gt=0)
+
+    # SSRF protection: allow localhost/private IPs (dev only)
+    allow_localhost: bool = False
 
     def __repr__(self) -> str:
         """Mask the API key to prevent accidental secret leakage in logs."""
@@ -115,6 +147,38 @@ class SearchProviderSettings(BaseModel):
     def __str__(self) -> str:
         """Mask the API key to prevent accidental secret leakage in logs."""
         return self.__repr__()
+
+
+class DatabaseSettings(BaseModel):
+    """Database connection pool configuration."""
+
+    # Connection pool settings (PostgreSQL)
+    pool_size: int = Field(default=5, ge=1, le=100)
+    max_overflow: int = Field(default=10, ge=0, le=100)
+    pool_timeout: float = Field(default=30.0, gt=0)
+    pool_recycle: int = Field(default=1800, ge=0)  # seconds
+
+    # Auto-migration behavior
+    auto_migrate: bool = True
+
+
+class APISettings(BaseModel):
+    """API authentication configuration."""
+
+    enabled: bool = False
+    api_keys: list[str] = Field(default_factory=list)
+    header_name: str = "X-API-Key"
+
+
+class LimitSettings(BaseModel):
+    """Request/response size limits for API endpoints."""
+
+    max_import_records: int = Field(default=10000, ge=1)
+    max_collect_queries: int = Field(default=500, ge=1)
+    max_analysis_observations: int = Field(default=5000, ge=1)
+    max_industry_content_chars: int = Field(default=100000, ge=1)
+    max_aio_observations: int = Field(default=1000, ge=1)
+    max_geo_observations: int = Field(default=1000, ge=1)
 
 
 class Settings(BaseSettings):
@@ -139,17 +203,25 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./sie.db"
 
-    auto_migrate: bool = True
-
     crawler: CrawlerSettings = Field(default_factory=CrawlerSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
     content: ContentSettings = Field(default_factory=ContentSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search_provider: SearchProviderSettings = Field(default_factory=SearchProviderSettings)
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    api: APISettings = Field(default_factory=APISettings)
+    limits: LimitSettings = Field(default_factory=LimitSettings)
 
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def auto_migrate(self) -> bool:
+        """Auto-migrate defaults to False in production for safety."""
+        if self.is_production:
+            return self.database.auto_migrate
+        return self.database.auto_migrate
 
 
 @lru_cache

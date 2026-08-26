@@ -4,17 +4,22 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field
 
+from sie.api.auth import api_key_auth
 from sie.domain.models.diagnosis import (
     DiagnosisEvidence,
     DiagnosisIssue,
     DiagnosisResult,
 )
 
-router = APIRouter(prefix="/api/diagnosis", tags=["diagnosis"])
+router = APIRouter(
+    prefix="/api/diagnosis",
+    tags=["diagnosis"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 
 # ── request / response models ───────────────────────────────────────────────

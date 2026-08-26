@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sie.infrastructure.models.content_orm import (
@@ -75,6 +75,7 @@ class CrawlPageRow(Base):
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     html_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    html_content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     content_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     parent_url: Mapped[str | None] = mapped_column(Text, nullable=True)

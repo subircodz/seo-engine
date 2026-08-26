@@ -7,11 +7,12 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Query, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, Query, Request, UploadFile
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
+from sie.api.auth import api_key_auth
 from sie.domain.models.search import SearchDataset
 from sie.domain.models.search_analytics import SearchAnalyticsResult
 from sie.domain.models.search_import import SearchImportResult
@@ -25,7 +26,12 @@ from sie.domain.services.search_collection_service import SearchCollectionServic
 from sie.domain.services.search_dataset_service import SearchDatasetService
 from sie.domain.services.search_import_service import SearchImportService
 
-router = APIRouter(prefix="/api/search", tags=["search"])
+# Apply API key authentication to all search endpoints
+router = APIRouter(
+    prefix="/api/search",
+    tags=["search"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 importer = SearchImportService()
 dataset_svc = SearchDatasetService()
@@ -88,7 +94,8 @@ class NormalizationResponse(BaseModel):
 
 class DatasetRequest(BaseModel):
     records: list[dict[str, object]] = Field(
-        description="JSON array of search records to import, validate, or normalize"
+        description="JSON array of search records to import, validate, or normalize",
+        max_length=10000,
     )
     dataset_id: str | None = Field(default=None, description="Optional dataset identifier")
     name: str = Field(default=_DEFAULT_DATASET_NAME, description="Human-readable dataset name")
@@ -641,7 +648,7 @@ class CollectQueryRequest(BaseModel):
 
 
 class CollectRequest(BaseModel):
-    queries: list[CollectQueryRequest]
+    queries: list[CollectQueryRequest] = Field(max_length=500)
 
 
 class CollectResponse(BaseModel):

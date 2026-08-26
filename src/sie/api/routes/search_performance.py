@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from sie.api.auth import api_key_auth
 from sie.domain.engines.search_entity import (
     analyze_entity_visibility,
     detect_entity_gaps,
@@ -17,7 +18,11 @@ from sie.domain.engines.search_performance import (
 from sie.domain.engines.search_report import generate_intelligence_report
 from sie.domain.models.search_entity import EntitySignal
 
-router = APIRouter(prefix="/api/search-intelligence", tags=["search-performance"])
+router = APIRouter(
+    prefix="/api/search-intelligence",
+    tags=["search-performance"],
+    dependencies=[Depends(api_key_auth)],
+)
 
 
 # ── Request / Response models ────────────────────────────────────────────

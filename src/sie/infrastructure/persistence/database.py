@@ -22,8 +22,32 @@ class Base(DeclarativeBase):
 class Database:
     """Owns the async engine and session factory for one database URL."""
 
-    def __init__(self, url: str, *, echo: bool = False) -> None:
-        self._engine = create_async_engine(url, echo=echo)
+    def __init__(
+        self,
+        url: str,
+        *,
+        echo: bool = False,
+        pool_size: int = 5,
+        max_overflow: int = 10,
+        pool_timeout: float = 30.0,
+        pool_recycle: int = 1800,
+    ) -> None:
+        # Only apply pool settings for PostgreSQL (not SQLite)
+        is_postgres = url.startswith("postgresql") or url.startswith("postgres")
+
+        if is_postgres:
+            self._engine = create_async_engine(
+                url,
+                echo=echo,
+                pool_size=pool_size,
+                max_overflow=max_overflow,
+                pool_timeout=pool_timeout,
+                pool_recycle=pool_recycle,
+                pool_pre_ping=True,
+            )
+        else:
+            # SQLite doesn't use connection pooling
+            self._engine = create_async_engine(url, echo=echo)
 
         @event.listens_for(self._engine.sync_engine, "connect")
         def _pragma_fk_on(dbapi_conn, _):

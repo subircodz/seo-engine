@@ -8,7 +8,14 @@ version = "0.1.0"
 description = "Zero-paid-API website intelligence platform: technical SEO, content intelligence, AIO/GEO readiness."
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [{ name = "Gray" }]
+authors = [{ name = "Subir Sutradhar" }]
+license = { text = "Apache-2.0" }
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.30",

@@ -178,6 +178,7 @@ class CrawlService:
                             status_code=page.status_code,
                             fetched_at=page.fetched_at,
                             html_size=len(page.content),
+                            html_content=page.content,
                             content_type=page.content_type,
                             depth=page.depth,
                             parent_url=page.parent_url,
