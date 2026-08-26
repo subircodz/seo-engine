@@ -7,14 +7,26 @@ assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+####Feature summary
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+####Problem this solves
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+####Proposed solution
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+####Expected user benefit
+
+**Affected SIE area**
+- SEO
+- AIO
+- GEO
+- Crawling
+- SERP
+- Content Intelligence
+- Entity Intelligence
+- Reporting
+- UI
+- Other
+
+####Alternatives considered
+
+####Additional context
