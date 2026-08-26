@@ -173,3 +173,5 @@ class SiteArchitectureReport:
     pagerank_bottom_10: tuple[str, ...]
     thin_connection_pages: tuple[str, ...]
     link_velocity: LinkVelocity
+    pagerank_gini: float | None = None
+    pagerank_values: tuple[float, ...] = ()

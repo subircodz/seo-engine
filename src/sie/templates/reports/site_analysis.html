@@ -2,862 +2,1337 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Site Analysis Report - {{ domain }}</title>
+    <title>Intelligence Report — {{ domain }}</title>
     <style>
         @page {
             size: A4;
-            margin: 2.5cm 2cm 2.5cm 2cm;
-            @top-center {
-                content: "SEO - AIO - GEO Intelligence Engine - Site Analysis Report";
-                font-size: 9pt;
-                color: #666;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 4pt;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 2cm 1.8cm 2.5cm 1.8cm;
+            @top-left {
+                content: "SEO · AIO · GEO Intelligence Engine";
+                font-size: 7.5pt;
+                color: #94a3b8;
+                font-family: "Helvetica Neue", Arial, sans-serif;
+                letter-spacing: 0.04em;
             }
             @bottom-center {
                 content: "Page " counter(page) " of " counter(pages);
-                font-size: 9pt;
-                color: #666;
-                border-top: 1px solid #ddd;
-                padding-top: 4pt;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 8pt;
+                color: #94a3b8;
+                font-family: "Helvetica Neue", Arial, sans-serif;
+            }
+            @bottom-right {
+                content: "{{ domain }}";
+                font-size: 7.5pt;
+                color: #94a3b8;
+                font-family: "Helvetica Neue", Arial, sans-serif;
             }
         }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            color: #1a1a2e;
-            font-size: 11pt;
-        }
-
-        /* Header / Cover Page */
-        .cover-page {
-            text-align: center;
-            padding: 60px 40px;
-            page-break-after: always;
-        }
-
-        .cover-page h1 {
-            font-size: 36pt;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin-bottom: 12px;
-            letter-spacing: -0.02em;
-        }
-
-        .cover-page .subtitle {
-            font-size: 18pt;
-            color: #4a5568;
-            margin-bottom: 40px;
-        }
-
-        .cover-page .domain {
-            font-size: 24pt;
-            font-weight: 600;
-            color: #2563eb;
-            margin-bottom: 8px;
-        }
-
-        .cover-page .meta {
-            font-size: 12pt;
-            color: #718096;
-        }
-
-        .cover-page .scores-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 40px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .score-card {
-            background: #f7fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-        }
-
-        .score-card.excellent { border-color: #38a169; background: #f0fff4; }
-        .score-card.good { border-color: #d69e2e; background: #fffaf0; }
-        .score-card.fair { border-color: #dd6b20; background: #fffaf0; }
-        .score-card.poor { border-color: #e53e3e; background: #fff5f5; }
-
-        .score-card .label {
-            font-size: 10pt;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #718096;
-            margin-bottom: 8px;
-        }
-
-        .score-card .value {
-            font-size: 28pt;
-            font-weight: 700;
-        }
-
-        .score-card.excellent .value { color: #38a169; }
-        .score-card.good .value { color: #d69e2e; }
-        .score-card.fair .value { color: #dd6b20; }
-        .score-card.poor .value { color: #e53e3e; }
-
-        /* Section Headers */
-        .section {
-            page-break-inside: avoid;
-            margin-bottom: 32px;
-        }
-
-        .section h2 {
-            font-size: 16pt;
-            font-weight: 700;
-            color: #1a1a2e;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 8px;
-            margin-bottom: 20px;
-        }
-
-        .section h3 {
-            font-size: 13pt;
-            font-weight: 600;
-            color: #2d3748;
-            margin: 20px 0 12px 0;
-        }
-
-        /* Score Summary Table */
-        .score-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 24px;
-        }
-
-        .score-table th,
-        .score-table td {
-            padding: 12px 16px;
-            text-align: left;
-            border: 1px solid #e2e8f0;
-        }
-
-        .score-table th {
-            background: #2563eb;
-            color: white;
-            font-weight: 600;
-            font-size: 10pt;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .score-table tr:nth-child(even) td {
-            background: #f7fafc;
-        }
-
-        .score-table .score-cell {
-            font-weight: 700;
-            font-size: 14pt;
-        }
-
-        .score-cell.excellent { color: #38a169; }
-        .score-cell.good { color: #d69e2e; }
-        .score-cell.fair { color: #dd6b20; }
-        .score-cell.poor { color: #e53e3e; }
-
-        /* Issue/Issue Lists */
-        .issue-list {
-            list-style: none;
-            padding: 0;
+        @page :first {
+            @top-left { content: none; }
+            @bottom-center { content: none; }
+            @bottom-right { content: none; }
             margin: 0;
         }
 
-        .issue-item {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            page-break-inside: avoid;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .issue-item.critical {
-            border-left: 4px solid #e53e3e;
-        }
-
-        .issue-item.high {
-            border-left: 4px solid #dd6b20;
-        }
-
-        .issue-item.medium {
-            border-left: 4px solid #d69e2e;
-        }
-
-        .issue-item.low {
-            border-left: 4px solid #38a169;
-        }
-
-        .issue-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-
-        .issue-title {
-            font-weight: 600;
-            font-size: 12pt;
-            color: #1a1a2e;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 8pt;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .badge.critical { background: #fed7d7; color: #c53030; }
-        .badge.high { background: #fed7d7; color: #c53030; }
-        .badge.medium { background: #faf089; color: #b7791f; }
-        .badge.low { background: #c6f6d5; color: #276749; }
-
-        .issue-description {
-            color: #4a5568;
-            font-size: 10.5pt;
-            line-height: 1.7;
-        }
-
-        .issue-metrics {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 9pt;
-            color: #718096;
-        }
-
-        .affected-keywords {
-            margin-top: 8px;
-            font-size: 9pt;
-        }
-
-        .affected-keywords strong {
-            color: #4a5568;
-        }
-
-        .affected-keywords span {
-            background: #e2e8f0;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin: 2px 4px 2px 0;
-            display: inline-block;
-            font-size: 8.5pt;
-        }
-
-        /* Keyword Table */
-        .keyword-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 12px;
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.55;
+            color: #1e293b;
             font-size: 9.5pt;
         }
 
-        .keyword-table th,
-        .keyword-table td {
-            padding: 10px 12px;
-            border: 1px solid #e2e8f0;
-            text-align: left;
-        }
-
-        .keyword-table th {
-            background: #edf2f7;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .keyword-table tr:nth-child(even) {
-            background: #f7fafc;
-        }
-
-        .position-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 8.5pt;
-        }
-
-        .position-badge.top3 { background: #c6f6d5; color: #276749; }
-        .position-badge.top10 { background: #faf089; color: #b7791f; }
-        .position-badge.top20 { background: #bee3f8; color: #2b6cb0; }
-
-        /* Recommendation items */
-        .rec-item {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 16px;
-            page-break-inside: avoid;
-        }
-
-        .rec-header {
+        /* ═══ Cover Page ═══ */
+        .cover {
+            page-break-after: always;
+            height: 100vh;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-
-        .rec-title {
-            font-size: 13pt;
-            font-weight: 600;
-            color: #1a1a2e;
-        }
-
-        .rec-category {
-            background: #edf2f7;
-            color: #2563eb;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 8pt;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .rec-description {
-            color: #4a5568;
-            line-height: 1.7;
-            margin-bottom: 12px;
-        }
-
-        .rec-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            font-size: 9pt;
-            color: #718096;
-        }
-
-        .rec-meta-item {
-            background: #f7fafc;
-            padding: 4px 10px;
-            border-radius: 6px;
-        }
-
-        /* AIO/GEO sections */
-        .ai-section {
-            background: linear-gradient(135deg, #faf5ff 0%, #f3f0ff 100%);
-            border: 1px solid #d6bcfa;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 16px 0;
-        }
-
-        .geo-section {
-            background: linear-gradient(135deg, #f0fff4 0%, #e6ffed 100%);
-            border: 1px solid #9ae6b4;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 16px 0;
-        }
-
-        .ai-section h3, .geo-section h3 {
-            margin-top: 0;
-            color: #553c9a;
-        }
-
-        .geo-section h3 {
-            color: #276749;
-        }
-
-        /* Footer note */
-        .report-footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 9pt;
-            color: #718096;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
+            padding: 3cm 2cm;
+            background: linear-gradient(160deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+            color: #fff;
         }
-
-        .page-break {
-            page-break-before: always;
+        .cover-badge {
+            display: inline-block;
+            font-size: 8pt;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 4px 16px;
+            margin-bottom: 32px;
         }
-
-        /* Executive Summary */
-        .exec-summary {
-            background: #f7fafc;
-            border-left: 4px solid #2563eb;
-            padding: 20px;
+        .cover h1 {
+            font-size: 28pt;
+            font-weight: 300;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            color: #f1f5f9;
+        }
+        .cover h1 strong { font-weight: 700; color: #60a5fa; }
+        .cover .domain-display {
+            font-size: 22pt;
+            font-weight: 600;
+            color: #60a5fa;
             margin-bottom: 24px;
-            border-radius: 0 8px 8px 0;
+        }
+        .cover-meta { font-size: 9pt; color: #94a3b8; line-height: 2.0; }
+        .cover-meta strong { color: #cbd5e1; }
+        .cover-divider { width: 60px; height: 2px; background: #334155; margin: 28px auto; }
+        .cover-scores { margin-top: 24px; width: 100%; max-width: 480px; }
+        .cover-score-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .cover-score-row:last-child { border-bottom: none; }
+        .cover-score-label { font-size: 8.5pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+        .cover-score-value { font-size: 14pt; font-weight: 700; min-width: 45px; text-align: right; }
+        .cover-score-bar { flex: 1; margin: 0 12px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+        .cover-score-bar-fill { height: 100%; border-radius: 2px; }
+        .score-excellent { color: #34d399; }
+        .score-good { color: #fbbf24; }
+        .score-fair { color: #fb923c; }
+        .score-poor { color: #f87171; }
+        .bar-excellent { background: #34d399; }
+        .bar-good { background: #fbbf24; }
+        .bar-fair { background: #fb923c; }
+        .bar-poor { background: #f87171; }
+
+        /* ═══ Content Pages ═══ */
+        .page { padding: 0; }
+
+        h2 {
+            font-size: 15pt; font-weight: 700; color: #0f172a;
+            margin: 0 0 6px 0; letter-spacing: -0.02em;
+            padding-bottom: 6px; border-bottom: 2px solid #2563eb;
+        }
+        h3 { font-size: 11pt; font-weight: 700; color: #1e293b; margin: 16px 0 6px 0; }
+        h4 { font-size: 9pt; font-weight: 700; color: #334155; margin: 12px 0 4px 0; text-transform: uppercase; letter-spacing: 0.04em; }
+        p { margin-bottom: 6px; color: #334155; font-size: 9.5pt; }
+        strong { color: #0f172a; }
+        .section { margin-bottom: 20px; page-break-inside: avoid; }
+        .page-break { page-break-before: always; }
+        .no-break { page-break-inside: avoid; }
+        ul { margin: 4px 0 8px 16px; }
+        li { margin-bottom: 4px; font-size: 9pt; line-height: 1.5; }
+        code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 8.5pt; font-family: "SF Mono", Monaco, Consolas, monospace; }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 12px 16px;
+            border-radius: 6px; font-size: 8pt; line-height: 1.5;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            overflow: hidden; word-wrap: break-word; white-space: pre-wrap;
+            margin: 8px 0;
         }
 
-        .exec-summary p {
-            margin: 0 0 12px 0;
-            color: #2d3748;
+        /* ═══ Exec Summary ═══ */
+        .exec-summary {
+            background: #f8fafc; border-left: 4px solid #2563eb;
+            padding: 16px 20px; margin-bottom: 16px; border-radius: 0 8px 8px 0;
         }
+        .exec-summary h3 { margin-top: 0; font-size: 10pt; color: #1e40af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+        .exec-summary p { margin-bottom: 6px; font-size: 9pt; line-height: 1.6; }
+        .exec-summary ul { margin: 6px 0 0 16px; }
+        .exec-summary li { margin-bottom: 5px; font-size: 8.5pt; line-height: 1.5; }
 
-        .exec-summary p:last-child {
-            margin-bottom: 0;
+        /* ═══ Verdict Box ═══ */
+        .verdict-box { display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: #f8fafc; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .verdict-score { font-size: 36pt; font-weight: 800; min-width: 70px; text-align: center; line-height: 1; }
+        .verdict-text { flex: 1; }
+        .verdict-label { font-size: 9pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; display: block; margin-bottom: 4px; }
+
+        /* ═══ Metric Cards ═══ */
+        .metrics-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+        .metric-card {
+            flex: 1; min-width: 80px; max-width: 140px; text-align: center;
+            padding: 10px 6px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;
         }
+        .metric-value { font-size: 16pt; font-weight: 800; color: #0f172a; line-height: 1.2; }
+        .metric-label { font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 
-        /* Charts as text */
-        .progress-bar {
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 4px 0 12px 0;
+        /* ═══ Tables ═══ */
+        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 8.5pt; }
+        th {
+            background: #f1f5f9; padding: 6px 8px; text-align: left;
+            font-weight: 700; font-size: 7.5pt; text-transform: uppercase;
+            letter-spacing: 0.04em; color: #475569;
+            border-bottom: 2px solid #cbd5e1;
         }
+        td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+        tr:hover td { background: #f8fafc; }
 
-        .progress-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.3s;
+        .pos-badge {
+            display: inline-block; padding: 1px 8px; border-radius: 12px;
+            font-size: 8pt; font-weight: 700;
         }
+        .pos-top3 { background: #dcfce7; color: #166534; }
+        .pos-top10 { background: #fef9c3; color: #854d0e; }
+        .pos-top20 { background: #e0e7ff; color: #3730a3; }
+        .pos-outside { background: #f1f5f9; color: #64748b; }
 
-        .progress-bar-fill.excellent { background: #38a169; }
-        .progress-bar-fill.good { background: #d69e2e; }
-        .progress-bar-fill.fair { background: #dd6b20; }
-        .progress-bar-fill.poor { background: #e53e3e; }
+        /* ═══ Badges ═══ */
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 12px;
+            font-size: 7pt; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .badge-critical { background: #fef2f2; color: #dc2626; }
+        .badge-high { background: #fff7ed; color: #ea580c; }
+        .badge-medium { background: #fefce8; color: #ca8a04; }
+        .badge-low { background: #f0fdf4; color: #16a34a; }
+        .badge-pass { background: #f0fdf4; color: #16a34a; }
+        .badge-fail { background: #fef2f2; color: #dc2626; }
+        .badge-info { background: #eff6ff; color: #2563eb; }
+
+        /* ═══ Finding Cards ═══ */
+        .finding {
+            margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+            overflow: hidden; page-break-inside: avoid;
+        }
+        .finding-header {
+            padding: 10px 14px; background: #f8fafc; display: flex;
+            justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .finding-title { font-weight: 700; font-size: 9.5pt; color: #0f172a; flex: 1; }
+        .finding-badges { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
+        .finding-body { padding: 12px 14px; }
+        .finding-body p { margin-bottom: 6px; font-size: 9pt; }
+        .finding-detail { margin: 8px 0; background: #f8fafc; border-radius: 6px; padding: 8px 12px; }
+        .detail-row { display: flex; margin-bottom: 3px; font-size: 8.5pt; }
+        .detail-label { font-weight: 700; min-width: 110px; color: #475569; flex-shrink: 0; }
+        .detail-value { color: #334155; }
+        .finding-impact { margin-top: 8px; padding: 8px 12px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #f59e0b; font-size: 8.5pt; }
+        .finding-action { margin-top: 8px; padding: 8px 12px; background: #f0fdf4; border-radius: 6px; border-left: 3px solid #16a34a; font-size: 8.5pt; }
+
+        /* ═══ Evidence Box ═══ */
+        .evidence-box {
+            margin: 8px 0; padding: 8px 12px; background: #eff6ff;
+            border-radius: 6px; border-left: 3px solid #2563eb; font-size: 8.5pt;
+        }
+        .evidence-box .label { font-weight: 700; color: #1e40af; margin-bottom: 3px; }
+
+        /* ═══ Issue Items ═══ */
+        .issue-item { margin-bottom: 8px; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+        .issue-item.sev-critical { border-left: 4px solid #dc2626; }
+        .issue-item.sev-warning { border-left: 4px solid #f59e0b; }
+        .issue-item.sev-info { border-left: 4px solid #3b82f6; }
+        .issue-title { font-weight: 700; font-size: 9pt; color: #0f172a; margin-bottom: 3px; }
+        .issue-desc { font-size: 8.5pt; color: #475569; }
+
+        /* ═══ Recommendation Cards ═══ */
+        .rec-card { margin-bottom: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+        .rec-card.critical { border-left: 4px solid #dc2626; }
+        .rec-card.high { border-left: 4px solid #ea580c; }
+        .rec-card.medium { border-left: 4px solid #d97706; }
+        .rec-card.low { border-left: 4px solid #16a34a; }
+        .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .rec-title { font-weight: 700; font-size: 9pt; }
+        .rec-body { font-size: 8.5pt; color: #475569; line-height: 1.5; }
+        .rec-meta { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+        .rec-meta-tag { font-size: 7pt; padding: 1px 6px; background: #f1f5f9; border-radius: 10px; color: #64748b; }
+
+        /* ═══ Access Status ═══ */
+        .access-blocked {
+            background: #fef2f2; border: 2px solid #dc2626; border-radius: 8px;
+            padding: 20px 24px; text-align: center; margin: 16px 0;
+        }
+        .access-blocked h3 { color: #dc2626; margin-bottom: 8px; }
+        .access-blocked p { color: #7f1d1d; }
+
+        /* ═══ Website Info ═══ */
+        .website-info {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+            background: #f8fafc; border-radius: 8px; padding: 12px 16px;
+            margin: 8px 0; font-size: 8.5pt;
+        }
+        .website-info dt { font-weight: 700; color: #475569; }
+        .website-info dd { color: #334155; margin: 0 0 4px 0; }
+
+        /* ═══ Scoring Methodology ═══ */
+        .scoring-table { margin: 8px 0; }
+        .scoring-table th { background: #1e293b; color: #fff; }
+        .scoring-table tr:nth-child(even) td { background: #f8fafc; }
+
+        /* ═══ Footer ═══ */
+        .report-footer {
+            margin-top: 24px; padding: 16px 20px; background: #f8fafc;
+            border-radius: 8px; border: 1px solid #e2e8f0; font-size: 8pt;
+            color: #64748b;
+        }
+        .report-footer p { margin-bottom: 4px; font-size: 8pt; }
+
+        /* ═══ Utility ═══ */
+        .text-muted { color: #64748b; }
+        .text-small { font-size: 8pt; }
+        .mb-sm { margin-bottom: 8px; }
+        .mb-md { margin-bottom: 16px; }
+        .mt-sm { margin-top: 8px; }
+        .text-center { text-align: center; }
     </style>
 </head>
 <body>
 
-    <!-- Cover Page -->
-    <div class="cover-page">
-        <h1>Site Analysis Report</h1>
-        <div class="subtitle">Comprehensive SEO, AIO & GEO Intelligence</div>
-        <div class="domain">{{ domain }}</div>
-        <div class="meta">Analyzed on {{ analyzed_at }} | Crawl Run: {{ crawl_run_id or 'N/A' }}</div>
+{# ═══ Universal Metric Rendering Macros ═══ #}
+{% macro render_metric_table(metrics) %}
+<table style="width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 8px 0;">
+    <thead>
+        <tr style="background: #1e293b; color: #fff;">
+            <th style="padding: 5px 6px; text-align: left; width: 20%;">Metric</th>
+            <th style="padding: 5px 6px; text-align: center; width: 8%;">Weight</th>
+            <th style="padding: 5px 6px; text-align: center; width: 10%;">Expected</th>
+            <th style="padding: 5px 6px; text-align: center; width: 10%;">Score</th>
+            <th style="padding: 5px 6px; text-align: center; width: 12%;">Status</th>
+            <th style="padding: 5px 6px; text-align: center; width: 8%;">Confidence</th>
+            <th style="padding: 5px 6px; text-align: left;">Evidence</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for m in metrics %}
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 4px 6px;"><strong>{{ m.metric_name }}</strong></td>
+            <td style="padding: 4px 6px; text-align: center;">{{ "%.0f"|format(m.weight) }}%</td>
+            <td style="padding: 4px 6px; text-align: center;">{{ "%.0f"|format(m.expected) }}</td>
+            <td style="padding: 4px 6px; text-align: center; font-weight: 700; color: {% if m.normalized_score >= 80 %}#16a34a{% elif m.normalized_score >= 60 %}#d97706{% elif m.normalized_score >= 40 %}#ea580c{% else %}#dc2626{% endif %};">{{ "%.0f"|format(m.normalized_score) }}</td>
+            <td style="padding: 4px 6px; text-align: center;"><span class="badge badge-{{ 'pass' if m.status == 'PASS' else 'low' if m.status == 'GOOD' else 'medium' if m.status == 'NEEDS IMPROVEMENT' else 'fail' if m.status == 'POOR' else 'info' }}">{{ m.status }}</span></td>
+            <td style="padding: 4px 6px; text-align: center; font-size: 7.5pt;">{{ m.confidence }}</td>
+            <td style="padding: 4px 6px; font-size: 8pt; color: #475569;">{{ m.evidence }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endmacro %}
 
-        <div class="scores-grid">
-            <div class="score-card {{ score_class(overall_score) }}">
-                <div class="label">Overall Score</div>
-                <div class="value">{{ "%.1f"|format(overall_score) }}</div>
-            </div>
-            <div class="score-card {{ score_class(technical_score) }}">
-                <div class="label">Technical SEO</div>
-                <div class="value">{{ "%.1f"|format(technical_score) }}</div>
-            </div>
-            <div class="score-card {{ score_class(content_score) }}">
-                <div class="label">Content Quality</div>
-                <div class="value">{{ "%.1f"|format(content_score) }}</div>
-            </div>
-            <div class="score-card {{ score_class(ranking_score) }}">
-                <div class="label">Search Rankings</div>
-                <div class="value">{{ "%.1f"|format(ranking_score) }}</div>
-            </div>
-            <div class="score-card {{ score_class(architecture_score) }}">
-                <div class="label">Site Architecture</div>
-                <div class="value">{{ "%.1f"|format(architecture_score) }}</div>
-            </div>
-            <div class="score-card {{ score_class(aio_score) }}">
-                <div class="label">AI Overview (AIO)</div>
-                <div class="value">{{ "%.1f"|format(aio_score) }}</div>
-            </div>
-            <div class="score-card {{ score_class(geo_score) }}">
-                <div class="label">Generative Engine (GEO)</div>
-                <div class="value">{{ "%.1f"|format(geo_score) }}</div>
-            </div>
+{% macro render_category_section(breakdown, icon="") %}
+{% if breakdown %}
+<div class="page page-break">
+    <h2>{{ icon }} {{ breakdown.category_name }}{% if breakdown.overall_score is not none %} — {{ "%.0f"|format(breakdown.overall_score) }}/100{% else %} — {{ breakdown.score_status }}{% endif %}</h2>
+
+    {% if breakdown.score_status == 'NOT ASSESSED' %}
+    <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 12px 0;">
+        <strong style="color: #475569;">{{ breakdown.score_status }}</strong>
+        <p style="font-size: 9pt; color: #64748b; margin-top: 6px;">{{ breakdown.scoring_methodology }}</p>
+        {% if breakdown.limitations %}
+        <div style="margin-top: 8px; font-size: 8.5pt; color: #64748b;">
+            <strong>Limitations:</strong>
+            <ul style="margin: 4px 0 0 16px;">
+                {% for lim in breakdown.limitations %}<li>{{ lim }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    {% elif breakdown.score_status == 'INSUFFICIENT DATA' %}
+    <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 8px; padding: 16px 20px; margin: 12px 0;">
+        <strong style="color: #854d0e;">Insufficient Data</strong>
+        <p style="font-size: 9pt; color: #713f12; margin-top: 6px;">{{ breakdown.scoring_methodology }}</p>
+        <p style="font-size: 8.5pt; color: #854d0e; margin-top: 4px;">Coverage: {{ "%.0f"|format(breakdown.data_coverage * 100) }}% (minimum 50% required)</p>
+    </div>
+
+    {% else %}
+    {# Scored section #}
+    <div class="verdict-box" style="margin: 12px 0;">
+        <div class="verdict-score score-{{ score_class(breakdown.overall_score) }}" style="font-size: 28pt;">{{ "%.0f"|format(breakdown.overall_score) }}</div>
+        <div class="verdict-text">
+            <span class="verdict-label">{{ score_rating(breakdown.overall_score) }}</span>
+            <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">{{ breakdown.scoring_methodology }}</div>
         </div>
     </div>
 
-    <!-- Table of Contents -->
-    <div class="section page-break">
-        <h2>Table of Contents</h2>
-        <ol style="line-height: 2; font-size: 11pt;">
-            <li>Executive Summary</li>
-            <li>Score Breakdown</li>
-            <li>Search Visibility & Rankings</li>
-            <li>Technical SEO Health</li>
-            <li>Content Quality Analysis</li>
-            <li>Site Architecture</li>
-            <li>AI Overview (AIO) Analysis</li>
-            <li>Generative Engine (GEO) Analysis</li>
-            <li>Prioritized Recommendations</li>
-        </ol>
+    <div style="display: flex; gap: 16px; font-size: 8.5pt; color: #64748b; margin: 8px 0 12px 0;">
+        <span><strong>Sample:</strong> {{ breakdown.sample_size }}</span>
+        <span><strong>Coverage:</strong> {{ "%.0f"|format(breakdown.data_coverage * 100) }}%</span>
+        <span><strong>Confidence:</strong> {{ breakdown.confidence }}</span>
+        <span><strong>Evidence:</strong> {{ breakdown.evidence_quality_summary }}</span>
     </div>
 
-    <!-- Executive Summary -->
-    <div class="section page-break">
-        <h2>Executive Summary</h2>
-        <div class="exec-summary">
-            <p><strong>{{ domain }}</strong> has been analyzed across six critical dimensions: Technical SEO, Content Quality, Search Rankings, Site Architecture, AI Overview (AIO) presence, and Generative Engine Optimization (GEO).</p>
-            <p>The overall health score is <strong>{{ "%.1f"|format(overall_score) }}/100</strong>, placing this site in the <strong>{{ score_rating(overall_score) }}</strong> category.</p>
-            {% if rankings %}
-            <p>Currently ranking for <strong>{{ rankings.keywords_in_top_3 }}</strong> keywords in top 3, <strong>{{ rankings.keywords_in_top_10 }}</strong> in top 10, and <strong>{{ rankings.keywords_in_top_20 }}</strong> in top 20 out of {{ rankings.total_keywords_tracked }} tracked keywords. {{ rankings.keywords_not_ranking }} keywords have no current ranking.</p>
-            {% endif %}
-            {% if technical %}
-            <p>Technical audit found <strong>{{ technical.critical_issues }} critical</strong>, <strong>{{ technical.warning_issues }} warning</strong>, and <strong>{{ technical.info_issues }} informational</strong> issues across {{ technical.pages_crawled }} crawled pages.</p>
-            {% endif %}
-            {% if content %}
-            <p>Content analysis of {{ content.pages_analyzed }} pages reveals an average quality score of <strong>{{ "%.1f"|format(content.avg_quality_score * 100) }}%</strong>, with {{ content.thin_content_pages }} thin content pages and {{ content.duplicate_groups }} duplicate content groups identified.</p>
-            {% endif %}
-            <p>This report provides <strong>{{ recommendations|length }}</strong> prioritized, actionable recommendations to systematically improve search visibility across traditional SEO, AI Overviews, and generative engines.</p>
-        </div>
+    {% if breakdown.metrics %}
+    <h3>Scoring Methodology</h3>
+    {{ render_metric_table(breakdown.metrics) }}
+    {% endif %}
+
+    {% if breakdown.confidence_factors %}
+    <div class="evidence-box" style="margin-top: 12px;">
+        <div class="label">Confidence Factors</div>
+        {% for f in breakdown.confidence_factors %}<div style="margin-bottom: 2px;">• {{ f }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if breakdown.limitations %}
+    <div style="margin-top: 8px; font-size: 8.5pt; color: #64748b;">
+        <strong>Limitations:</strong>
+        <ul style="margin: 4px 0 0 16px;">
+            {% for lim in breakdown.limitations %}<li>{{ lim }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end score_status #}
+</div>
+{% endif %}{# end breakdown #}
+{% endmacro %}
+
+{# ═══ End Macros ═══ #}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     COVER PAGE
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+    <div class="cover-badge">SEO · AIO · GEO Intelligence Engine</div>
+    <h1>Intelligence <strong>Report</strong></h1>
+    <div class="domain-display">{{ domain }}</div>
+
+    <div class="cover-meta">
+        {% if report_metadata %}
+        <strong>Analysis Date:</strong> {{ report_metadata.analysis_date }}<br>
+        <strong>Analysis Started:</strong> {{ report_metadata.analysis_started }}<br>
+        <strong>Analysis Completed:</strong> {{ report_metadata.analysis_completed }}<br>
+        <strong>Country:</strong> {{ report_metadata.country }} ·
+        <strong>Engine:</strong> {{ report_metadata.search_engine }} ·
+        <strong>Device:</strong> {{ report_metadata.device | title }}<br>
+        <strong>Duration:</strong> {{ report_metadata.analysis_duration_seconds }}s ·
+        <strong>Pages Crawled:</strong> {{ report_metadata.pages_crawled }}
+        {% else %}
+        <strong>Generated:</strong> {{ analyzed_at.strftime("%d %B %Y, %I:%M %p UTC") if analyzed_at else "Unknown" }}
+        {% endif %}
     </div>
 
-    <!-- Score Breakdown -->
-    <div class="section page-break">
-        <h2>Score Breakdown</h2>
-        <table class="score-table">
-            <thead>
-                <tr>
-                    <th>Dimension</th>
-                    <th>Score</th>
-                    <th>Rating</th>
-                    <th>Key Metric</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>Overall</strong></td>
-                    <td class="score-cell {{ score_class(overall_score) }}">{{ "%.1f"|format(overall_score) }}</td>
-                    <td>{{ score_rating(overall_score) }}</td>
-                    <td>Composite of all dimensions</td>
-                </tr>
-                <tr>
-                    <td>Technical SEO</td>
-                    <td class="score-cell {{ score_class(technical_score) }}">{{ "%.1f"|format(technical_score) }}</td>
-                    <td>{{ score_rating(technical_score) }}</td>
-                    <td>{% if technical %}{{ technical.critical_issues }} critical, {{ technical.warning_issues }} warnings{% else %}N/A{% endif %}</td>
-                </tr>
-                <tr>
-                    <td>Content Quality</td>
-                    <td class="score-cell {{ score_class(content_score) }}">{{ "%.1f"|format(content_score) }}</td>
-                    <td>{{ score_rating(content_score) }}</td>
-                    <td>{% if content %}{{ content.thin_content_pages }} thin, {{ content.duplicate_groups }} duplicates{% else %}N/A{% endif %}</td>
-                </tr>
-                <tr>
-                    <td>Search Rankings</td>
-                    <td class="score-cell {{ score_class(ranking_score) }}">{{ "%.1f"|format(ranking_score) }}</td>
-                    <td>{{ score_rating(ranking_score) }}</td>
-                    <td>{% if rankings %}{{ rankings.keywords_in_top_10 }} in top 10, {{ rankings.visibility_score|percentage }} visibility{% else %}N/A{% endif %}</td>
-                </tr>
-                <tr>
-                    <td>Site Architecture</td>
-                    <td class="score-cell {{ score_class(architecture_score) }}">{{ "%.1f"|format(architecture_score) }}</td>
-                    <td>{{ score_rating(architecture_score) }}</td>
-                    <td>{% if architecture %}{{ architecture.orphan_pages }} orphans, avg depth {{ architecture.avg_depth }}{% else %}N/A{% endif %}</td>
-                </tr>
-                <tr>
-                    <td>AI Overview (AIO)</td>
-                    <td class="score-cell {{ score_class(aio_score) }}">{{ "%.1f"|format(aio_score) }}</td>
-                    <td>{{ score_rating(aio_score) }}</td>
-                    <td>{% if aio %}{{ aio.ai_overviews_present }} AIOs present, {{ aio.target_citation_rate|percentage }} citation rate{% else %}Not analyzed{% endif %}</td>
-                </tr>
-                <tr>
-                    <td>Generative Engine (GEO)</td>
-                    <td class="score-cell {{ score_class(geo_score) }}">{{ "%.1f"|format(geo_score) }}</td>
-                    <td>{{ score_rating(geo_score) }}</td>
-                    <td>{% if geo %}{{ geo.target_mentioned_count }} mentions, {{ geo.mention_rate|percentage }} mention rate{% else %}Not analyzed{% endif %}</td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="cover-divider"></div>
 
-        <!-- Visual Score Bars -->
-        <h3>Visual Score Overview</h3>
-        {% for name, score in [
+    <!-- Website Access & Type -->
+    {% if access_status and not access_status.accessible %}
+    <div style="background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.3); border-radius: 8px; padding: 16px 24px; margin-bottom: 20px; max-width: 480px; width: 100%;">
+        <div style="color: #fca5a5; font-size: 10pt; font-weight: 700; margin-bottom: 6px;">⚠ ACCESS BLOCKED</div>
+        <div style="color: #fca5a5; font-size: 8.5pt;">Protection Detected: <strong>{{ access_status.protection_detected }}</strong></div>
+        <div style="color: #fecaca; font-size: 8pt; margin-top: 4px;">{{ access_status.protection_details }}</div>
+    </div>
+    {% endif %}
+
+    {% if website_type and website_type.technology != "Unknown" %}
+    <div style="font-size: 8.5pt; color: #94a3b8; margin-bottom: 16px;">
+        <strong style="color: #cbd5e1;">Website:</strong> {{ website_type.technology }}
+        {% if website_type.server %} · Server: {{ website_type.server }}{% endif %}
+        {% if website_type.cdn %} · CDN: {{ website_type.cdn }}{% endif %}
+        {% if website_type.language %} · Language: {{ website_type.language }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="cover-scores">
+        {% set score_data = [
             ('Technical SEO', technical_score),
             ('Content Quality', content_score),
             ('Search Rankings', ranking_score),
-            ('Site Architecture', architecture_score),
-            ('AI Overview (AIO)', aio_score),
-            ('Generative Engine (GEO)', geo_score)
+            ('Architecture', architecture_score),
+            ('AIO', aio_score),
+            ('GEO', geo_score),
         ] %}
-        <div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span><strong>{{ name }}</strong></span>
-                <span>{{ "%.1f"|format(score) }}/100</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-bar-fill {{ score_class(score) }}" style="width: {{ score }}%"></div>
-            </div>
+        {% for label, score in score_data %}
+        {% set cls = 'excellent' if score >= 80 else 'good' if score >= 60 else 'fair' if score >= 40 else 'poor' %}
+        <div class="cover-score-row">
+            <span class="cover-score-label">{{ label }}</span>
+            <div class="cover-score-bar"><div class="cover-score-bar-fill bar-{{ cls }}" style="width: {{ score }}%;"></div></div>
+            <span class="cover-score-value score-{{ cls }}">{{ "%.0f"|format(score) }}</span>
         </div>
         {% endfor %}
+        <div class="cover-score-row" style="border-top: 2px solid #334155; padding-top: 10px; margin-top: 4px;">
+            <span class="cover-score-label" style="color: #cbd5e1; font-weight: 700;">Overall</span>
+            <div class="cover-score-bar"><div class="cover-score-bar-fill bar-{{ score_class(overall_score) }}" style="width: {{ overall_score }}%;"></div></div>
+            <span class="cover-score-value score-{{ score_class(overall_score) }}" style="font-size: 18pt;">{{ "%.0f"|format(overall_score) }}</span>
+        </div>
     </div>
+</div>
 
-    <!-- Search Visibility & Rankings -->
-    {% if rankings %}
-    <div class="section page-break">
-        <h2>Search Visibility & Rankings</h2>
+<!-- ════════════════════════════════════════════════════════════════════════
+     PAGE 2: EXECUTIVE SUMMARY
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="page">
+    <h2>Executive Summary</h2>
 
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-            <div class="score-card {{ 'excellent' if rankings.keywords_in_top_3 > 0 else 'poor' }}">
-                <div class="label">Top 3 Rankings</div>
-                <div class="value" style="font-size: 24pt;">{{ rankings.keywords_in_top_3 }}</div>
-            </div>
-            <div class="score-card {{ 'good' if rankings.keywords_in_top_10 > 0 else 'fair' }}">
-                <div class="label">Top 10 Rankings</div>
-                <div class="value" style="font-size: 24pt;">{{ rankings.keywords_in_top_10 }}</div>
-            </div>
-            <div class="score-card {{ 'fair' if rankings.keywords_in_top_20 > 0 else 'poor' }}">
-                <div class="label">Top 20 Rankings</div>
-                <div class="value" style="font-size: 24pt;">{{ rankings.keywords_in_top_20 }}</div>
-            </div>
-            <div class="score-card {{ 'poor' if rankings.keywords_not_ranking > rankings.total_keywords_tracked * 0.5 else 'good' }}">
-                <div class="label">Not Ranking</div>
-                <div class="value" style="font-size: 24pt;">{{ rankings.keywords_not_ranking }}</div>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 24px;">
-            <strong>Visibility Score:</strong> {{ "%.1f"|format(rankings.visibility_score * 100) }}% |
-            <strong>Est. Monthly Traffic:</strong> {{ rankings.estimated_monthly_traffic|number_format }} |
-            <strong>Keywords Tracked:</strong> {{ rankings.total_keywords_tracked }}
-        </div>
-
-        {% if rankings.top_keywords %}
-        <h3>Top Ranking Keywords</h3>
-        <table class="keyword-table">
-            <thead>
-                <tr>
-                    <th>Keyword</th>
-                    <th>Position</th>
-                    <th>URL</th>
-                    <th>Est. Monthly Traffic</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for kw in rankings.top_keywords %}
-                <tr>
-                    <td><strong>{{ kw.keyword }}</strong></td>
-                    <td><span class="position-badge {{ 'top3' if kw.position <= 3 else 'top10' if kw.position <= 10 else 'top20' }}">#{{ kw.position }}</span></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ kw.url }}</td>
-                    <td>{{ estimate_traffic(kw.position) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% if access_status and access_status.is_blocked %}
+    <div class="access-blocked">
+        <h3>⚠ Website Analysis Not Generated</h3>
+        <p><strong>Target:</strong> {{ domain }}</p>
+        <p><strong>Access Status:</strong> BLOCKED</p>
+        <p><strong>Protection Detected:</strong> {{ access_status.protection_detected }} — {{ access_status.protection_details }}</p>
+        {% if access_status.bypass_attempted %}
+        <p><strong>Bypass Attempted:</strong> Yes — {{ access_status.bypass_methods_used | join(', ') }}</p>
+        <p><strong>Bypass Succeeded:</strong> {{ 'Yes' if access_status.bypass_succeeded else 'No' }}</p>
         {% endif %}
+        <p style="margin-top: 12px; font-style: italic;">The underlying website could not be reliably accessed. No SEO, content, ranking, AIO, or GEO conclusions were generated from the challenge/interstitial page.</p>
     </div>
-    {% endif %}
+    {% else %}
 
-    <!-- Technical SEO Health -->
-    {% if technical %}
-    <div class="section page-break">
-        <h2>Technical SEO Health</h2>
-
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-            <div class="stat-card"><div class="label">Pages Crawled</div><div class="value">{{ technical.pages_crawled }}</div></div>
-            <div class="stat-card critical"><div class="label">Critical Issues</div><div class="value">{{ technical.critical_issues }}</div></div>
-            <div class="stat-card high"><div class="label">Warnings</div><div class="value">{{ technical.warning_issues }}</div></div>
-            <div class="stat-card"><div class="label">Info</div><div class="value">{{ technical.info_issues }}</div></div>
+    {% set rating = score_rating(overall_score) %}
+    <div class="verdict-box">
+        <div class="verdict-score score-{{ score_class(overall_score) }}">{{ "%.0f"|format(overall_score) }}</div>
+        <div class="verdict-text">
+            <span class="verdict-label">{{ rating }} — Overall Intelligence Score</span>
+            <strong>{{ domain }}</strong> has been analyzed across 7 intelligence dimensions.
+            {% if overall_score < 40 %}
+            This site requires urgent attention across multiple areas before meaningful search visibility can be achieved.
+            {% elif overall_score < 60 %}
+            This site has foundational elements but significant gaps exist that are limiting search performance.
+            {% elif overall_score < 80 %}
+            This site performs well in several areas but has specific opportunities for improvement.
+            {% else %}
+            This site demonstrates strong technical and content fundamentals with targeted optimization opportunities.
+            {% endif %}
         </div>
+    </div>
 
-        <div style="margin-bottom: 24px;">
-            <strong>Indexable Pages:</strong> {{ technical.indexable_pages }} |
-            <strong>Non-Indexable:</strong> {{ technical.non_indexable_pages }} |
-            <strong>Avg Load Time:</strong> {{ technical.avg_load_time_ms }}ms |
-            <strong>Core Web Vitals:</strong> <span class="badge {{ 'low' if technical.core_web_vitals_pass else 'critical' }}">{{ 'Pass' if technical.core_web_vitals_pass else 'Fail' }}</span>
-        </div>
-
-        {% if technical.top_issues %}
-        <h3>Top Technical Issues</h3>
-        <ul class="issue-list">
-            {% for issue in technical.top_issues[:15] %}
-            <li class="issue-item {{ issue.severity }}">
-                <div class="issue-header">
-                    <span class="issue-title">{{ issue.message }}</span>
-                    <span class="badge {{ issue.severity }}">{{ issue.severity|upper }}</span>
-                </div>
-                <div class="issue-description">
-                    <strong>Code:</strong> {{ issue.code }}<br>
-                    {% if issue.url %}<strong>Affected URL:</strong> {{ issue.url }}{% endif %}
-                </div>
+    <!-- Key Findings -->
+    <div class="exec-summary">
+        <h3>Key Findings</h3>
+        <ul>
+            {% if technical %}
+            <li><strong>Technical SEO ({{ "%.0f"|format(technical_score) }}/100):</strong>
+                {% if technical.critical_issues > 0 %}{{ technical.critical_issues }} critical issues detected that may prevent indexing or ranking. {% endif %}
+                {% if technical.warning_issues > 0 %}{{ technical.warning_issues }} warnings identified. {% endif %}
+                {% if technical.critical_issues == 0 and technical.warning_issues == 0 %}No significant technical issues found. {% endif %}
+                Avg page load: {{ "%.0f"|format(technical.avg_load_time_ms) }}ms across {{ technical.pages_crawled }} pages.
             </li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <!-- Content Quality Analysis -->
-    {% if content %}
-    <div class="section page-break">
-        <h2>Content Quality Analysis</h2>
-
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-            <div class="stat-card"><div class="label">Pages Analyzed</div><div class="value">{{ content.pages_analyzed }}</div></div>
-            <div class="stat-card {{ 'excellent' if content.avg_quality_score >= 0.8 else 'good' if content.avg_quality_score >= 0.6 else 'fair' if content.avg_quality_score >= 0.4 else 'poor' }}"><div class="label">Avg Quality</div><div class="value">{{ "%.0f"|format(content.avg_quality_score * 100) }}%</div></div>
-            <div class="stat-card warning"><div class="label">Thin Content</div><div class="value">{{ content.thin_content_pages }}</div></div>
-            <div class="stat-card critical"><div class="label">Duplicate Groups</div><div class="value">{{ content.duplicate_groups }}</div></div>
-        </div>
-
-        <div style="margin-bottom: 24px;">
-            <strong>Missing H1:</strong> {{ content.missing_h1_pages }} |
-            <strong>Missing Meta Desc:</strong> {{ content.missing_meta_desc_pages }} |
-            <strong>Low Word Count:</strong> {{ content.low_word_count_pages }}
-        </div>
-
-        {% if content.top_issues %}
-        <h3>Top Content Issues</h3>
-        <ul class="issue-list">
-            {% for issue_name, count in content.top_issues %}
-            <li class="issue-item medium">
-                <div class="issue-header">
-                    <span class="issue-title">{{ issue_name|replace('_', ' ')|title }}</span>
-                    <span class="badge medium">{{ count }} pages</span>
-                </div>
-                <div class="issue-description">
-                    This issue affects {{ count }} page{{ 's' if count > 1 else '' }}. See detailed recommendations for specific fixes.
-                </div>
+            {% endif %}
+            {% if content %}
+            <li><strong>Content Quality ({{ "%.0f"|format(content_score) }}/100):</strong>
+                {{ content.pages_analyzed }} pages analyzed. Average quality score: {{ "%.0f"|format(content.avg_quality_score * 100) }}%.
+                {% if content.thin_content_pages > 0 %}{{ content.thin_content_pages }} thin content pages need expansion. {% endif %}
+                {% if content.duplicate_groups > 0 %}{{ content.duplicate_groups }} duplicate content groups require consolidation. {% endif %}
             </li>
-            {% endfor %}
+            {% endif %}
+            {% if rankings %}
+            <li><strong>Search Rankings ({{ "%.0f"|format(ranking_score) }}/100):</strong>
+                {{ rankings.total_keywords_tracked }} keywords tracked.
+                {% if rankings.keywords_in_top_10 > 0 %}{{ rankings.keywords_in_top_10 }} in top 10. {% endif %}
+                Visibility: {{ "%.0f"|format(rankings.visibility_score * 100) }}%.
+                {% if rankings.keywords_not_ranking > 0 %}{{ rankings.keywords_not_ranking }} keywords not ranking. {% endif %}
+            </li>
+            {% endif %}
+            {% if aio %}
+            <li><strong>AIO ({{ "%.0f"|format(aio_score) }}/100):</strong>
+                {{ aio.keywords_checked }} keywords checked. {{ aio.ai_overviews_present }} have AI Overviews.
+                {% if aio.target_cited_count > 0 %}Site cited {{ aio.target_cited_count }}x. {% else %}Site NOT cited. {% endif %}
+            </li>
+            {% endif %}
+            {% if geo %}
+            <li><strong>GEO ({{ "%.0f"|format(geo_score) }}/100):</strong>
+                {{ geo.keywords_checked }} keywords checked.
+                {% if geo.target_mentioned_count > 0 %}Mentioned {{ geo.target_mentioned_count }}x. {% else %}Not mentioned. {% endif %}
+            </li>
+            {% endif %}
         </ul>
+    </div>
+
+    <!-- Priority Actions -->
+    <div class="exec-summary" style="border-left-color: #16a34a; background: #f0fdf4;">
+        <h3 style="color: #166534;">Priority Actions</h3>
+        {% set critical_recs = recommendations | selectattr("priority", "equalto", "critical") | list %}
+        {% set high_recs = recommendations | selectattr("priority", "equalto", "high") | list %}
+        <ul>
+            {% for rec in critical_recs[:5] %}
+            <li><strong style="color: #dc2626;">P0 — {{ rec.title }}</strong><br>{{ rec.description }}</li>
+            {% endfor %}
+            {% for rec in high_recs[:5] %}
+            <li><strong style="color: #ea580c;">P1 — {{ rec.title }}</strong><br>{{ rec.description }}</li>
+            {% endfor %}
+            {% if not critical_recs and not high_recs %}
+            <li>No critical or high-priority issues detected. Focus on medium-priority optimizations.</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <p class="text-muted text-small">This report contains {{ recommendations|length }} prioritized recommendations across all intelligence dimensions.</p>
+
+    {% endif %} {# end access_status.is_blocked #}
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     WEBSITE & ACCESS STATUS
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+    <h2>Website Information</h2>
+
+    <div class="website-info">
+        <div>
+            <dl>
+                <dt>Target URL</dt>
+                <dd>{{ domain }}</dd>
+                {% if website_type %}
+                <dt>Website Type</dt>
+                <dd>{{ website_type.technology }}{% if website_type.confidence > 0 %} ({{ "%.0f"|format(website_type.confidence * 100) }}% confidence){% endif %}</dd>
+                {% if website_type.cms %}
+                <dt>CMS</dt>
+                <dd>{{ website_type.cms }}</dd>
+                {% endif %}
+                {% if website_type.framework %}
+                <dt>Framework</dt>
+                <dd>{{ website_type.framework }}</dd>
+                {% endif %}
+                {% endif %}
+            </dl>
+        </div>
+        <div>
+            <dl>
+                {% if website_type %}
+                {% if website_type.server %}
+                <dt>Server</dt>
+                <dd>{{ website_type.server }}</dd>
+                {% endif %}
+                {% if website_type.cdn %}
+                <dt>CDN</dt>
+                <dd>{{ website_type.cdn }}</dd>
+                {% endif %}
+                {% if website_type.language %}
+                <dt>Language</dt>
+                <dd>{{ website_type.language }}</dd>
+                {% endif %}
+                {% endif %}
+                {% if access_status %}
+                <dt>Access Status</dt>
+                <dd>{{ '✅ Accessible' if access_status.accessible else '❌ Blocked' }}</dd>
+                {% if access_status.protection_detected %}
+                <dt>Protection</dt>
+                <dd>{{ access_status.protection_detected }}</dd>
+                {% endif %}
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    {% if website_type and website_type.evidence %}
+    <div class="evidence-box">
+        <div class="label">Detection Evidence</div>
+        {% for ev in website_type.evidence %}
+        <div style="margin-bottom: 2px;">• {{ ev }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if access_status and access_status.protection_details %}
+    <div class="evidence-box" style="border-left-color: #dc2626; background: #fef2f2;">
+        <div class="label" style="color: #dc2626;">Access Details</div>
+        <div>{{ access_status.protection_details }}</div>
+        {% if access_status.bypass_attempted %}
+        <div style="margin-top: 4px;"><strong>Bypass Methods Attempted:</strong></div>
+        {% for method in access_status.bypass_methods_used %}
+        <div>• {{ method }}</div>
+        {% endfor %}
         {% endif %}
     </div>
     {% endif %}
 
-    <!-- Site Architecture -->
-    {% if architecture %}
-    <div class="section page-break">
-        <h2>Site Architecture & Link Graph</h2>
+    <!-- Score Breakdown -->
+    <h3>Score Breakdown — Methodology</h3>
+    <p style="font-size: 8.5pt; color: #64748b; margin-bottom: 8px;">Each dimension is scored 0–100. The overall score is the arithmetic mean of all 6 dimensions.</p>
 
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-            <div class="stat-card"><div class="label">Total Pages</div><div class="value">{{ architecture.total_pages }}</div></div>
-            <div class="stat-card"><div class="label">Internal Links</div><div class="value">{{ architecture.total_internal_links }}</div></div>
-            <div class="stat-card {{ 'excellent' if architecture.avg_depth <= 3 else 'good' if architecture.avg_depth <= 4 else 'fair' }}"><div class="label">Avg Depth</div><div class="value">{{ "%.1f"|format(architecture.avg_depth) }}</div></div>
-            <div class="stat-card {{ 'poor' if architecture.orphan_pages > 0 else 'excellent' }}"><div class="label">Orphan Pages</div><div class="value">{{ architecture.orphan_pages }}</div></div>
-        </div>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th style="width: 22%;">Dimension</th>
+                <th style="width: 10%;">Score</th>
+                <th style="width: 12%;">Rating</th>
+                <th style="width: 56%;">What This Measures</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set dims = [
+                ('Technical SEO', technical_score, 'Crawlability, indexability, SSL, robots.txt, sitemap, performance, issue density'),
+                ('Content Quality', content_score, 'Word count, thin content, duplicates, headings, meta descriptions, readability'),
+                ('Search Rankings', ranking_score, 'Keyword visibility, top-10 presence, estimated organic traffic'),
+                ('Site Architecture', architecture_score, 'Internal linking, page depth, orphan pages, PageRank distribution'),
+                ('AI Overview (AIO)', aio_score, 'AI Overview citation rate, presence across target keywords'),
+                ('Generative Engine (GEO)', geo_score, 'Mention rate in AI engines, competitor presence'),
+            ] %}
+            {% for name, score, description in dims %}
+            <tr>
+                <td><strong>{{ name }}</strong></td>
+                <td><strong class="score-{{ score_class(score) }}">{{ "%.0f"|format(score) }}</strong></td>
+                <td>{{ score_rating(score) }}</td>
+                <td style="font-size: 8pt; color: #64748b;">{{ description }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background: #f1f5f9; font-weight: 700;">
+                <td>Overall</td>
+                <td class="score-{{ score_class(overall_score) }}">{{ "%.0f"|format(overall_score) }}</td>
+                <td>{{ score_rating(overall_score) }}</td>
+                <td style="font-size: 8pt;">Mean of all 6 dimensions</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
-        <p><strong>Max Depth:</strong> {{ architecture.max_depth }} levels</p>
+<!-- ════════════════════════════════════════════════════════════════════════
+     TECHNICAL SEO — DETAILED FINDINGS
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if technical %}
+<div class="page page-break">
+    <h2>Technical SEO — Metric-by-Metric Breakdown</h2>
 
-        {% if architecture.orphan_pages > 0 %}
-        <div style="background: #fff5f5; border: 1px solid #feb2b2; border-radius: 8px; padding: 16px; margin-top: 16px;">
-            <strong>⚠️ {{ architecture.orphan_pages }} orphan pages detected.</strong> These pages have no internal links pointing to them, making them undiscoverable by search engines and users. Add internal links from relevant pages or remove if unnecessary.
-        </div>
-        {% endif %}
-    </div>
+    <!-- Scoring Methodology -->
+    {% if technical.metric_details %}
+    <h3>Scoring Methodology</h3>
+    <p style="font-size: 8.5pt; color: #64748b; margin-bottom: 8px;">
+        Technical SEO Score = sum of weighted metric scores. Each metric is scored 0–100 and weighted by importance.
+        Final score = Σ(metric_weight × actual_score / expected_score).
+    </p>
+
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th style="width: 8%;">Weight</th>
+                <th style="width: 10%;">Expected</th>
+                <th style="width: 10%;">Actual</th>
+                <th style="width: 12%;">Status</th>
+                <th>Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in technical.metric_details %}
+            <tr>
+                <td><strong>{{ m.metric_name }}</strong></td>
+                <td>{{ "%.0f"|format(m.weight) }}%</td>
+                <td>{{ "%.0f"|format(m.expected_score) }}</td>
+                <td class="score-{{ score_class(m.actual_score) }}">{{ "%.1f"|format(m.actual_score) }}</td>
+                <td>
+                    <span class="badge badge-{{ 'pass' if m.status == 'PASS' else 'medium' if m.status == 'NEEDS IMPROVEMENT' else 'fail' }}">
+                        {{ m.status }}
+                    </span>
+                </td>
+                <td style="font-size: 8pt;">{{ m.evidence }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     {% endif %}
 
-    <!-- AI Overview (AIO) Analysis -->
-    {% if aio %}
-    <div class="section page-break">
-        <h2>AI Overview (AIO) Analysis</h2>
-
-        <div class="ai-section">
-            <h3>🤖 AI Overview Visibility</h3>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px;">
-                <div class="stat-card"><div class="label">Keywords Checked</div><div class="value">{{ aio.keywords_checked }}</div></div>
-                <div class="stat-card"><div class="label">AIOs Present</div><div class="value">{{ aio.ai_overviews_present }}</div></div>
-                <div class="stat-card {{ 'excellent' if aio.target_citation_rate >= 0.5 else 'good' if aio.target_citation_rate >= 0.3 else 'poor' }}"><div class="label">Citation Rate</div><div class="value">{{ "%.1f"|format(aio.target_citation_rate * 100) }}%</div></div>
-                <div class="stat-card {{ 'poor' if aio.target_cited_count == 0 and aio.ai_overviews_present > 0 else 'excellent' }}"><div class="label">Target Cited</div><div class="value">{{ aio.target_cited_count }}</div></div>
-            </div>
-
-            <p style="margin-top: 16px;"><strong>Competitors Cited:</strong> {{ aio.competitor_cited_count }} times across {{ aio.competitor_domains_cited|length }} domains</p>
-
-            {% if aio.competitor_domains_cited %}
-            <p><strong>Top Competitor Domains Cited:</strong> {{ aio.competitor_domains_cited[:5]|join(', ') }}</p>
-            {% endif %}
-
-            {% if aio.top_opportunities %}
-            <h4 style="margin-top: 16px;">AIO Citation Opportunities</h4>
-            <ul class="issue-list">
-                {% for opp in aio.top_opportunities[:5] %}
-                <li class="issue-item high">
-                    <div class="issue-header">
-                        <span class="issue-title">{{ opp.keyword }}</span>
-                        <span class="badge high">AIO Opportunity</span>
-                    </div>
-                    <div class="issue-description">{{ opp.action }}</div>
-                    <div class="issue-metrics">Competitors cited: {{ opp.competitor_cited }}</div>
-                </li>
-                {% endfor %}
-            </ul>
-            {% endif %}
+    <!-- Metric Grid -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">{{ technical.pages_crawled }}</div>
+            <div class="metric-label">Pages Crawled</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if technical.critical_issues > 0 %}#dc2626{% else %}#16a34a{% endif %};">{{ technical.critical_issues }}</div>
+            <div class="metric-label">Critical Issues</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if technical.warning_issues > 0 %}#d97706{% else %}#16a34a{% endif %};">{{ technical.warning_issues }}</div>
+            <div class="metric-label">Warnings</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.0f"|format(technical.avg_load_time_ms) }}ms</div>
+            <div class="metric-label">Avg Load Time</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if technical.core_web_vitals_pass %}#16a34a{% else %}#dc2626{% endif %};">{{ 'Pass' if technical.core_web_vitals_pass else 'Fail' }}</div>
+            <div class="metric-label">Core Web Vitals</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ technical.indexable_pages }}/{{ technical.pages_crawled }}</div>
+            <div class="metric-label">Indexable Pages</div>
         </div>
     </div>
-    {% endif %}
 
-    <!-- Generative Engine (GEO) Analysis -->
-    {% if geo %}
-    <div class="section page-break">
-        <h2>Generative Engine Optimization (GEO)</h2>
-
-        <div class="geo-section">
-            <h3>🧠 Generative Engine Visibility</h3>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px;">
-                <div class="stat-card"><div class="label">Keywords Checked</div><div class="value">{{ geo.keywords_checked }}</div></div>
-                <div class="stat-card {{ 'excellent' if geo.target_mentioned_count > 0 else 'poor' }}"><div class="label">Target Mentioned</div><div class="value">{{ geo.target_mentioned_count }}</div></div>
-                <div class="stat-card"><div class="label">Competitor Mentions</div><div class="value">{{ geo.competitor_mentioned_count }}</div></div>
-                <div class="stat-card {{ 'excellent' if geo.mention_rate >= 0.3 else 'good' if geo.mention_rate >= 0.15 else 'poor' }}"><div class="label">Mention Rate</div><div class="value">{{ "%.1f"|format(geo.mention_rate * 100) }}%</div></div>
+    <!-- Per-Metric Details with Remediation -->
+    {% if technical.metric_details %}
+    {% for m in technical.metric_details %}
+    {% if m.status != 'PASS' or m.what_failed %}
+    <div class="finding no-break">
+        <div class="finding-header">
+            <span class="finding-title">{{ m.metric_name }} — {{ "%.0f"|format(m.actual_score) }}/{{ "%.0f"|format(m.expected_score) }}</span>
+            <div class="finding-badges">
+                <span class="badge badge-{{ 'pass' if m.status == 'PASS' else 'medium' }}">{{ m.status }}</span>
+                <span class="badge badge-info">Weight: {{ "%.0f"|format(m.weight) }}%</span>
             </div>
-
-            <p style="margin-top: 16px;"><strong>Avg Mentions per Keyword:</strong> {{ "%.2f"|format(geo.avg_mention_count) }}</p>
-
-            {% if geo.competitor_domains_mentioned %}
-            <p><strong>Competitors Mentioned:</strong> {{ geo.competitor_domains_mentioned[:5]|join(', ') }}</p>
-            {% endif %}
-
-            {% if geo.top_opportunities %}
-            <h4 style="margin-top: 16px;">GEO Opportunities</h4>
-            <ul class="issue-list">
-                {% for opp in geo.top_opportunities[:5] %}
-                <li class="issue-item high">
-                    <div class="issue-header">
-                        <span class="issue-title">{{ opp.keyword }}</span>
-                        <span class="badge high">GEO Opportunity</span>
-                    </div>
-                    <div class="issue-description">{{ opp.action }}</div>
-                    <div class="issue-metrics">Competitors mentioned: {{ opp.competitors_mentioned }}</div>
-                </li>
-                {% endfor %}
-            </ul>
-            {% endif %}
         </div>
-    </div>
-    {% endif %}
-
-    <!-- Prioritized Recommendations -->
-    <div class="section page-break">
-        <h2>Prioritized Recommendations</h2>
-        <p style="color: #718096; margin-bottom: 20px;">{{ recommendations|length }} recommendations ranked by priority (Critical → High → Medium → Low) and confidence.</p>
-
-        {% for rec in recommendations %}
-        <div class="rec-item">
-            <div class="rec-header">
-                <span class="rec-title">{{ rec.title }}</span>
-                <span class="badge {{ rec.priority }}">{{ rec.priority|upper }}</span>
+        <div class="finding-body">
+            <div class="finding-detail">
+                <div class="detail-row"><span class="detail-label">What Was Checked</span><span class="detail-value">{{ m.what_was_checked }}</span></div>
+                <div class="detail-row"><span class="detail-label">Evidence</span><span class="detail-value">{{ m.evidence }}</span></div>
+                {% if m.what_failed %}
+                <div class="detail-row"><span class="detail-label">What Failed</span><span class="detail-value">{{ m.what_failed }}</span></div>
+                {% endif %}
             </div>
-            <div class="rec-description">{{ rec.description }}</div>
-
-            {% if rec.affected_keywords and rec.affected_keywords|length > 0 %}
-            <div class="affected-keywords">
-                <strong>Affected Keywords:</strong>
-                {% for kw in rec.affected_keywords[:10] %}
-                <span>{{ kw }}</span>
-                {% endfor %}
-                {% if rec.affected_keywords|length > 10 %}<span>+{{ rec.affected_keywords|length - 10 }} more</span>{% endif %}
+            <div class="finding-impact">
+                <strong>Why It Matters:</strong> {{ m.why_it_matters }}
             </div>
-            {% endif %}
-
-            <div class="rec-meta">
-                <span class="rec-meta-item"><strong>Category:</strong> {{ rec.category|replace('_', ' ')|title }}</span>
-                <span class="rec-meta-item"><strong>Confidence:</strong> {{ "%.0f"|format(rec.confidence * 100) }}%</span>
-                {% if rec.supporting_metrics %}
-                <span class="rec-meta-item"><strong>Metrics:</strong> {{ rec.supporting_metrics|tojson }}</span>
+            <div class="finding-action">
+                <strong>Required Action:</strong> {{ m.remediation }}
+                {% if m.reference_url %}
+                <br><strong>Reference:</strong> {{ m.reference_url }}
                 {% endif %}
             </div>
         </div>
-        {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    <!-- Issues Found -->
+    {% if technical.top_issues %}
+    <h3>Issues Found ({{ technical.top_issues|length }} shown)</h3>
+    {% for issue in technical.top_issues[:15] %}
+    <div class="issue-item sev-{{ issue.severity }} no-break">
+        <div class="issue-title">{{ issue.message }}</div>
+        <div class="issue-desc">
+            <strong>Rule:</strong> {{ issue.code }}
+            {% if issue.url %} · <strong>Affected:</strong> {{ issue.url }}{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SEARCH RANKINGS — DETAILED WITH KEYWORD TABLE
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if rankings %}
+<div class="page page-break">
+    <h2>Search Rankings — Detailed Analysis</h2>
+
+    <!-- Methodology -->
+    <div class="evidence-box">
+        <div class="label">Methodology</div>
+        <div><strong>Keyword Discovery:</strong> {{ rankings.keyword_discovery_method }}</div>
+        <div><strong>Search Engine:</strong> Google · <strong>Location:</strong> {{ report_metadata.country if report_metadata else "US" }} · <strong>Device:</strong> {{ report_metadata.device if report_metadata else "desktop" }}</div>
+        <div><strong>Keywords Checked To:</strong> Top 100 · <strong>Date:</strong> {{ report_metadata.analysis_date if report_metadata else "Unknown" }}</div>
     </div>
 
-    <!-- Footer -->
-    <div class="report-footer">
-        <p><strong>SEO - AIO - GEO Intelligence Engine</strong> | Site Analysis Report for {{ domain }}</p>
-        <p>Generated on {{ analyzed_at }} | This report contains proprietary analysis data.</p>
-        <p>For questions about this analysis, contact your SEO intelligence provider.</p>
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value" style="color: #16a34a;">{{ rankings.keywords_in_top_3 }}</div>
+            <div class="metric-label">Top 3</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: #d97706;">{{ rankings.keywords_in_top_10 }}</div>
+            <div class="metric-label">Top 10</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: #2563eb;">{{ rankings.keywords_in_top_20 }}</div>
+            <div class="metric-label">Top 20</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if rankings.keywords_not_ranking > rankings.total_keywords_tracked * 0.5 %}#dc2626{% else %}#64748b{% endif %};">{{ rankings.keywords_not_ranking }}</div>
+            <div class="metric-label">Not Ranking</div>
+        </div>
     </div>
+
+    <!-- Per-Keyword Detail Table -->
+    {% if rankings.keyword_details %}
+    <h3>Keyword Ranking Evidence ({{ rankings.keyword_details|length }} keywords)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 18%;">Keyword</th>
+                <th style="width: 8%;">Source</th>
+                <th style="width: 8%;">Location</th>
+                <th style="width: 8%;">Engine</th>
+                <th style="width: 10%;">Position</th>
+                <th style="width: 10%;">Checked To</th>
+                <th style="width: 12%;">Status</th>
+                <th style="width: 21%;">Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for kw in rankings.keyword_details[:25] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ kw.keyword }}</strong></td>
+                <td>{{ kw.source }}</td>
+                <td>{{ kw.search_location }}</td>
+                <td>{{ kw.search_engine }}</td>
+                <td>
+                    {% if kw.observed_position %}
+                    <span class="pos-badge {% if kw.observed_position <= 3 %}pos-top3{% elif kw.observed_position <= 10 %}pos-top10{% elif kw.observed_position <= 20 %}pos-top20{% else %}pos-outside{% endif %}">
+                        #{{ kw.observed_position }}
+                    </span>
+                    {% else %}
+                    <span class="pos-badge pos-outside">Not Found</span>
+                    {% endif %}
+                </td>
+                <td>{{ kw.checked_to }}</td>
+                <td><span class="badge badge-{{ 'pass' if kw.status == 'Verified' else 'medium' }}">{{ kw.status }}</span></td>
+                <td style="font-size: 7.5pt;">{{ kw.evidence }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <h3>Top Ranking Keywords</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 30%;">Keyword</th>
+                <th style="width: 12%;">Position</th>
+                <th style="width: 38%;">URL</th>
+                <th style="width: 15%;">Est. Traffic</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for kw in rankings.top_keywords %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ kw.keyword }}</strong></td>
+                <td><span class="pos-badge {% if kw.position <= 3 %}pos-top3{% elif kw.position <= 10 %}pos-top10{% elif kw.position <= 20 %}pos-top20{% else %}pos-outside{% endif %}">#{{ kw.position }}</span></td>
+                <td style="font-size: 7.5pt; color: #64748b; word-break: break-all;">{{ kw.url }}</td>
+                <td>{{ "{:,}".format(estimate_traffic(kw.position)) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Content Gap Analysis -->
+    {% if rankings.content_gap %}
+    <h3>Content Gap Analysis</h3>
+    <div class="finding no-break">
+        <div class="finding-header">
+            <span class="finding-title">Content Gap Detected</span>
+            <div class="finding-badges"><span class="badge badge-high">HIGH</span></div>
+        </div>
+        <div class="finding-body">
+            <p><strong>Keywords with no ranking:</strong> {{ rankings.content_gap.keyword }}</p>
+            <p><strong>Search Intent:</strong> {{ rankings.content_gap.search_intent }}</p>
+            <p><strong>Recommendation:</strong> {{ rankings.content_gap.recommendation }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Authority Gap Analysis -->
+    {% if rankings.authority_gap %}
+    <h3>Authority Gap Analysis</h3>
+    <div class="finding no-break">
+        <div class="finding-header">
+            <span class="finding-title">Authority Assessment</span>
+            <div class="finding-badges"><span class="badge badge-{{ 'low' if rankings.authority_gap.backlink_data_available else 'info' }}">{{ 'DATA AVAILABLE' if rankings.authority_gap.backlink_data_available else 'DATA UNAVAILABLE' }}</span></div>
+        </div>
+        <div class="finding-body">
+            <p><strong>Methodology:</strong> {{ rankings.authority_gap.comparison_methodology }}</p>
+            <p><strong>Limitation:</strong> {{ rankings.authority_gap.limitation }}</p>
+            <p><strong>Confidence:</strong> {{ rankings.authority_gap.confidence }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     CONTENT QUALITY
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if content %}
+<div class="page page-break">
+    <h2>Content Quality — Detailed Findings</h2>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">{{ content.pages_analyzed }}</div>
+            <div class="metric-label">Pages Analyzed</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if content.avg_quality_score >= 0.7 %}#16a34a{% elif content.avg_quality_score >= 0.4 %}#d97706{% else %}#dc2626{% endif %};">{{ "%.0f"|format(content.avg_quality_score * 100) }}%</div>
+            <div class="metric-label">Avg Quality</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if content.thin_content_pages > 0 %}#dc2626{% else %}#16a34a{% endif %};">{{ content.thin_content_pages }}</div>
+            <div class="metric-label">Thin Content</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if content.duplicate_groups > 0 %}#d97706{% else %}#16a34a{% endif %};">{{ content.duplicate_groups }}</div>
+            <div class="metric-label">Duplicate Groups</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if content.missing_h1_pages > 0 %}#d97706{% else %}#16a34a{% endif %};">{{ content.missing_h1_pages }}</div>
+            <div class="metric-label">Missing H1</div>
+        </div>
+    </div>
+
+    {% if content.thin_content_pages > 0 %}
+    <div class="finding no-break">
+        <div class="finding-header">
+            <span class="finding-title">{{ content.thin_content_pages }} Pages with Thin Content</span>
+            <div class="finding-badges"><span class="badge badge-high">HIGH</span><span class="badge badge-info">Content</span></div>
+        </div>
+        <div class="finding-body">
+            <p><strong>Observed:</strong> {{ content.thin_content_pages }} pages have fewer than 300 words of unique content.</p>
+            <div class="finding-detail">
+                <div class="detail-row"><span class="detail-label">Evidence</span><span class="detail-value">Crawl analysis of {{ content.pages_analyzed }} pages — word count below 300-word threshold.</span></div>
+                <div class="detail-row"><span class="detail-label">Confidence</span><span class="detail-value">HIGH — based on direct content measurement</span></div>
+            </div>
+            <div class="finding-impact"><strong>Impact:</strong> Thin content pages are unlikely to rank for competitive keywords.</div>
+            <div class="finding-action">
+                <strong>Required Action:</strong>
+                <ul>
+                    <li>Expand thin pages to 800+ words with comprehensive, unique content</li>
+                    <li>Consolidate multiple thin pages into comprehensive pillar pages</li>
+                    <li>Add relevant FAQs, examples, and related subtopics</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if content.duplicate_groups > 0 %}
+    <div class="finding no-break">
+        <div class="finding-header">
+            <span class="finding-title">{{ content.duplicate_groups }} Duplicate Content Groups</span>
+            <div class="finding-badges"><span class="badge badge-high">HIGH</span></div>
+        </div>
+        <div class="finding-body">
+            <p><strong>Observed:</strong> {{ content.duplicate_groups }} groups of near-duplicate content detected.</p>
+            <div class="finding-action">
+                <strong>Required Action:</strong>
+                <ul>
+                    <li>Implement <code>&lt;link rel="canonical"&gt;</code> on non-preferred pages</li>
+                    <li>Merge thin duplicate pages into comprehensive pieces</li>
+                    <li>Use 301 redirects from deprecated pages to primary page</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if content.top_issues %}
+    <h3>All Content Issues ({{ content.top_issues|length }})</h3>
+    {% for issue_name, count in content.top_issues %}
+    <div class="issue-item sev-warning no-break">
+        <div class="issue-title">{{ issue_name | replace('_', ' ') | title }}</div>
+        <div class="issue-desc">Affects {{ count }} page{{ 's' if count > 1 else '' }}. Review affected pages and apply content optimization best practices.</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     AIO ANALYSIS — PER-QUERY DETAILS
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if aio %}
+<div class="page page-break">
+    <h2>AI Overview (AIO) — Detailed Analysis</h2>
+
+    <div class="evidence-box">
+        <div class="label">Detection Methodology</div>
+        <div>{{ aio.detection_methodology }}</div>
+        <div><strong>Keywords Checked:</strong> {{ aio.keywords_checked }} · <strong>Search Engine:</strong> Google · <strong>Country:</strong> {{ report_metadata.country if report_metadata else "US" }}</div>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">{{ aio.keywords_checked }}</div>
+            <div class="metric-label">Checked</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if aio.ai_overviews_present > 0 %}#2563eb{% else %}#64748b{% endif %};">{{ aio.ai_overviews_present }}</div>
+            <div class="metric-label">AI Overviews</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if aio.target_cited_count > 0 %}#16a34a{% else %}#dc2626{% endif %};">{{ aio.target_cited_count }}</div>
+            <div class="metric-label">Times Cited</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.0f"|format(aio.target_citation_rate * 100) }}%</div>
+            <div class="metric-label">Citation Rate</div>
+        </div>
+    </div>
+
+    <!-- Per-Query AIO Table -->
+    {% if aio.query_details %}
+    <h3>Per-Query AI Overview Evidence</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 22%;">Keyword</th>
+                <th style="width: 12%;">AI Overview?</th>
+                <th style="width: 12%;">{{ domain }} Cited?</th>
+                <th style="width: 12%;">Location</th>
+                <th style="width: 12%;">Date</th>
+                <th style="width: 25%;">Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in aio.query_details[:20] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ q.keyword }}</strong></td>
+                <td><span class="badge badge-{{ 'info' if q.ai_overview_detected else 'low' }}">{{ 'Yes' if q.ai_overview_detected else 'No' }}</span></td>
+                <td><span class="badge badge-{{ 'pass' if q.target_cited else 'fail' }}">{{ 'Yes' if q.target_cited else 'No' }}</span></td>
+                <td>{{ q.search_location }}</td>
+                <td>{{ q.search_date }}</td>
+                <td style="font-size: 7.5pt;">{{ q.evidence }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if aio.competitor_domains_cited %}
+    <div class="evidence-box" style="border-left-color: #f59e0b; background: #fffbeb;">
+        <div class="label" style="color: #92400e;">Competitors Cited in AI Overviews</div>
+        <div>{{ aio.competitor_domains_cited | join(', ') }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     GEO ANALYSIS — PER-QUERY DETAILS
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if geo %}
+<div class="page page-break">
+    <h2>Generative Engine (GEO) — Detailed Analysis</h2>
+
+    <div class="evidence-box">
+        <div class="label">Detection Methodology</div>
+        <div>{{ geo.detection_methodology }}</div>
+        <div><strong>Keywords Checked:</strong> {{ geo.keywords_checked }} · <strong>Engines Tested:</strong> {{ geo.engines_tested | join(', ') if geo.engines_tested else 'General' }}</div>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">{{ geo.keywords_checked }}</div>
+            <div class="metric-label">Checked</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if geo.target_mentioned_count > 0 %}#16a34a{% else %}#dc2626{% endif %};">{{ geo.target_mentioned_count }}</div>
+            <div class="metric-label">Mentions</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ geo.competitor_mentioned_count }}</div>
+            <div class="metric-label">Competitor Mentions</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" style="color: {% if geo.mention_rate >= 0.3 %}#16a34a{% elif geo.mention_rate >= 0.1 %}#d97706{% else %}#dc2626{% endif %};">{{ "%.0f"|format(geo.mention_rate * 100) }}%</div>
+            <div class="metric-label">Mention Rate</div>
+        </div>
+    </div>
+
+    {% if geo.query_details %}
+    <h3>Per-Query GEO Evidence</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 22%;">Query</th>
+                <th style="width: 15%;">Engine</th>
+                <th style="width: 15%;">{{ domain }} Mentioned?</th>
+                <th style="width: 20%;">Competitors Mentioned</th>
+                <th style="width: 23%;">Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in geo.query_details[:20] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ q.query }}</strong></td>
+                <td>{{ q.engine }}</td>
+                <td><span class="badge badge-{{ 'pass' if q.target_mentioned else 'fail' }}">{{ 'Yes' if q.target_mentioned else 'No' }}</span></td>
+                <td>{{ q.competitors_mentioned | join(', ') if q.competitors_mentioned else 'None' }}</td>
+                <td style="font-size: 7.5pt;">{{ q.evidence }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if geo.competitor_domains_mentioned %}
+    <div class="evidence-box" style="border-left-color: #dc2626; background: #fef2f2;">
+        <div class="label" style="color: #991b1b;">Competitors Mentioned in Generative Engines</div>
+        <div>{{ geo.competitor_domains_mentioned | join(', ') }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     ARCHITECTURE
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if architecture %}
+<div class="page page-break">
+    <h2>Site Architecture & Link Graph</h2>
+
+    <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-value">{{ architecture.total_pages }}</div><div class="metric-label">Pages</div></div>
+        <div class="metric-card"><div class="metric-value">{{ architecture.total_internal_links }}</div><div class="metric-label">Internal Links</div></div>
+        <div class="metric-card"><div class="metric-value" style="color: {% if architecture.avg_depth <= 3 %}#16a34a{% elif architecture.avg_depth <= 5 %}#d97706{% else %}#dc2626{% endif %};">{{ "%.1f"|format(architecture.avg_depth) }}</div><div class="metric-label">Avg Depth</div></div>
+        <div class="metric-card"><div class="metric-value" style="color: {% if architecture.orphan_pages > 0 %}#dc2626{% else %}#16a34a{% endif %};">{{ architecture.orphan_pages }}</div><div class="metric-label">Orphans</div></div>
+        <div class="metric-card"><div class="metric-value">{{ architecture.max_depth }}</div><div class="metric-label">Max Depth</div></div>
+    </div>
+
+    {% if architecture.orphan_pages > 0 %}
+    <div class="finding no-break">
+        <div class="finding-header">
+            <span class="finding-title">{{ architecture.orphan_pages }} Orphan Pages</span>
+            <div class="finding-badges"><span class="badge badge-high">HIGH</span></div>
+        </div>
+        <div class="finding-body">
+            <p><strong>Observed:</strong> {{ architecture.orphan_pages }} pages have no internal links pointing to them.</p>
+            <div class="finding-action"><strong>Required Action:</strong> Add internal links from relevant pages, include in sitemap, or remove if not valuable.</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     COUNTRY-WISE ANALYSIS
+     ════════════════════════════════════════════════════════════════════════ -->
+{% if country_rankings %}
+<div class="page page-break">
+    <h2>Country-Wise Ranking Analysis</h2>
+    <p class="text-muted mb-md">Per-country visibility across {{ domain }}'s target markets.</p>
+
+    {% for cr in country_rankings %}
+    <div class="finding no-break" style="margin-bottom: 16px;">
+        <div class="finding-header">
+            <span class="finding-title">{{ cr.country_name }} ({{ cr.country_code | upper }})</span>
+            <div class="finding-badges">
+                <span class="badge badge-{{ 'low' if cr.overall_score >= 70 else 'medium' if cr.overall_score >= 40 else 'critical' }}">{{ "%.0f"|format(cr.overall_score) }}/100</span>
+            </div>
+        </div>
+        <div class="finding-body">
+            <div class="metrics-grid" style="margin: 8px 0;">
+                <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.seo_score) }}</div><div class="metric-label">SEO</div></div>
+                <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.aio_score) }}</div><div class="metric-label">AIO</div></div>
+                <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.geo_score) }}</div><div class="metric-label">GEO</div></div>
+                <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ cr.keywords_ranking }}</div><div class="metric-label">Keywords</div></div>
+            </div>
+
+            {% if cr.recommendations %}
+            <h4>What Needs to Be Done for {{ cr.country_name | upper }}</h4>
+            {% for rec in cr.recommendations[:5] %}
+            <div style="margin-bottom: 6px; padding: 6px 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid {% if rec.priority == 'critical' %}#dc2626{% elif rec.priority == 'high' %}#ea580c{% else %}#d97706{% endif %}; font-size: 8.5pt;">
+                <strong>{{ rec.priority | upper }}:</strong> {{ rec.title }}<br>
+                {{ rec.description }}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% if cr.action_items %}
+            <h4>Action Items for {{ cr.country_name | upper }}</h4>
+            <ul>
+                {% for item in cr.action_items %}
+                <li>{{ item }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{# ═══ Universal Category Breakdowns ═══ #}
+{{ render_category_section(content_breakdown) }}
+{{ render_category_section(ranking_breakdown) }}
+{{ render_category_section(architecture_breakdown) }}
+{{ render_category_section(aio_breakdown) }}
+{{ render_category_section(geo_breakdown) }}
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     PRIORITIZED RECOMMENDATIONS
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+    <h2>Prioritized Recommendations</h2>
+    <p class="text-muted mb-md">{{ recommendations|length }} recommendations ranked by priority and confidence.</p>
+
+    {% set critical = recommendations | selectattr("priority", "equalto", "critical") | list %}
+    {% set high = recommendations | selectattr("priority", "equalto", "high") | list %}
+    {% set medium = recommendations | selectattr("priority", "equalto", "medium") | list %}
+    {% set low = recommendations | selectattr("priority", "equalto", "low") | list %}
+
+    {% if critical %}
+    <h3 style="color: #dc2626;">P0 — Critical ({{ critical|length }})</h3>
+    {% for rec in critical %}
+    <div class="rec-card critical">
+        <div class="rec-header">
+            <span class="rec-title">{{ rec.title }}</span>
+            <span class="badge badge-critical">P0 · {{ "%.0f"|format(rec.confidence * 100) }}%</span>
+        </div>
+        <div class="rec-body">{{ rec.description }}</div>
+        <div class="rec-meta">
+            <span class="rec-meta-tag">{{ rec.category | replace('_', ' ') | title }}</span>
+            {% for kw in rec.affected_keywords[:5] %}
+            <span class="rec-meta-tag">{{ kw }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if high %}
+    <h3 style="color: #ea580c;">P1 — High ({{ high|length }})</h3>
+    {% for rec in high %}
+    <div class="rec-card high">
+        <div class="rec-header">
+            <span class="rec-title">{{ rec.title }}</span>
+            <span class="badge badge-high">P1 · {{ "%.0f"|format(rec.confidence * 100) }}%</span>
+        </div>
+        <div class="rec-body">{{ rec.description }}</div>
+        <div class="rec-meta">
+            <span class="rec-meta-tag">{{ rec.category | replace('_', ' ') | title }}</span>
+            {% for kw in rec.affected_keywords[:5] %}
+            <span class="rec-meta-tag">{{ kw }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if medium %}
+    <h3 style="color: #d97706;">P2 — Medium ({{ medium|length }})</h3>
+    {% for rec in medium %}
+    <div class="rec-card medium">
+        <div class="rec-header">
+            <span class="rec-title">{{ rec.title }}</span>
+            <span class="badge badge-medium">P2 · {{ "%.0f"|format(rec.confidence * 100) }}%</span>
+        </div>
+        <div class="rec-body">{{ rec.description }}</div>
+        <div class="rec-meta">
+            <span class="rec-meta-tag">{{ rec.category | replace('_', ' ') | title }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if low %}
+    <h3 style="color: #16a34a;">P3 — Low ({{ low|length }})</h3>
+    {% for rec in low %}
+    <div class="rec-card low">
+        <div class="rec-header">
+            <span class="rec-title">{{ rec.title }}</span>
+            <span class="badge badge-low">P3 · {{ "%.0f"|format(rec.confidence * 100) }}%</span>
+        </div>
+        <div class="rec-body">{{ rec.description }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     FOOTER / METHODOLOGY
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="report-footer" style="page-break-before: auto;">
+    <p><strong>SEO · AIO · GEO Intelligence Engine</strong> — Site Analysis Report</p>
+    {% if report_metadata %}
+    <p><strong>Domain:</strong> {{ domain }} · <strong>Analysis Date:</strong> {{ report_metadata.analysis_date }} · <strong>Duration:</strong> {{ report_metadata.analysis_duration_seconds }}s</p>
+    {% else %}
+    <p><strong>Domain:</strong> {{ domain }} · <strong>Generated:</strong> {{ analyzed_at.strftime("%d %B %Y, %I:%M %p UTC") if analyzed_at else "Unknown" }}</p>
+    {% endif %}
+    <p>This report contains proprietary analysis based on observed data, evidence-based metrics, and inference-based recommendations.</p>
+    <p style="margin-top: 6px;">
+        Confidence levels: <strong>HIGH</strong> = evidence-based metric · <strong>MEDIUM</strong> = derived from SERP/crawl data · <strong>LOW</strong> = inference or heuristic · <strong>Unable to verify</strong> = data unavailable.<br>
+        Scores are composite indices — see individual sections for methodology.<br>
+        No data has been fabricated. Where data was unavailable, this is explicitly stated.
+    </p>
+</div>
 
 </body>
 </html>

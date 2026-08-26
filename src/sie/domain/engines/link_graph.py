@@ -177,6 +177,23 @@ def compute_link_velocity(graph: LinkGraph) -> LinkVelocity:
 # ════════════════════════════════════════════════════════════════════════════
 
 
+def compute_gini(values: tuple[float, ...]) -> float | None:
+    """Compute Gini coefficient for a distribution of values.
+
+    0.0 = perfectly equal (every page has same internal authority)
+    1.0 = maximally unequal (one page has all authority)
+    None = insufficient data (<3 values or all zero)
+    """
+    if len(values) < 3 or sum(values) == 0:
+        return None
+    sorted_vals = sorted(values)
+    n = len(sorted_vals)
+    cumulative = 0.0
+    for i, val in enumerate(sorted_vals):
+        cumulative += (2 * (i + 1) - n - 1) * val
+    return round(cumulative / (n * sum(sorted_vals)), 4)
+
+
 def build_architecture_report(
     pages: list[FetchedPage],
     link_extractions: dict[str, LinkExtraction],
@@ -210,6 +227,10 @@ def build_architecture_report(
     depth_dist: dict[int, int] = dict(Counter(depths))
     velocity = compute_link_velocity(graph)
 
+    # Calculate Internal Graph PageRank Gini coefficient
+    pr_values = tuple(graph.nodes[u].pagerank for u in graph.nodes)
+    gini = compute_gini(pr_values)
+
     return SiteArchitectureReport(
         total_pages=total_pages,
         total_internal_links=len(internal_edges),
@@ -223,4 +244,6 @@ def build_architecture_report(
         pagerank_bottom_10=tuple(pr_sorted[-10:]),
         thin_connection_pages=thin,
         link_velocity=velocity,
+        pagerank_gini=gini,
+        pagerank_values=tuple(round(v, 6) for v in sorted(pr_values, reverse=True)),
     )
