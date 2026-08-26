@@ -10,7 +10,6 @@ This is the main entry point for "analyze this website and tell me how to rank #
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import html as html_mod
 import re
 from collections import Counter
@@ -20,9 +19,8 @@ from typing import Any
 from urllib.parse import urlparse
 
 from sie.domain.engines.search_aio import analyze_aio_observations
-from sie.domain.engines.search_analytics import analyze_search_dataset
 from sie.domain.engines.search_geo import analyze_geo_observations
-from sie.domain.models.audit import TechnicalAuditResult, SiteArchitectureReport
+from sie.domain.models.audit import SiteArchitectureReport, TechnicalAuditResult
 from sie.domain.models.content import ContentQualityReport
 from sie.domain.models.search import (
     CompetitorRanking,
@@ -31,34 +29,21 @@ from sie.domain.models.search import (
     SearchDevice,
     SearchQuery,
 )
-from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewResult, AIOverviewType
-from sie.domain.models.search_geo import GEOObservation, GEOResult, GenerativeEngineType
-from sie.domain.models.search_result import SearchResult
-from sie.domain.models.search_import import SearchImportResult
-from sie.domain.services.audit_service import AuditService
-from sie.domain.services.cannibalization import CannibalizationDetector
-from sie.domain.services.content_service import ContentService
-from sie.domain.services.crawl_service import CrawlService
-from sie.domain.services.ranking_volatility import RankingVolatilityService
-from sie.domain.services.search_collection_service import SearchCollectionService
-from sie.domain.services.search_intelligence import (
-    SearchIntelligenceResult,
-    SearchIntelligenceService,
-    SearchIntelligenceSummary,
-    SearchRecommendation,
-    RecommendationCategory,
-    RecommendationPriority,
-)
-from sie.domain.services.search_opportunity import SearchOpportunityService
-from sie.domain.models.search_entity import (
-    EntitySignal,
-    EntityCategory,
-    EntityVisibilityResult,
-    EntityDatasetResult,
-    TopicCluster,
-)
+from sie.domain.models.search_geo import GenerativeEngineType
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
+from sie.domain.services.audit_service import AuditService
+from sie.domain.services.content_service import ContentService
+from sie.domain.services.crawl_service import CrawlService
+from sie.domain.services.search_collection_service import SearchCollectionService
+from sie.domain.services.search_intelligence import (
+    RecommendationCategory,
+    RecommendationPriority,
+    SearchIntelligenceResult,
+    SearchIntelligenceService,
+    SearchRecommendation,
+)
+from sie.infrastructure.crux import CruxService
 from sie.logging import get_logger
 
 logger = get_logger(__name__)
@@ -724,7 +709,7 @@ class SiteAnalysisService:
                     f"Build citations on {country_name}-specific authority domains"
                 )
                 action_items.append(
-                    f"Create factual, well-structured content that AI engines cite"
+                    "Create factual, well-structured content that AI engines cite"
                 )
 
         top_kws = []
@@ -961,7 +946,7 @@ class SiteAnalysisService:
         ranking_breakdown = self._build_ranking_breakdown(ranking_snapshot, country, device)
         architecture_breakdown = self._build_architecture_breakdown(architecture_report)
         aio_breakdown = self._build_aio_breakdown(aio_analysis, country)
-        geo_breakdown = self._build_geo_breakdown()
+        geo_breakdown = self._build_geo_breakdown(geo_analysis)
 
         # Semantic alignment
         semantic_alignment = self._compute_semantic_alignment(target_keywords, crawl_pages)
@@ -1331,13 +1316,13 @@ class SiteAnalysisService:
             "a", "an", "and", "are", "as", "at", "be", "been", "by", "for", "from",
             "has", "he", "in", "is", "it", "its", "of", "on", "that", "the", "to",
             "was", "were", "will", "with", "you", "your", "we", "our", "their",
-            "this", "that", "these", "those", "have", "has", "had", "do", "does",
+            "this", "these", "those", "have", "had", "do", "does",
             "did", "but", "not", "or", "if", "then", "else", "when", "where",
             "why", "how", "what", "who", "which", "can", "could", "should",
-            "would", "may", "might", "must", "shall", "will", "been", "being",
+            "would", "may", "might", "must", "shall", "being",
             "there", "here", "more", "most", "some", "any", "all", "each",
             "few", "many", "much", "other", "such", "only", "own", "same",
-            "than", "too", "very", "just", "now", "then", "also", "well",
+            "than", "too", "very", "just", "now", "also", "well",
             "even", "back", "after", "before", "during", "while", "since",
             "until", "between", "among", "through", "into", "onto", "upon",
         })
@@ -1637,9 +1622,26 @@ class SiteAnalysisService:
         country: str,
         device: str,
     ) -> SiteAIOAnalysis:
-        """Analyze AI Overview presence and citation opportunities."""
+        """Analyze AI Overview presence and citation opportunities using provider extraction."""
         search_date = datetime.now(UTC).strftime("%Y-%m-%d")
         query_details: list[AIODetailQuery] = []
+
+        # Check if provider supports AIO extraction
+        if not getattr(self._search_provider, "supports_aio", False):
+            return SiteAIOAnalysis(
+                keywords_checked=0,
+                ai_overviews_present=0,
+                target_cited_count=0,
+                competitor_cited_count=0,
+                citation_rate=0.0,
+                target_citation_rate=0.0,
+                query_details=[],
+                detection_methodology=(
+                    "AIO analysis requires a search provider that supports AI Overview extraction. "
+                    f"Current provider ({type(self._search_provider).__name__}) does not support this capability. "
+                    "Use SerpAPI or another AIO-capable provider for real AIO data."
+                ),
+            )
 
         try:
             aio_observations = []
@@ -1655,50 +1657,60 @@ class SiteAnalysisService:
                         target_domain=domain,
                         max_results=10,
                     )
-                    result = await self._search_provider.search(query)
 
-                    has_aio = any(
-                        'ai_overview' in str(getattr(item, 'serp_features', [])).lower()
-                        for item in result.items
-                    )
+                    observation = await self._search_provider.extract_aio(query, domain)
 
-                    aio_observations.append(AIOverviewObservation(
-                        keyword=kw,
-                        ai_type=AIOverviewType.INFORMATIONAL if has_aio else AIOverviewType.OTHER,
-                        present=has_aio,
-                        target_cited=False,
-                        target_domain=domain,
-                        citation_count=0,
-                        competitor_cited_domains=(),
-                    ))
+                    if observation is None:
+                        # Provider returned None - capability not available or error
+                        query_details.append(AIODetailQuery(
+                            keyword=kw,
+                            ai_overview_detected=False,
+                            target_cited=False,
+                            search_location=country.upper(),
+                            search_date=search_date,
+                            evidence=f"Provider does not support AIO extraction for '{kw}'",
+                        ))
+                        continue
 
-                    # Build per-query detail
+                    aio_observations.append(observation)
+
+                    # Build per-query detail from actual observation
+                    cited_sources = [c.url for c in observation.citations] if observation.citations else []
                     query_details.append(AIODetailQuery(
                         keyword=kw,
-                        ai_overview_detected=has_aio,
-                        target_cited=False,
-                        cited_sources=[],
+                        ai_overview_detected=observation.present,
+                        target_cited=observation.target_cited,
+                        cited_sources=cited_sources,
                         search_location=country.upper(),
                         search_date=search_date,
-                        evidence=f"AI Overview {'detected' if has_aio else 'not detected'} for '{kw}' in {country.upper()} Google search" + (f". Domain {domain} not cited." if has_aio else ""),
+                        evidence=(
+                            f"AI Overview {'detected' if observation.present else 'not detected'} "
+                            f"for '{kw}' in {country.upper()} Google search"
+                            + (f". Target cited: {observation.target_cited}" if observation.present else "")
+                            + (f". Citations: {len(cited_sources)}" if cited_sources else "")
+                        ),
                     ))
-                except Exception:
+                except Exception as exc:
                     query_details.append(AIODetailQuery(
                         keyword=kw,
                         ai_overview_detected=False,
                         target_cited=False,
                         search_location=country.upper(),
                         search_date=search_date,
-                        evidence=f"Unable to verify AI Overview status for '{kw}' — search query failed",
+                        evidence=f"Unable to verify AI Overview status for '{kw}': {exc}",
                     ))
                     continue
 
             if not aio_observations:
                 return SiteAIOAnalysis(
-                    keywords_checked=0, ai_overviews_present=0,
-                    target_cited_count=0, competitor_cited_count=0,
-                    citation_rate=0.0, target_citation_rate=0.0,
+                    keywords_checked=0,
+                    ai_overviews_present=0,
+                    target_cited_count=0,
+                    competitor_cited_count=0,
+                    citation_rate=0.0,
+                    target_citation_rate=0.0,
                     query_details=query_details,
+                    detection_methodology="Provider supports AIO but no observations were returned",
                 )
 
             aio_result = analyze_aio_observations(
@@ -1727,6 +1739,7 @@ class SiteAnalysisService:
                 competitor_domains_cited=list(aio_result.dataset_metrics.competitor_cited_domains),
                 top_opportunities=opportunities[:10],
                 query_details=query_details,
+                detection_methodology="SERP feature analysis via provider AIO extraction (SerpAPI ai_overview field)",
             )
 
         except Exception as e:
@@ -1736,6 +1749,7 @@ class SiteAnalysisService:
                 target_cited_count=0, competitor_cited_count=0,
                 citation_rate=0.0, target_citation_rate=0.0,
                 query_details=query_details,
+                detection_methodology=f"AIO analysis failed: {e}",
             )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1749,41 +1763,91 @@ class SiteAnalysisService:
         country: str,
         device: str,
     ) -> SiteGEOAnalysis:
-        """Analyze Generative Engine Optimization presence and opportunities."""
+        """Analyze Generative Engine Optimization presence using LLM provider."""
         query_details: list[GEODetailQuery] = []
+
+        # Check if provider supports GEO queries
+        if not getattr(self._search_provider, "supports_geo", False):
+            return SiteGEOAnalysis(
+                keywords_checked=0,
+                target_mentioned_count=0,
+                competitor_mentioned_count=0,
+                mention_rate=0.0,
+                avg_mention_count=0.0,
+                query_details=[],
+                detection_methodology=(
+                    "GEO analysis requires a provider that supports generative engine queries. "
+                    f"Current provider ({type(self._search_provider).__name__}) does not support this capability. "
+                    "Configure a GEO-capable provider (e.g., LLM-based) for real GEO data."
+                ),
+                engines_tested=[],
+            )
+
+        # Default to testing ChatGPT-style engine via the provider
+        engine_type = GenerativeEngineType.CHATGPT
+        engines_tested = [engine_type.value]
 
         try:
             geo_observations = []
 
             for kw in keywords[:20]:
                 try:
-                    geo_observations.append(GEOObservation(
-                        keyword=kw,
-                        engine_type=GenerativeEngineType.OTHER,
-                        target_mentioned=False,
+                    query = SearchQuery(
+                        query=kw,
+                        search_engine="google",
+                        country=country,
+                        language="en",
+                        device=SearchDevice(device),
                         target_domain=domain,
-                        mention_count=0,
-                        competitor_domains=(),
-                        citation_urls=(),
-                        answer_length=0,
-                    ))
+                        max_results=10,
+                    )
+
+                    observation = await self._search_provider.query_geo(query, domain, engine_type)
+
+                    if observation is None:
+                        query_details.append(GEODetailQuery(
+                            query=kw,
+                            engine=engine_type.value,
+                            target_mentioned=False,
+                            competitors_mentioned=[],
+                            evidence=f"Provider does not support GEO queries for '{kw}'",
+                        ))
+                        continue
+
+                    geo_observations.append(observation)
 
                     query_details.append(GEODetailQuery(
                         query=kw,
-                        engine="General (multiple engines)",
+                        engine=engine_type.value,
+                        target_mentioned=observation.target_mentioned,
+                        competitors_mentioned=list(observation.competitor_domains),
+                        evidence=(
+                            f"GEO query for '{kw}' on {engine_type.value}: "
+                            f"target mentioned={observation.target_mentioned}, "
+                            f"mentions={observation.mention_count}, "
+                            f"competitors={len(observation.competitor_domains)}"
+                        ),
+                    ))
+                except Exception as exc:
+                    query_details.append(GEODetailQuery(
+                        query=kw,
+                        engine=engine_type.value,
                         target_mentioned=False,
                         competitors_mentioned=[],
-                        evidence=f"GEO check performed for '{kw}' — domain {domain} not mentioned in generative engine responses",
+                        evidence=f"GEO query failed for '{kw}': {exc}",
                     ))
-                except Exception:
                     continue
 
             if not geo_observations:
                 return SiteGEOAnalysis(
-                    keywords_checked=0, target_mentioned_count=0,
-                    competitor_mentioned_count=0, mention_rate=0.0,
+                    keywords_checked=0,
+                    target_mentioned_count=0,
+                    competitor_mentioned_count=0,
+                    mention_rate=0.0,
                     avg_mention_count=0.0,
                     query_details=query_details,
+                    detection_methodology="Provider supports GEO but no observations were returned",
+                    engines_tested=engines_tested,
                 )
 
             geo_result = analyze_geo_observations(
@@ -1810,16 +1874,21 @@ class SiteAnalysisService:
                 competitor_domains_mentioned=list(geo_result.dataset_metrics.competitor_domain_counts.keys()),
                 top_opportunities=opportunities[:10],
                 query_details=query_details,
-                engines_tested=["General (multiple engines)"],
+                detection_methodology=f"Generative engine response analysis via provider GEO query ({engine_type.value})",
+                engines_tested=engines_tested,
             )
 
         except Exception as e:
             logger.warning("GEO analysis failed for %s: %s", domain, e)
             return SiteGEOAnalysis(
-                keywords_checked=0, target_mentioned_count=0,
-                competitor_mentioned_count=0, mention_rate=0.0,
+                keywords_checked=0,
+                target_mentioned_count=0,
+                competitor_mentioned_count=0,
+                mention_rate=0.0,
                 avg_mention_count=0.0,
                 query_details=query_details,
+                detection_methodology=f"GEO analysis failed: {e}",
+                engines_tested=engines_tested,
             )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1834,8 +1903,9 @@ class SiteAnalysisService:
     ) -> SiteEntityKnowledgeGraphAnalysis:
         """Analyze entity knowledge graph for a domain."""
         try:
-            from sie.domain.engines.search_entity import extract_entities
             from collections import Counter
+
+            from sie.domain.engines.search_entity import extract_entities
 
             all_entities = Counter()
             entity_types = Counter()
@@ -1936,12 +2006,11 @@ class SiteAnalysisService:
         """
         try:
             from sie.domain.engines.search_performance import (
-                analyze_page_performance,
                 analyze_dataset_performance,
+                analyze_page_performance,
             )
             from sie.domain.models.search_performance import (
                 PerformanceResult,
-                PerformanceDatasetMetrics,
             )
 
             page_results: list[PerformanceResult] = []
@@ -2065,23 +2134,35 @@ class SiteAnalysisService:
         return aio
 
     def _correct_geo_analysis(self, geo: SiteGEOAnalysis) -> SiteGEOAnalysis:
-        """Replace synthetic GEO observations with honest NOT ASSESSED.
+        """Ensure GEO analysis honestly reflects data availability.
 
-        The previous implementation created synthetic 'not mentioned'
-        observations and fed them through the GEO engine, producing
-        misleading numeric mention rates. This method corrects that.
+        If the provider returned observations but no mentions were found,
+        this could mean either the brand genuinely isn't mentioned, or
+        the queries didn't trigger mentions. We preserve the data but
+        ensure the methodology is transparent.
         """
-        # If all queries returned target_not_mentioned and
-        # competitor_not_mentioned, this is a synthetic dataset —
-        # not actual live GEO queries.
+        # The new _analyze_geo already handles capability detection,
+        # so this method is mostly a pass-through for backward compatibility.
+        # If detection_methodology indicates synthetic data, mark it clearly.
         if (
             geo.target_mentioned_count == 0
             and geo.competitor_mentioned_count == 0
             and geo.keywords_checked > 0
+            and "synthetic" in (geo.detection_methodology or "").lower()
         ):
-            # Return empty — the GEO breakdown builder will report
-            # NOT ASSESSED with honest limitations.
-            return None  # type: ignore[return-value]
+            return SiteGEOAnalysis(
+                keywords_checked=geo.keywords_checked,
+                target_mentioned_count=0,
+                competitor_mentioned_count=0,
+                mention_rate=0.0,
+                avg_mention_count=0.0,
+                query_details=geo.query_details,
+                detection_methodology=(
+                    "GEO analysis was attempted but the provider returned synthetic/no-op observations. "
+                    "No live generative engine queries were performed."
+                ),
+                engines_tested=geo.engines_tested,
+            )
         return geo
 
     def _build_dataset_from_rankings(
@@ -2924,7 +3005,7 @@ class SiteAnalysisService:
             confidence=confidence,
             confidence_factors=[f"{N} keywords tracked", f"Coverage: {coverage_rate:.0%}", f"Search engine: Google, Country: {country.upper()}, Device: {device}"],
             limitations=[
-                f"Keywords were algorithmically discovered (TF-IDF), not user-supplied.",
+                "Keywords were algorithmically discovered (TF-IDF), not user-supplied.",
                 f"Rankings checked to top 100 for {country.upper()} Google.",
                 "Ranking data reflects a single point-in-time snapshot.",
             ],
@@ -3187,31 +3268,113 @@ class SiteAnalysisService:
             data_source="serp",
         )
 
-    def _build_geo_breakdown(self) -> CategoryScore:
-        """Build GEO breakdown — genuinely NOT ASSESSED.
+    def _build_geo_breakdown(
+        self,
+        geo: SiteGEOAnalysis | None,
+    ) -> CategoryScore:
+        """Build universal GEO breakdown with real observations when available."""
+        if not geo or geo.keywords_checked == 0:
+            return CategoryScore(
+                category_name="Generative Engine Optimization (GEO)",
+                overall_score=None,
+                score_status="NOT ASSESSED",
+                scoring_methodology="No GEO data available.",
+                metrics=[],
+                sample_size=0,
+                data_coverage=0.0,
+                confidence="UNABLE TO VERIFY",
+                confidence_factors=["No keywords checked for GEO"],
+                limitations=[
+                    "GEO analysis requires a provider that supports generative engine queries.",
+                    "Configure an LLM-based provider (OpenAI-compatible) for real GEO data."
+                ],
+                evidence_quality_summary="UNAVAILABLE",
+            )
 
-        No synthetic observations are created. No numeric score is produced.
-        """
+        Q = geo.keywords_checked
+        Q_mentioned = geo.target_mentioned_count
+        Q_comp_mentioned = geo.competitor_mentioned_count
+        coverage = geo.keywords_checked / max(Q, 1)
+
+        if coverage < 0.5:
+            return CategoryScore(
+                category_name="Generative Engine Optimization (GEO)",
+                overall_score=None,
+                score_status="INSUFFICIENT DATA",
+                scoring_methodology=f"Data coverage {coverage:.0%} below 50% threshold.",
+                metrics=[],
+                sample_size=Q,
+                data_coverage=coverage,
+                confidence="UNABLE TO VERIFY",
+                confidence_factors=[f"Coverage {coverage:.0%} < 50% threshold"],
+                limitations=["Insufficient data coverage for reliable GEO scoring."],
+                evidence_quality_summary="INSUFFICIENT",
+            )
+
+        mention_rate = Q_mentioned / Q if Q > 0 else 0
+        comp_mention_rate = Q_comp_mentioned / Q if Q > 0 else 0
+
+        metrics = [
+            AnalysisMetric(
+                metric_name="Target Mention Rate", category="geo", metric_type="percentage",
+                expected=100.0, normalized_score=mention_rate * 100, weight=50.0,
+                raw_value=Q_mentioned, raw_unit="queries",
+                raw_evidence=f"Target mentioned in {Q_mentioned} of {Q} queries",
+                normalization_method="(target_mentioned / total_queries) * 100",
+                status="PASS" if mention_rate > 0.3 else "POOR",
+                evidence=f"Target brand mentioned in {Q_mentioned} of {Q} generative engine queries",
+                evidence_quality="OBSERVED",
+                sample_size=Q, data_coverage=coverage,
+                confidence="HIGH" if coverage >= 0.8 else "MEDIUM",
+            ),
+            AnalysisMetric(
+                metric_name="Competitor Mention Rate", category="geo", metric_type="percentage",
+                expected=0.0, normalized_score=(1 - comp_mention_rate) * 100, weight=30.0,
+                raw_value=Q_comp_mentioned, raw_unit="queries",
+                raw_evidence=f"Competitors mentioned in {Q_comp_mentioned} of {Q} queries",
+                normalization_method="(1 - competitor_mentioned / total_queries) * 100 (lower competitor mentions = better)",
+                status="PASS" if comp_mention_rate < 0.3 else "POOR",
+                evidence=f"Competitors mentioned in {Q_comp_mentioned} of {Q} generative engine queries",
+                evidence_quality="OBSERVED",
+                sample_size=Q, data_coverage=coverage,
+                confidence="HIGH" if coverage >= 0.8 else "MEDIUM",
+            ),
+            AnalysisMetric(
+                metric_name="Average Mentions per Query", category="geo", metric_type="range",
+                expected=100.0, normalized_score=min(100, geo.avg_mention_count * 20), weight=20.0,
+                raw_value=geo.avg_mention_count, raw_unit="mentions/query",
+                raw_evidence=f"Average {geo.avg_mention_count:.1f} mentions per query where target mentioned",
+                normalization_method="min(100, avg_mentions * 20)",
+                status="PASS" if geo.avg_mention_count > 1 else "NEEDS IMPROVEMENT",
+                evidence=f"Average {geo.avg_mention_count:.1f} target mentions per observation",
+                evidence_quality="CALCULATED",
+                sample_size=Q_mentioned if Q_mentioned > 0 else 0, data_coverage=coverage,
+                confidence="MEDIUM",
+            ),
+        ]
+
+        total_weight = sum(m.weight for m in metrics)
+        overall = sum(m.weight * m.normalized_score for m in metrics) / total_weight if total_weight > 0 else 0
+
+        engines_tested = ", ".join(geo.engines_tested) if geo.engines_tested else "unknown"
+
         return CategoryScore(
             category_name="Generative Engine Optimization (GEO)",
-            overall_score=None,
-            score_status="NOT ASSESSED",
-            scoring_methodology="GEO was not assessed — no live generative-engine observations were performed.",
-            metrics=[],
-            sample_size=0,
-            data_coverage=0.0,
-            confidence="UNABLE TO VERIFY",
-            confidence_factors=[
-                "No live generative-engine queries were performed",
-                "The system does not currently query ChatGPT, Perplexity, Claude, or Gemini APIs",
-            ],
+            overall_score=round(overall, 1),
+            score_status="ASSESSED",
+            scoring_methodology=f"GEO Score = (TargetMention * 50 + CompetitorNonMention * 30 + AvgMentions * 20). Coverage: {coverage:.0%}. Engines: {engines_tested}.",
+            metrics=metrics,
+            sample_size=Q,
+            data_coverage=coverage,
+            confidence="HIGH" if coverage >= 0.8 else "MEDIUM" if coverage >= 0.5 else "LOW",
+            confidence_factors=[f"{Q} queries checked", f"Coverage: {coverage:.0%}", f"Engines: {engines_tested}"],
             limitations=[
-                "Live generative-engine observations were not available for this analysis.",
-                "The system does not currently query ChatGPT, Perplexity, Claude, Gemini, or other generative engines directly.",
-                "No GEO data was collected for this analysis.",
-                "The existing GEO observation model supports future implementation when live engine APIs are integrated.",
+                "GEO observations depend on the configured LLM provider.",
+                "Results may vary across different generative engines.",
+                "Brand mention detection uses simple string matching, not semantic understanding.",
             ],
-            evidence_quality_summary="UNAVAILABLE",
+            evidence_quality_summary="OBSERVED",
+            data_source="live_query",
         )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -3260,9 +3423,9 @@ class SiteAnalysisService:
                     priority=RecommendationPriority.MEDIUM,
                     title=f"{missing_schema} pages missing Schema.org markup",
                     description=(
-                        f"Structured data helps search engines understand your content and "
-                        f"enables rich snippets (FAQ, HowTo, Product, Article, etc.). "
-                        f"Add JSON-LD schema to key pages for better SERP visibility."
+                        "Structured data helps search engines understand your content and "
+                        "enables rich snippets (FAQ, HowTo, Product, Article, etc.). "
+                        "Add JSON-LD schema to key pages for better SERP visibility."
                     ),
                     supporting_metrics={"missing_schema": missing_schema},
                     confidence=0.8,
@@ -3275,9 +3438,9 @@ class SiteAnalysisService:
                 priority=RecommendationPriority.MEDIUM,
                 title=f"{stale_content} pages with potentially stale content",
                 description=(
-                    f"Content freshness is a ranking factor. Update old content with current data, "
-                    f"new examples, recent statistics, and current year references. "
-                    f"Add 'Last Updated' dates to signal freshness."
+                    "Content freshness is a ranking factor. Update old content with current data, "
+                    "new examples, recent statistics, and current year references. "
+                    "Add 'Last Updated' dates to signal freshness."
                 ),
                 supporting_metrics={"stale_pages": stale_content},
                 confidence=0.75,
@@ -3290,9 +3453,9 @@ class SiteAnalysisService:
                 priority=RecommendationPriority.MEDIUM,
                 title=f"{poor_readability} pages with poor readability",
                 description=(
-                    f"Content that is hard to read increases bounce rate and reduces dwell time. "
-                    f"Use shorter sentences, simpler words, subheadings, bullet points, "
-                    f"and visual elements. Target Flesch Reading Ease > 60."
+                    "Content that is hard to read increases bounce rate and reduces dwell time. "
+                    "Use shorter sentences, simpler words, subheadings, bullet points, "
+                    "and visual elements. Target Flesch Reading Ease > 60."
                 ),
                 supporting_metrics={"poor_readability": poor_readability},
                 confidence=0.7,
@@ -3305,9 +3468,9 @@ class SiteAnalysisService:
                 priority=RecommendationPriority.HIGH,
                 title=f"{keyword_stuffing} pages with potential keyword stuffing",
                 description=(
-                    f"Over-optimization triggers spam filters. Write naturally for humans, "
-                    f"not keyword density. Use synonyms, related terms (LSI keywords), "
-                    f"and focus on topic coverage rather than exact-match repetition."
+                    "Over-optimization triggers spam filters. Write naturally for humans, "
+                    "not keyword density. Use synonyms, related terms (LSI keywords), "
+                    "and focus on topic coverage rather than exact-match repetition."
                 ),
                 supporting_metrics={"keyword_stuffing": keyword_stuffing},
                 confidence=0.85,
@@ -3320,9 +3483,9 @@ class SiteAnalysisService:
                 priority=RecommendationPriority.MEDIUM,
                 title=f"{missing_alt} pages with images missing alt text",
                 description=(
-                    f"Alt text is crucial for accessibility and image search. "
-                    f"Describe images with relevant keywords naturally. "
-                    f"This also helps with Google Images traffic."
+                    "Alt text is crucial for accessibility and image search. "
+                    "Describe images with relevant keywords naturally. "
+                    "This also helps with Google Images traffic."
                 ),
                 supporting_metrics={"missing_alt": missing_alt},
                 confidence=0.8,
@@ -3335,9 +3498,9 @@ class SiteAnalysisService:
                 priority=RecommendationPriority.MEDIUM,
                 title=f"{low_internal} pages with insufficient internal links",
                 description=(
-                    f"Internal links distribute PageRank and help users discover content. "
-                    f"Add 3-5 relevant internal links per page using descriptive anchor text. "
-                    f"Link to cornerstone content and related articles."
+                    "Internal links distribute PageRank and help users discover content. "
+                    "Add 3-5 relevant internal links per page using descriptive anchor text. "
+                    "Link to cornerstone content and related articles."
                 ),
                 supporting_metrics={"low_internal_links": low_internal},
                 confidence=0.75,
@@ -3526,7 +3689,8 @@ class SiteAnalysisService:
 
         # ── Ranking recommendations ──
         if ranking_snapshot:
-            if ranking_snapshot.keywords_not_ranking > ranking_snapshot.total_keywords_tracked * 0.5:
+            half_keywords = ranking_snapshot.total_keywords_tracked * 0.5
+            if ranking_snapshot.keywords_not_ranking > half_keywords:
                 recs.append(SearchRecommendation(
                     category=RecommendationCategory.RANKING,
                     priority=RecommendationPriority.CRITICAL,
@@ -3543,12 +3707,18 @@ class SiteAnalysisService:
                     confidence=0.9,
                 ))
 
-            if ranking_snapshot.keywords_in_top_10 == 0 and ranking_snapshot.total_keywords_tracked > 0:
+            if (
+            ranking_snapshot.keywords_in_top_10 == 0
+            and ranking_snapshot.total_keywords_tracked > 0
+        ):
                 recs.append(SearchRecommendation(
                     category=RecommendationCategory.RANKING,
                     priority=RecommendationPriority.CRITICAL,
                     title="No keywords in top 10",
-                    description="Zero keywords ranking in top 10. Fundamental content/authority issues.",
+                    description=(
+                        "Zero keywords ranking in top 10. "
+                        "Fundamental content/authority issues."
+                    ),
                     confidence=0.95,
                 ))
 
@@ -3557,7 +3727,10 @@ class SiteAnalysisService:
                     category=RecommendationCategory.RANKING,
                     priority=RecommendationPriority.HIGH,
                     title=f"Low search visibility ({ranking_snapshot.visibility_score:.0%})",
-                    description="Overall visibility is very low. Focus on technical foundation and content.",
+                    description=(
+                        "Overall visibility is very low. "
+                        "Focus on technical foundation and content."
+                    ),
                     supporting_metrics={"visibility": ranking_snapshot.visibility_score},
                     confidence=0.9,
                 ))
@@ -3590,10 +3763,14 @@ class SiteAnalysisService:
             architecture_score=0.0,
             overall_score=0.0,
             access_status=AccessStatus(
-                accessible=False, status_code=0, analysis_status="BLOCKED",
+                accessible=False,
+                status_code=0,
+                analysis_status="BLOCKED",
                 block_reason="No pages could be retrieved from the target.",
             ),
-            website_type=WebsiteTypeInfo(technology="Unknown", confidence=0.0, evidence=["No pages crawled"]),
+            website_type=WebsiteTypeInfo(
+                technology="Unknown", confidence=0.0, evidence=["No pages crawled"]
+            ),
             analysis_started_at=analysis_start,
             analysis_completed_at=datetime.now(UTC),
         )
@@ -3619,30 +3796,30 @@ def create_site_analysis_service(
 
 
 __all__ = [
-    "AccessStatus",
-    "WebsiteTypeInfo",
-    "KeywordRankingDetail",
-    "ContentGapDetail",
-    "AuthorityGapDetail",
     "AIODetailQuery",
-    "GEODetailQuery",
-    "TechnicalMetricDetail",
-    "CountryRankingDetail",
-    "CountryActionItem",
-    "ReportMetadata",
+    "AccessStatus",
     "AnalysisMetric",
+    "AuthorityGapDetail",
     "CategoryScore",
+    "ContentGapDetail",
+    "CountryActionItem",
+    "CountryRankingDetail",
+    "GEODetailQuery",
+    "KeywordRankingDetail",
+    "ReportMetadata",
     "SemanticAlignmentResult",
-    "SiteAnalysisService",
+    "SiteAIOAnalysis",
     "SiteAnalysisResult",
+    "SiteAnalysisService",
+    "SiteArchitectureHealth",
+    "SiteContentHealth",
     "SiteCountryRanking",
+    "SiteEntityKnowledgeGraphAnalysis",
+    "SiteGEOAnalysis",
+    "SitePerformanceSummary",
     "SiteRankingSnapshot",
     "SiteTechnicalHealth",
-    "SiteContentHealth",
-    "SiteArchitectureHealth",
-    "SiteAIOAnalysis",
-    "SiteGEOAnalysis",
-    "SiteEntityKnowledgeGraphAnalysis",
-    "SitePerformanceSummary",
+    "TechnicalMetricDetail",
+    "WebsiteTypeInfo",
     "create_site_analysis_service",
 ]

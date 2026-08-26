@@ -1,4 +1,4 @@
-"""Generic HTTP search provider (Phase 6K).
+"""Generic HTTP search provider (Phase 6K + AIO/GEO).
 
 Implements the ``SearchProvider`` protocol for any API that exposes a
 ``POST /search`` endpoint returning provider-neutral JSON results.
@@ -43,6 +43,13 @@ Lifecycle
 ---------
 The adapter manages its own ``httpx.AsyncClient`` when none is injected.
 Injected clients (for testing) are never closed by the adapter.
+
+AIO/GEO Support
+---------------
+The base ``HttpSearchProvider`` does NOT support AIO extraction or GEO queries
+because the generic contract does not define these endpoints.  Subclasses or
+specialized providers (like ``SerpApiProvider``) should override
+``supports_aio``, ``supports_geo``, ``extract_aio``, and ``query_geo``.
 """
 
 from __future__ import annotations
@@ -53,6 +60,8 @@ from urllib.parse import urlparse
 import httpx
 
 from sie.domain.models.search import SearchQuery
+from sie.domain.models.search_aio import AIOverviewObservation
+from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation
 from sie.domain.models.search_result import SearchResult, SearchResultItem
 from sie.domain.ports.search_provider import (
     SearchProviderAuthenticationError,
@@ -139,6 +148,16 @@ class HttpSearchProvider:
 
     # ── SearchProvider protocol ──────────────────────────────────────────
 
+    @property
+    def supports_aio(self) -> bool:
+        """Base HTTP provider does not support AIO (no standard contract)."""
+        return False
+
+    @property
+    def supports_geo(self) -> bool:
+        """Base HTTP provider does not support GEO (no standard contract)."""
+        return False
+
     async def search(self, query: SearchQuery) -> SearchResult:
         """Execute a search query and return provider-neutral results.
 
@@ -176,6 +195,26 @@ class HttpSearchProvider:
             raise SearchProviderError(f"Search API returned invalid JSON: {exc}") from exc
 
         return self._parse_response(query, data)
+
+    async def extract_aio(
+        self, query: SearchQuery, target_domain: str
+    ) -> AIOverviewObservation | None:
+        """Base HTTP provider does not support AIO extraction.
+
+        Returns None to indicate the capability is not available.
+        Subclasses should override if the upstream API supports AIO.
+        """
+        return None
+
+    async def query_geo(
+        self, query: SearchQuery, target_domain: str, engine_type: GenerativeEngineType
+    ) -> GEOObservation | None:
+        """Base HTTP provider does not support GEO queries.
+
+        Returns None to indicate the capability is not available.
+        Subclasses should override if the upstream API supports GEO.
+        """
+        return None
 
     async def close(self) -> None:
         """Release the internally-created HTTP client (if any)."""
