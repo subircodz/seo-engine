@@ -66,6 +66,7 @@ def _site_analysis_service(request: Request):
         content_service=request.app.state.content_service,
         search_provider=request.app.state.search_provider,
         repository=request.app.state.repository,
+        crux_service=request.app.state.crux_service,
     )
 
 

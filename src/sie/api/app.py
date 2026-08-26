@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from sie.api.routes import (
@@ -162,6 +163,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.state.search_provider = create_search_provider(settings.search_provider)
 
+        # CrUX service for real-user Core Web Vitals
+        from sie.infrastructure.crux import CruxService
+        app.state.crux_service = CruxService(
+            api_key=settings.crux.api_key if settings.crux.enabled else None,
+            timeout_seconds=settings.crux.timeout_seconds,
+        )
+
         logger.info("startup complete")
         yield
 
@@ -179,6 +187,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
+    # Add request ID middleware for correlation
+    app.add_middleware(RequestIdMiddleware)
+    
+    # Mount static files for favicon, robots.txt, etc.
+    import os
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    
     # Add request ID middleware for correlation
     app.add_middleware(RequestIdMiddleware)
     app.include_router(audit.router)

@@ -3,10 +3,165 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SEO - AIO - GEO Intelligence Engine: Comprehensive SEO intelligence platform for search ranking analysis, AI Overview (AIO) tracking, Generative Engine Optimization (GEO), competitor analysis, and automated PDF reporting.">
+    <meta name="theme-color" content="#60a5fa" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)">
     <title>{% block title %}SEO - AIO - GEO Intelligence Engine{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%2360a5fa'/><stop offset='100%' style='stop-color:%232563eb'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white' font-weight='bold' font-family='system-ui, sans-serif'>S</text></svg>">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%2360a5fa'/><stop offset='100%' style='stop-color:%232563eb'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white' font-weight='bold' font-family='system-ui, sans-serif'>S</text></svg>">
-    <style>
+    <link rel="sitemap" href="/sitemap.xml" type="application/xml" title="Sitemap">
+    <link rel="robots" href="/robots.txt" type="text/plain" title="Robots.txt">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="SEO - AIO - GEO Intelligence Engine">
+    <meta property="og:description" content="Comprehensive SEO intelligence platform for search ranking analysis, AI Overview (AIO) tracking, Generative Engine Optimization (GEO), competitor analysis, and automated PDF reporting.">
+    <meta property="og:url" content="https://seo-intelligence-engine.example.com/">
+    <meta property="og:image" content="https://seo-intelligence-engine.example.com/static/og-image.svg">
+    <meta property="og:site_name" content="SEO - AIO - GEO Intelligence Engine">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SEO - AIO - GEO Intelligence Engine">
+    <meta name="twitter:description" content="Comprehensive SEO intelligence platform for search ranking analysis, AI Overview (AIO) tracking, Generative Engine Optimization (GEO), competitor analysis, and automated PDF reporting.">
+    
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SEO - AIO - GEO Intelligence Engine",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Cloud",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "description": "Comprehensive SEO intelligence platform for search ranking analysis, AI Overview (AIO) tracking, Generative Engine Optimization (GEO), competitor analysis, and automated PDF reporting.",
+      "featureList": [
+        "Live SERP ranking collection",
+        "Technical SEO auditing",
+        "Content quality analysis",
+        "AI Overview (AIO) citation tracking",
+        "Generative Engine Optimization (GEO)",
+        "Competitor gap analysis",
+        "Automated PDF reporting",
+        "Search intent classification",
+        "SERP feature opportunity mapping",
+        "E-E-A-T signals analysis",
+        "Core Web Vitals monitoring",
+        "Content decay detection",
+        "Entity & Knowledge Graph alignment",
+        "Predictive ranking forecasts"
+      ],
+      "author": {
+        "@type": "Person",
+        "name": "Subir Sutradhar"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "SEO Intelligence Engine",
+        "url": "https://seo-intelligence-engine.example.com"
+      },
+      "datePublished": "2024-01-01",
+      "dateModified": "2024-08-26",
+      "url": "https://seo-intelligence-engine.example.com",
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://seo-intelligence-engine.example.com/"
+      }
+    }
+    </script>
+    
+    <!-- Breadcrumb JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://seo-intelligence-engine.example.com/"
+        }
+        {% if active_page != 'dashboard' %}
+        , {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "{{ active_page|title }}",
+          "item": "https://seo-intelligence-engine.example.com/{{ active_page }}"
+        }
+        {% endif %}
+      ]
+    }
+    </script>
+    
+    </head>
+        /* ── Accessibility Utilities ───────────────────────────────────── */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            z-index: 10000;
+            text-decoration: none;
+            transition: top var(--transition);
+        }
+        .skip-link:focus {
+            top: 16px;
+            outline: 3px solid var(--primary-glow);
+            outline-offset: 2px;
+        }
+        
+        /* Focus visible for keyboard navigation */
+        :focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: more) {
+            :root {
+                --glass-border: currentColor;
+                --nav-border: currentColor;
+            }
+            [data-theme="light"] {
+                --glass-border: currentColor;
+                --nav-border: currentColor;
+            }
+        }
+        
         /* ── Theme System ─────────────────────────────────────────────── */
         :root {
             --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -238,6 +393,12 @@
             color: var(--text);
         }
         label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
+        
+        /* Form error/success states */
+        .form-error { color: var(--danger); font-size: 0.8rem; margin-top: 4px; }
+        .form-hint { color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
+        input[aria-invalid="true"] { border-color: var(--danger); }
+        input[aria-invalid="true"]:focus { box-shadow: 0 0 0 3px var(--danger-dim); }
 
         /* ── Severity Borders ─────────────────────────────────────── */
         .severity-high { border-left: 4px solid var(--danger); }
@@ -266,34 +427,57 @@
             nav a { padding: 4px 8px; font-size: 0.8rem; }
         }
     </style>
-    {% block head %}{% endblock %}
-</head>
+    </head>
 <body>
-    <nav>
-        <a href="/" class="brand">SEO - AIO - GEO Intelligence Engine</a>
-        <a href="/" {% if active_page == 'dashboard' %}class="active"{% endif %}>Dashboard</a>
-        <a href="/site" {% if active_page == 'site' %}class="active"{% endif %}>Site Analysis</a>
-        <a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a>
-        <a href="/datasets" {% if active_page == 'datasets' %}class="active"{% endif %}>Datasets</a>
-        <a href="/intelligence" {% if active_page == 'intelligence' %}class="active"{% endif %}>Intelligence</a>
-        <a href="/industry" {% if active_page == 'industry' %}class="active"{% endif %}>Industry</a>
-        <a href="/reports" {% if active_page == 'reports' %}class="active"{% endif %}>Reports</a>
-        <span class="spacer"></span>
-        <a href="/docs" target="_blank">API</a>
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-            <span id="theme-icon">&#9790;</span>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <nav role="navigation" aria-label="Main navigation">
+        <a href="/" class="brand" aria-label="SEO - AIO - GEO Intelligence Engine - Home">SEO - AIO - GEO Intelligence Engine</a>
+        <div role="group" aria-label="Main navigation links">
+            <a href="/" {% if active_page == 'dashboard' %}class="active" aria-current="page"{% endif %}>Dashboard</a>
+            <a href="/site" {% if active_page == 'site' %}class="active" aria-current="page"{% endif %}>Site Analysis</a>
+            <a href="/search" {% if active_page == 'search' %}class="active" aria-current="page"{% endif %}>Search</a>
+            <a href="/datasets" {% if active_page == 'datasets' %}class="active" aria-current="page"{% endif %}>Datasets</a>
+            <a href="/intelligence" {% if active_page == 'intelligence' %}class="active" aria-current="page"{% endif %}>Intelligence</a>
+            <a href="/industry" {% if active_page == 'industry' %}class="active" aria-current="page"{% endif %}>Industry</a>
+            <a href="/reports" {% if active_page == 'reports' %}class="active" aria-current="page"{% endif %}>Reports</a>
+        </div>
+        <span class="spacer" aria-hidden="true"></span>
+        <a href="/docs" target="_blank" rel="noopener noreferrer">API</a>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark/light theme" aria-pressed="false" type="button">
+            <span id="theme-icon" aria-hidden="true">&#9790;</span>
+            <span class="sr-only" id="theme-label">Toggle theme</span>
         </button>
     </nav>
-    <main class="container">
+    <main id="main-content" class="container" role="main">
         {% block content %}{% endblock %}
     </main>
-    <footer>
-        SEO Intelligence Engine &middot; &copy; 2026 Subir Sutradhar &middot; <a href="/health">Health</a> &middot; <a href="/docs">API Docs</a>
+    <footer role="contentinfo">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; max-width: 1200px; margin: 0 auto; padding: 24px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                <span style="font-weight: 600;">SEO - AIO - GEO Intelligence Engine</span>
+                <span>&copy; 2024-2026 Subir Sutradhar</span>
+            </div>
+            <nav aria-label="Footer navigation">
+                <ul style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; list-style: none; margin: 0; padding: 0;">
+                    <li><a href="/health" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;">Health</a></li>
+                    <li><a href="/docs" target="_blank" rel="noopener noreferrer" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;">API Docs</a></li>
+                    <li><a href="/sitemap.xml" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;">Sitemap</a></li>
+                    <li><a href="/robots.txt" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;">Robots.txt</a></li>
+                </ul>
+            </nav>
+        </div>
+        <div style="border-top: 1px solid var(--glass-border); margin-top: 16px; padding-top: 16px; text-align: center; font-size: 0.75rem; color: var(--text-muted);">
+            Built with FastAPI, Jinja2, SQLAlchemy, and modern SEO intelligence. Open source under Apache 2.0.
+        </div>
     </footer>
     <script>
         (function() {
             var saved = localStorage.getItem('sie-theme');
-            if (saved) { document.documentElement.setAttribute('data-theme', saved); updateIcon(saved); }
+            if (saved) { 
+                document.documentElement.setAttribute('data-theme', saved); 
+                updateIcon(saved); 
+                updateAriaPressed(saved);
+            }
         })();
         function toggleTheme() {
             var current = document.documentElement.getAttribute('data-theme');
@@ -301,10 +485,15 @@
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('sie-theme', next);
             updateIcon(next);
+            updateAriaPressed(next);
         }
         function updateIcon(theme) {
             var el = document.getElementById('theme-icon');
             if (el) el.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
+        }
+        function updateAriaPressed(theme) {
+            var btn = document.querySelector('.theme-toggle');
+            if (btn) btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     </script>
     {% block scripts %}{% endblock %}

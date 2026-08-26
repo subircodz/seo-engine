@@ -9,55 +9,66 @@
         current rankings, AI Overview (AIO) analysis, Generative Engine (GEO) analysis,
         and prioritized recommendations to dominate search results.
     </p>
-    <div class="grid grid-4" style="margin-top: 12px;">
-        <div style="grid-column: span 2;">
-            <label>Website Domain</label>
-            <input type="text" id="input-domain" placeholder="example.com or https://example.com">
+    <form id="site-analysis-form" onsubmit="event.preventDefault(); analyzeSite();">
+        <div class="grid grid-4" style="margin-top: 12px;">
+            <div style="grid-column: span 2;">
+                <label for="input-domain">Website Domain</label>
+                <input type="url" id="input-domain" name="domain" placeholder="example.com or https://example.com" autocomplete="url" required aria-describedby="domain-hint">
+                <span id="domain-hint" class="form-hint">Enter a domain (e.g., example.com or https://example.com)</span>
+            </div>
+            <div>
+                <label for="input-max-pages">Max Pages to Crawl</label>
+                <input type="number" id="input-max-pages" name="max_pages" value="100" min="1" max="500" aria-describedby="max-pages-hint">
+                <span id="max-pages-hint" class="form-hint">Maximum pages to crawl (1-500)</span>
+            </div>
+            <div>
+                <label for="input-max-keywords">Max Keywords to Check</label>
+                <input type="number" id="input-max-keywords" name="max_keywords" value="50" min="1" max="200" aria-describedby="max-keywords-hint">
+                <span id="max-keywords-hint" class="form-hint">Maximum keywords to analyze (1-200)</span>
+            </div>
         </div>
-        <div>
-            <label>Max Pages to Crawl</label>
-            <input type="number" id="input-max-pages" value="100" min="1" max="500">
+        <div class="grid grid-4" style="margin-top: 12px;">
+            <div>
+                <label for="input-country">Country</label>
+                <select id="input-country" name="country" aria-describedby="country-hint">
+                </select>
+                <span id="country-hint" class="form-hint">Target country for search results</span>
+            </div>
+            <div>
+                <label for="input-device">Device</label>
+                <select id="input-device" name="device" aria-describedby="device-hint">
+                    <option value="desktop">Desktop</option>
+                    <option value="mobile">Mobile</option>
+                </select>
+                <span id="device-hint" class="form-hint">Device type for search results</span>
+            </div>
+            <div>
+                <label for="input-competitors">Competitors (optional)</label>
+                <input type="text" id="input-competitors" name="competitors" placeholder="competitor1.com, competitor2.com" autocomplete="off" aria-describedby="competitors-hint">
+                <small id="competitors-hint" class="form-hint">Comma-separated domains</small>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button type="submit" class="btn btn-primary" id="analyze-btn">Analyze Site</button>
+            </div>
         </div>
-        <div>
-            <label>Max Keywords to Check</label>
-            <input type="number" id="input-max-keywords" value="50" min="1" max="200">
-        </div>
-    </div>
-    <div class="grid grid-4" style="margin-top: 12px;">
-        <div>
-            <label>Country</label>
-            <select id="input-country"></select>
-        </div>
-        <div>
-            <label>Device</label>
-            <select id="input-device">
-                <option value="desktop">Desktop</option>
-                <option value="mobile">Mobile</option>
-            </select>
-        </div>
-        <div>
-            <label>Competitors (optional)</label>
-            <input type="text" id="input-competitors" placeholder="competitor1.com, competitor2.com">
-            <small style="color: var(--text-muted);">Comma-separated domains</small>
-        </div>
-        <div style="display: flex; align-items: flex-end;">
-            <button class="btn btn-primary" onclick="analyzeSite()" id="analyze-btn">Analyze Site</button>
-        </div>
-    </div>
-    <div class="grid grid-4" style="margin-top: 12px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <input type="checkbox" id="input-deep-aio" checked>
-            <label for="input-deep-aio" style="margin: 0; font-weight: 500;">Deep AI Overview (AIO) Analysis</label>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <input type="checkbox" id="input-deep-geo" checked>
-            <label for="input-deep-geo" style="margin: 0; font-weight: 500;">Deep Generative Engine (GEO) Analysis</label>
-        </div>
-        <div></div>
-        <div style="display: flex; align-items: flex-end;">
-            <button class="btn btn-secondary" onclick="downloadPdf()" id="pdf-btn" disabled style="display: none;">Download PDF Report</button>
-        </div>
-    </div>
+        <fieldset style="margin-top: 12px; border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 12px;">
+            <legend style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">Advanced Options</legend>
+            <div class="grid grid-4" style="margin-top: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="input-deep-aio" name="deep_aio" checked>
+                    <label for="input-deep-aio" style="margin: 0; font-weight: 500;">Deep AI Overview (AIO) Analysis</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="input-deep-geo" name="deep_geo" checked>
+                    <label for="input-deep-geo" style="margin: 0; font-weight: 500;">Deep Generative Engine (GEO) Analysis</label>
+                </div>
+                <div></div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="downloadPdf()" id="pdf-btn" disabled style="display: none;" aria-disabled="true">Download PDF Report</button>
+                </div>
+            </div>
+        </fieldset>
+    </form>
 </div>
 
 <div id="analysis-status" style="display: none;"></div>

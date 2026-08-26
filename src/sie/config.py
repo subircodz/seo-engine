@@ -144,6 +144,30 @@ class SearchProviderSettings(BaseModel):
             f"timeout_seconds={self.timeout_seconds!r})"
         )
 
+
+class CruxSettings(BaseModel):
+    """Chrome User Experience Report (CrUX) API configuration.
+
+    All values are read from environment variables prefixed with
+    ``SIE_CRUX__``.
+
+    The CrUX API provides real-user Core Web Vitals data from Chrome users.
+    Requires a Google Cloud API key with Chrome UX Report API enabled.
+    """
+
+    enabled: bool = False
+    api_key: str = ""
+    timeout_seconds: float = Field(default=10.0, gt=0)
+    form_factor: str = "PHONE"  # PHONE, DESKTOP, TABLET
+
+    def __repr__(self) -> str:
+        key_display = "'***'" if self.api_key else "''"
+        return (
+            f"CruxSettings(enabled={self.enabled!r}, "
+            f"api_key={key_display}, "
+            f"timeout_seconds={self.timeout_seconds!r})"
+        )
+
     def __str__(self) -> str:
         """Mask the API key to prevent accidental secret leakage in logs."""
         return self.__repr__()
@@ -208,6 +232,7 @@ class Settings(BaseSettings):
     content: ContentSettings = Field(default_factory=ContentSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search_provider: SearchProviderSettings = Field(default_factory=SearchProviderSettings)
+    crux: CruxSettings = Field(default_factory=CruxSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     api: APISettings = Field(default_factory=APISettings)
     limits: LimitSettings = Field(default_factory=LimitSettings)

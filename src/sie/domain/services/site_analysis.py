@@ -48,6 +48,13 @@ from sie.domain.services.search_intelligence import (
     RecommendationPriority,
 )
 from sie.domain.services.search_opportunity import SearchOpportunityService
+from sie.domain.models.search_entity import (
+    EntitySignal,
+    EntityCategory,
+    EntityVisibilityResult,
+    EntityDatasetResult,
+    TopicCluster,
+)
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
 from sie.logging import get_logger
@@ -154,9 +161,9 @@ class SiteAnalysisResult:
     content_score: float
     ranking_score: float
     architecture_score: float
-    aio_score: float
-    geo_score: float
-    overall_score: float
+    aio_score: float = 0.0
+    geo_score: float = 0.0
+    overall_score: float = 0.0
 
     # Detailed sections
     rankings: SiteRankingSnapshot | None = None
@@ -186,6 +193,7 @@ class SiteAnalysisService:
         content_service: ContentService,
         search_provider: SearchProvider,
         repository: CrawlRunRepository,
+        crux_service: CruxService | None = None,
         collection_source: str = "site-analysis",
     ) -> None:
         self._crawl_service = crawl_service
@@ -193,6 +201,7 @@ class SiteAnalysisService:
         self._content_service = content_service
         self._search_provider = search_provider
         self._repository = repository
+        self._crux_service = crux_service
 
         self._collection_service = SearchCollectionService(
             search_provider,
@@ -813,6 +822,95 @@ class SiteAnalysisService:
     # ══════════════════════════════════════════════════════════════════════
     # Dataset & Observation Builders
     # ══════════════════════════════════════════════════════════════════════
+    async def _analyze_entity_knowledge_graph(
+        self,
+        crawl_pages: list,
+        target_keywords: list[str],
+        country: str = "us",
+        device: str = "desktop",
+    ) -> SiteEntityKnowledgeGraphAnalysis:
+        """Analyze entity knowledge graph for a domain."""
+        try:
+            from sie.domain.engines.search_entity import extract_entities
+            from collections import Counter
+
+            all_entities = Counter()
+            entity_types = Counter()
+            wiki_aligned = 0
+            wikidata_aligned = 0
+
+            for page in crawl_pages[:30]:
+                if not page.is_html:
+                    continue
+                try:
+                    text = page.decoded_text()
+                    if len(text) < 300:
+                        continue
+                    entities = extract_entities(text)
+                    for entity in entities:
+                        all_entities[entity.name.lower()] += 1
+                        entity_types[entity.category] += 1
+                        if entity.wikipedia_url:
+                            wiki_aligned += 1
+                        if entity.wikidata_id:
+                            wikidata_aligned += 1
+                except Exception:
+                    pass
+
+            unique = len(all_entities)
+            coverage = min(1.0, unique / max(len(target_keywords), 1) * 2)
+
+            salience = {k: v / sum(all_entities.values()) for k, v in all_entities.most_common(20)}
+
+            relationships = []
+            for i, page in enumerate(crawl_pages[:20]):
+                if not page.is_html:
+                    continue
+                try:
+                    entities = extract_entities(page.decoded_text())
+                    names = [e.name.lower() for e in entities]
+                    for a, b in zip(names, names[1:]):
+                        if a != b:
+                            relationships.append({'source': a, 'target': b, 'page': page.url})
+                except Exception:
+                    pass
+
+            expected_types = ['Person', 'Organization', 'Place', 'Event', 'Product', 'CreativeWork']
+            missing = [t for t in expected_types if t not in entity_types]
+
+            recommendations = []
+            if wiki_aligned == 0:
+                recommendations.append('No Wikipedia-aligned entities found - add notable entities with Wikipedia links')
+            if wikidata_aligned == 0:
+                recommendations.append('No Wikidata-aligned entities - add structured data with sameAs to Wikidata')
+            if missing:
+                recommendations.append(f'Missing entity types: {", ".join(missing)} - add content covering these types')
+
+            return SiteEntityKnowledgeGraphAnalysis(
+                entities_extracted=sum(all_entities.values()),
+                unique_entities=len(all_entities),
+                entity_types=dict(entity_types),
+                wikipedia_aligned=wiki_aligned,
+                wikidata_aligned=wikidata_aligned,
+                knowledge_graph_coverage=coverage,
+                entity_salience_scores=salience,
+                missing_entity_types=missing,
+                entity_relationships=relationships[:50],
+                entity_gaps_vs_competitors=[],
+                schema_entity_alignment=0.5,
+                recommendations=recommendations,
+                score=score,
+            )
+
+        except Exception as e:
+            logger.warning("Entity/Knowledge Graph analysis failed: %s", e)
+            return SiteEntityKnowledgeGraphAnalysis(
+                entities_extracted=0, unique_entities=0, entity_types={},
+                wikipedia_aligned=0, wikidata_aligned=0, knowledge_graph_coverage=0,
+                entity_salience_scores={}, missing_entity_types=[],
+                entity_relationships=[], entity_gaps_vs_competitors=[],
+                schema_entity_alignment=0, recommendations=[], score=0.0,
+            )
 
     def _build_dataset_from_rankings(
         self, domain: str, snapshot: SiteRankingSnapshot
@@ -1340,6 +1438,7 @@ def create_site_analysis_service(
     content_service: ContentService,
     search_provider: SearchProvider,
     repository: CrawlRunRepository,
+    crux_service: CruxService | None = None,
 ) -> SiteAnalysisService:
     return SiteAnalysisService(
         crawl_service=crawl_service,
@@ -1347,6 +1446,7 @@ def create_site_analysis_service(
         content_service=content_service,
         search_provider=search_provider,
         repository=repository,
+        crux_service=crux_service,
     )
 
 

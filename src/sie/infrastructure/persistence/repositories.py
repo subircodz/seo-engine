@@ -1647,3 +1647,169 @@ class SqlAlchemyCrawlRunRepository:
                 findings=tuple(findings),
                 opportunities=tuple(opportunities),
             )
+
+    # ── Site Analysis Results persistence ─────────────────────────────────
+
+    async def save_site_analysis_result(self, result) -> str:
+        """Save a site analysis result for historical comparison."""
+        import uuid
+        from sie.infrastructure.models.crawl_orm import SiteAnalysisResultRow
+
+        analysis_id = uuid.uuid4().hex[:32]
+
+        # Calculate overall grade
+        score = result.overall_score
+        if score >= 97:
+            grade = "A+"
+        elif score >= 93:
+            grade = "A"
+        elif score >= 90:
+            grade = "A-"
+        elif score >= 87:
+            grade = "B+"
+        elif score >= 83:
+            grade = "B"
+        elif score >= 80:
+            grade = "B-"
+        elif score >= 77:
+            grade = "C+"
+        elif score >= 73:
+            grade = "C"
+        elif score >= 70:
+            grade = "C-"
+        elif score >= 67:
+            grade = "D+"
+        elif score >= 63:
+            grade = "D"
+        elif score >= 60:
+            grade = "D-"
+        else:
+            grade = "F"
+
+        # Serialize result to JSON
+        import json
+        from dataclasses import asdict
+
+        def serialize(obj):
+            if hasattr(obj, '__dataclass_fields__'):
+                return {k: serialize(v) for k, v in asdict(obj).items() if v is not None}
+            elif isinstance(obj, (list, tuple)):
+                return [serialize(v) for v in obj]
+            elif isinstance(obj, dict):
+                return {k: serialize(v) for k, v in obj.items() if v is not None}
+            elif hasattr(obj, 'value'):  # Enum
+                return obj.value
+            elif hasattr(obj, 'isoformat'):  # datetime
+                return obj.isoformat()
+            return obj
+
+        analysis_json = serialize(result)
+
+        row = SiteAnalysisResultRow(
+            id=analysis_id,
+            crawl_run_id=result.crawl_run_id or "",
+            domain=result.domain,
+            analyzed_at=result.analyzed_at,
+            overall_score=result.overall_score,
+            technical_score=result.technical_score,
+            content_score=result.content_score,
+            ranking_score=result.ranking_score,
+            architecture_score=result.architecture_score,
+            aio_score=result.aio_score,
+            geo_score=result.geo_score,
+            javascript_score=result.javascript.score if result.javascript else 0.0,
+            structured_data_score=result.structured_data.score if result.structured_data else 0.0,
+            core_web_vitals_score=result.core_web_vitals.score if result.core_web_vitals else 0.0,
+            semantic_coverage_score=result.semantic_coverage.score if result.semantic_coverage else 0.0,
+            internal_link_equity_score=result.internal_link_equity.score if result.internal_link_equity else 0.0,
+            search_intent_score=result.search_intent.score if result.search_intent else 0.0,
+            serp_features_score=result.serp_features.score if result.serp_features else 0.0,
+            competitor_gaps_score=result.competitor_gaps.score if result.competitor_gaps else 0.0,
+            indexation_score=result.indexation.score if result.indexation else 0.0,
+            eeat_score=result.eeat.score if result.eeat else 0.0,
+            content_decay_score=result.content_decay.score if result.content_decay else 0.0,
+            entity_kg_score=result.entity_knowledge_graph.score if result.entity_knowledge_graph else 0.0,
+            advanced_competitor_score=result.advanced_competitor_intelligence.score if result.advanced_competitor_intelligence else 0.0,
+            hreflang_score=result.hreflang_international.score if result.hreflang_international else 0.0,
+            advanced_link_score=result.advanced_link_intelligence.score if result.advanced_link_intelligence else 0.0,
+            predictive_ranking_score=result.predictive_ranking.score if result.predictive_ranking else 0.0,
+            rag_optimization_score=result.rag_optimization.score if result.rag_optimization else 0.0,
+            content_quality_adv_score=result.content_quality_advanced.score if result.content_quality_advanced else 0.0,
+            pagination_faceted_score=result.pagination_faceted.score if result.pagination_faceted else 0.0,
+            amp_score=result.amp.score if result.amp else 0.0,
+            overall_grade=grade,
+            analysis_json=analysis_json,
+            crux_lcp=result.core_web_vitals.lcp_estimate_ms if result.core_web_vitals else None,
+            crux_fid=result.core_web_vitals.fid_estimate_ms if result.core_web_vitals else None,
+            crux_cls=result.core_web_vitals.cls_estimate if result.core_web_vitals else None,
+            crux_inp=result.core_web_vitals.fid_estimate_ms if result.core_web_vitals else None,  # INP not directly available
+            crux_ttfb=result.core_web_vitals.ttfb_estimate_ms if result.core_web_vitals else None,
+        )
+
+        async with self._sf() as session:
+            session.add(row)
+            await session.commit()
+        return analysis_id
+
+    async def get_site_analysis_history(self, domain: str, limit: int = 10):
+        """Get historical analysis results for a domain."""
+        from sie.infrastructure.models.crawl_orm import SiteAnalysisResultRow
+        from sqlalchemy import desc
+
+        async with self._sf() as session:
+            stmt = (
+                select(SiteAnalysisResultRow)
+                .where(SiteAnalysisResultRow.domain == domain)
+                .order_by(desc(SiteAnalysisResultRow.analyzed_at))
+                .limit(limit)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+            return rows
+
+    async def get_site_analysis_by_id(self, analysis_id: str):
+        """Get a specific analysis result by ID."""
+        from sie.infrastructure.models.crawl_orm import SiteAnalysisResultRow
+
+        async with self._sf() as session:
+            stmt = select(SiteAnalysisResultRow).where(SiteAnalysisResultRow.id == analysis_id)
+            return (await session.execute(stmt)).scalar_one_or_none()
+
+    async def compare_site_analysis(self, domain: str, current_id: str, previous_id: str):
+        """Compare two analysis results for a domain."""
+        current = await self.get_site_analysis_by_id(current_id)
+        previous = await self.get_site_analysis_by_id(previous_id)
+
+        if not current or not previous:
+            return None
+
+        return {
+            "domain": domain,
+            "current": self._row_to_summary(current),
+            "previous": self._row_to_summary(previous),
+            "score_changes": {
+                "overall": current.overall_score - previous.overall_score,
+                "technical": current.technical_score - previous.technical_score,
+                "content": current.content_score - previous.content_score,
+                "ranking": current.ranking_score - previous.ranking_score,
+                "architecture": current.architecture_score - previous.architecture_score,
+                "aio": current.aio_score - previous.aio_score,
+                "geo": current.geo_score - previous.geo_score,
+            },
+            "grade_change": f"{previous.overall_grade} → {current.overall_grade}",
+            "days_between": (current.analyzed_at - previous.analyzed_at).days,
+        }
+
+    def _row_to_summary(self, row):
+        """Convert a row to a summary dict."""
+        return {
+            "id": row.id,
+            "analyzed_at": row.analyzed_at.isoformat() if row.analyzed_at else None,
+            "overall_score": row.overall_score,
+            "overall_grade": row.overall_grade,
+            "technical_score": row.technical_score,
+            "content_score": row.content_score,
+            "ranking_score": row.ranking_score,
+            "architecture_score": row.architecture_score,
+            "aio_score": row.aio_score,
+            "geo_score": row.geo_score,
+        }
