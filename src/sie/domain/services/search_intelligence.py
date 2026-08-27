@@ -21,7 +21,9 @@ from enum import StrEnum
 
 from sie.domain.engines.search_analytics import analyze_search_dataset
 from sie.domain.models.search import CompetitorRanking, RankingObservation, SearchDataset
+from sie.domain.models.search_aio import AIOverviewResult
 from sie.domain.models.search_analytics import SearchAnalyticsResult
+from sie.domain.models.search_geo import GEOResult
 from sie.domain.services.cannibalization import (
     CannibalizationDetector,
     CannibalizationFinding,
@@ -31,6 +33,7 @@ from sie.domain.services.ranking_volatility import (
     RankingVolatilityService,
 )
 from sie.domain.services.search_opportunity import SearchOpportunityResult, SearchOpportunityService
+from sie.domain.services.search_trends import calculate_aio_trend, calculate_geo_trend
 
 
 class RecommendationPriority(StrEnum):
@@ -125,6 +128,8 @@ class SearchIntelligenceService:
         observations: tuple[RankingObservation, ...],
         competitor_rankings: tuple[CompetitorRanking, ...],
         target_domain: str = "",
+        aio_result: AIOverviewResult | None = None,
+        geo_result: GEOResult | None = None,
     ) -> SearchIntelligenceResult:
         """Run full search intelligence analysis and produce recommendations.
 
@@ -152,6 +157,8 @@ class SearchIntelligenceService:
             cannibalization_findings,
             volatility_metrics,
             opportunity_result,
+            aio_result=aio_result,
+            geo_result=geo_result,
         )
 
         # 6. Build summary
@@ -216,6 +223,8 @@ class SearchIntelligenceService:
         cannibalization: tuple[CannibalizationFinding, ...],
         volatility_metrics: tuple[RankingVolatilityMetrics, ...],
         opportunities: SearchOpportunityResult | None,
+        aio_result: AIOverviewResult | None = None,
+        geo_result: GEOResult | None = None,
     ) -> list[SearchRecommendation]:
         """Build prioritised recommendations from all intelligence components."""
         recs: list[SearchRecommendation] = []
@@ -427,6 +436,18 @@ class SearchIntelligenceService:
                 )
             )
 
+        # ── AIO recommendations ──
+        if aio_result:
+            self._add_aio_recommendations(recs, aio_result)
+
+        # ── GEO recommendations ──
+        if geo_result:
+            self._add_geo_recommendations(recs, geo_result)
+
+        # ── Cross-engine recommendations ──
+        if aio_result and geo_result:
+            self._add_cross_engine_recommendations(recs, aio_result, geo_result)
+
         # Sort by priority (critical first) then confidence
         priority_order = {
             RecommendationPriority.CRITICAL: 0,
@@ -438,6 +459,236 @@ class SearchIntelligenceService:
 
         return recs
 
+    def _add_aio_recommendations(
+        self,
+        recs: list[SearchRecommendation],
+        aio_result: AIOverviewResult,
+    ) -> None:
+        """Add AIO-specific recommendations based on observations."""
+        dm = aio_result.dataset_metrics
+
+        # AIO presence but target not cited
+        if dm.keywords_with_ai_overview > 0 and dm.keywords_target_cited == 0:
+            competitors = (
+                ", ".join(dm.competitor_cited_domains)
+                if dm.competitor_cited_domains
+                else "none"
+            )
+            recs.append(
+                SearchRecommendation(
+                    category=RecommendationCategory.AIO,
+                    priority=RecommendationPriority.HIGH,
+                    title="AI Overviews present but site not cited",
+                    description=(
+                        f"AI Overviews appear for {dm.keywords_with_ai_overview} target keywords "
+                        f"but the target domain is not cited in any. "
+                        f"Competitors cited: {competitors}. "
+                        f"Create authoritative content that directly answers these queries."
+                    ),
+                    supporting_metrics={
+                        "keywords_with_ai_overview": dm.keywords_with_ai_overview,
+                        "target_cited_count": dm.keywords_target_cited,
+                        "competitor_cited_domains": list(dm.competitor_cited_domains),
+                    },
+                    confidence=0.85,
+                )
+            )
+
+        # Low citation rate despite AIO presence
+        elif dm.keywords_with_ai_overview > 0 and dm.target_citation_rate < 0.3:
+            recs.append(
+                SearchRecommendation(
+                    category=RecommendationCategory.AIO,
+                    priority=RecommendationPriority.MEDIUM,
+                    title="Low AIO citation rate",
+                    description=(
+                        f"AI Overviews appear for {dm.keywords_with_ai_overview} keywords "
+                        f"but target is only cited in {dm.target_citation_rate:.0%} of them. "
+                        f"Competitors are cited more frequently."
+                    ),
+                    supporting_metrics={
+                        "target_citation_rate": dm.target_citation_rate,
+                        "competitor_cited_domains": list(dm.competitor_cited_domains),
+                    },
+                    confidence=0.75,
+                )
+            )
+
+        # Competitors cited in AIO
+        if dm.competitor_cited_domains:
+            # competitor_cited_domains is a tuple of unique domain names cited across observations.
+            # No per-competitor citation count is available at dataset level, so we report all.
+            cited_comps = list(dm.competitor_cited_domains)
+            recs.append(
+                SearchRecommendation(
+                    category=RecommendationCategory.AIO,
+                    priority=RecommendationPriority.MEDIUM,
+                    title=f"{len(cited_comps)} competitor(s) cited in AI Overviews",
+                    description=(
+                        f"Competitors cited in AI Overviews: {', '.join(cited_comps)}. "
+                        f"Analyze their content structure and authority signals."
+                    ),
+                    supporting_metrics={
+                        "competitor_count": len(cited_comps),
+                        "all_cited_competitors": cited_comps,
+                    },
+                    confidence=0.7,
+                )
+            )
+
+    def _add_geo_recommendations(
+        self,
+        recs: list[SearchRecommendation],
+        geo_result: GEOResult,
+    ) -> None:
+        """Add GEO-specific recommendations based on observations."""
+        dm = geo_result.dataset_metrics
+        competitor_counts = dm.competitor_domain_counts
+        total_competitor_mentions = sum(competitor_counts.values()) if competitor_counts else 0
+
+        # Target not mentioned but competitors are
+        if dm.keywords_target_mentioned == 0 and total_competitor_mentions > 0:
+            top_comps = ", ".join(list(competitor_counts.keys())[:3])
+            recs.append(
+                SearchRecommendation(
+                    category=RecommendationCategory.GEO,
+                    priority=RecommendationPriority.HIGH,
+                    title="Target not mentioned in generative engines",
+                    description=(
+                        f"Target brand not mentioned in any of {dm.total_keywords} "
+                        f"queries across generative engines, while competitors mentioned "
+                        f"{total_competitor_mentions} times. "
+                        f"Top competitors: {top_comps}."
+                    ),
+                    supporting_metrics={
+                        "target_mentioned_count": dm.keywords_target_mentioned,
+                        "competitor_mentioned_count": total_competitor_mentions,
+                        "top_competitors": list(competitor_counts.keys())[:5],
+                    },
+                    confidence=0.85,
+                )
+            )
+
+        # Target mentioned but low mention rate
+        elif dm.overall_mention_rate > 0 and dm.overall_mention_rate < 0.3:
+            recs.append(
+                SearchRecommendation(
+                    category=RecommendationCategory.GEO,
+                    priority=RecommendationPriority.MEDIUM,
+                    title="Low GEO mention rate",
+                    description=(
+                        f"Target mentioned in only {dm.overall_mention_rate:.0%} "
+                        f"of queries. Competitors mentioned more frequently."
+                    ),
+                    supporting_metrics={
+                        "mention_rate": dm.overall_mention_rate,
+                        "competitor_mention_rate": total_competitor_mentions
+                        / max(dm.total_keywords, 1),
+                    },
+                    confidence=0.7,
+                )
+            )
+
+        # Competitors heavily mentioned
+        if dm.competitor_domain_counts:
+            top_comp = max(
+                dm.competitor_domain_counts.items(),
+                key=lambda x: x[1],
+                default=(None, 0),
+            )
+            if top_comp[0]:
+                recs.append(
+                    SearchRecommendation(
+                        category=RecommendationCategory.GEO,
+                        priority=RecommendationPriority.MEDIUM,
+                        title=f"Competitor {top_comp[0]} dominates GEO mentions",
+                        description=(
+                            f"Competitor {top_comp[0]} mentioned {top_comp[1]} times "
+                            f"across {dm.total_keywords} queries. "
+                            f"Analyze their content strategy for GEO visibility."
+                        ),
+                        supporting_metrics={
+                            "competitor": top_comp[0],
+                            "mention_count": top_comp[1],
+                        },
+                        confidence=0.7,
+                    )
+                )
+
+    def _add_cross_engine_recommendations(
+        self,
+        recs: list[SearchRecommendation],
+        aio_result: AIOverviewResult,
+        geo_result: GEOResult,
+    ) -> None:
+        """Add cross-engine recommendations combining AIO and GEO insights."""
+        aio_dm = aio_result.dataset_metrics
+        geo_dm = geo_result.dataset_metrics
+
+        # Cross-engine: AIO citation gap + GEO mention gap for same queries
+        if aio_result.dataset_id and geo_result.dataset_id:
+            aio_gap_keywords = {
+                km.keyword
+                for km in aio_result.keyword_metrics
+                if km.ai_overview_present_count > 0 and km.target_cited_count == 0
+            }
+            geo_gap_keywords = {
+                km.keyword
+                for km in geo_result.keyword_metrics
+                if km.target_mentioned_count == 0 and km.competitor_mentioned_count > 0
+            }
+
+            cross_gap = aio_gap_keywords & geo_gap_keywords
+            if cross_gap:
+                priority_queries = ", ".join(list(cross_gap)[:5])
+                desc = (
+                    f"{len(cross_gap)} queries have AI Overviews without target citation "
+                    f"AND target not mentioned in generative engines while competitors appear. "
+                    f"Priority queries: {priority_queries}"
+                )
+                recs.append(
+                    SearchRecommendation(
+                        category=RecommendationCategory.OPPORTUNITY,
+                        priority=RecommendationPriority.HIGH,
+                        title="Cross-engine visibility gap",
+                        description=desc,
+                        affected_keywords=tuple(cross_gap),
+                        supporting_metrics={
+                            "cross_gap_count": len(cross_gap),
+                            "aio_gap_count": len(aio_gap_keywords),
+                            "geo_gap_count": len(geo_gap_keywords),
+                        },
+                        confidence=0.85,
+                    )
+                )
+
+        # AIO citation rate + GEO mention rate correlation
+        aio_kw_count = aio_dm.keywords_with_ai_overview
+        geo_kw_count = geo_dm.keywords_target_mentioned
+        if aio_kw_count > 0 and geo_kw_count > 0:
+            aio_citation_rate = aio_dm.target_citation_rate
+            geo_mention_rate = geo_dm.overall_mention_rate
+
+            if aio_citation_rate < 0.3 and geo_mention_rate < 0.3:
+                recs.append(
+                    SearchRecommendation(
+                        category=RecommendationCategory.OPPORTUNITY,
+                        priority=RecommendationPriority.MEDIUM,
+                        title="Low visibility across both AIO and GEO",
+                        description=(
+                            f"Low AIO citation rate ({aio_citation_rate:.0%}) "
+                            f"and low GEO mention rate ({geo_mention_rate:.0%}). "
+                            f"Content strategy should address both AI Overview citations "
+                            f"and generative engine visibility."
+                        ),
+                        supporting_metrics={
+                            "aio_citation_rate": aio_citation_rate,
+                            "geo_mention_rate": geo_mention_rate,
+                        },
+                        confidence=0.7,
+                    )
+                )
+
 
 __all__ = [
     "RecommendationCategory",
@@ -446,4 +697,6 @@ __all__ = [
     "SearchIntelligenceService",
     "SearchIntelligenceSummary",
     "SearchRecommendation",
+    "calculate_aio_trend",
+    "calculate_geo_trend",
 ]

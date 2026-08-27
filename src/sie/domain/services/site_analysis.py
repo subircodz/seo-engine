@@ -20,7 +20,6 @@ from urllib.parse import urlparse
 
 from sie.domain.engines.search_aio import analyze_aio_observations
 from sie.domain.engines.search_geo import analyze_geo_observations
-from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewType, AIOCitation, CitationSource
 from sie.domain.models.audit import SiteArchitectureReport, TechnicalAuditResult
 from sie.domain.models.content import ContentQualityReport
 from sie.domain.models.search import (
@@ -30,7 +29,8 @@ from sie.domain.models.search import (
     SearchDevice,
     SearchQuery,
 )
-from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation, EntityMention, EntityType
+from sie.domain.models.search_aio import AIOverviewResult
+from sie.domain.models.search_geo import GenerativeEngineType, GEOResult
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
 from sie.infrastructure.search.provider_registry import ProviderRegistry
@@ -622,8 +622,9 @@ class SiteAnalysisService:
 
         # AIO analysis for this country
         aio_analysis = None
+        aio_result = None
         try:
-            aio_analysis = await self._analyze_aio(
+            aio_analysis, aio_result = await self._analyze_aio(
                 domain, target_keywords, country_code, device
             )
         except Exception:
@@ -631,8 +632,9 @@ class SiteAnalysisService:
 
         # GEO analysis for this country
         geo_analysis = None
+        geo_result = None
         try:
-            geo_analysis = await self._analyze_geo(
+            geo_analysis, geo_result = await self._analyze_geo(
                 domain, target_keywords, country_code, device
             )
         except Exception:
@@ -826,15 +828,17 @@ class SiteAnalysisService:
 
         # ─── Step 5: Analyze AIO (AI Overview) presence ───
         aio_analysis = None
+        aio_result = None
         if deep_aio and target_keywords:
-            aio_analysis = await self._analyze_aio(
+            aio_analysis, aio_result = await self._analyze_aio(
                 clean_domain, target_keywords, country, device
             )
 
         # ─── Step 6: Analyze GEO (Generative Engine) presence ───
         geo_analysis = None
+        geo_result = None
         if deep_geo and target_keywords:
-            geo_analysis = await self._analyze_geo(
+            geo_analysis, geo_result = await self._analyze_geo(
                 clean_domain, target_keywords, country, device
             )
 
@@ -855,6 +859,8 @@ class SiteAnalysisService:
             search_intel = self._intelligence_service.analyze(
                 dataset, observations, competitor_rankings,
                 target_domain=clean_domain,
+                aio_result=aio_result,
+                geo_result=geo_result,
             )
 
         # ─── Step 8b: Entity / Knowledge Graph analysis ───
@@ -1741,27 +1747,33 @@ class SiteAnalysisService:
         keywords: list[str],
         country: str,
         device: str,
-    ) -> SiteAIOAnalysis:
-        """Analyze AI Overview presence and citation opportunities using provider extraction."""
+    ) -> tuple[SiteAIOAnalysis, AIOverviewResult | None]:
+        """Analyze AI Overview presence and citation opportunities using provider extraction.
+        
+        Returns tuple of (SiteAIOAnalysis summary, AIOverviewResult raw data).
+        """
         search_date = datetime.now(UTC).strftime("%Y-%m-%d")
         query_details: list[AIODetailQuery] = []
 
         # Get AIO-capable provider
         aio_provider = self._get_aio_provider()
         if not aio_provider:
-            return SiteAIOAnalysis(
-                keywords_checked=0,
-                ai_overviews_present=0,
-                target_cited_count=0,
-                competitor_cited_count=0,
-                citation_rate=0.0,
-                target_citation_rate=0.0,
-                query_details=[],
-                detection_methodology=(
-                    "AIO analysis requires a search provider that supports AI Overview extraction. "
-                    "No AIO-capable provider configured. "
-                    "Use SerpAPI or another AIO-capable provider for real AIO data."
+            return (
+                SiteAIOAnalysis(
+                    keywords_checked=0,
+                    ai_overviews_present=0,
+                    target_cited_count=0,
+                    competitor_cited_count=0,
+                    citation_rate=0.0,
+                    target_citation_rate=0.0,
+                    query_details=[],
+                    detection_methodology=(
+                        "AIO analysis requires a search provider that supports AI Overview extraction. "
+                        "No AIO-capable provider configured. "
+                        "Use SerpAPI or another AIO-capable provider for real AIO data."
+                    ),
                 ),
+                None,
             )
 
         try:
@@ -1823,15 +1835,18 @@ class SiteAnalysisService:
                     continue
 
             if not aio_observations:
-                return SiteAIOAnalysis(
-                    keywords_checked=0,
-                    ai_overviews_present=0,
-                    target_cited_count=0,
-                    competitor_cited_count=0,
-                    citation_rate=0.0,
-                    target_citation_rate=0.0,
-                    query_details=query_details,
-                    detection_methodology="Provider supports AIO but no observations were returned",
+                return (
+                    SiteAIOAnalysis(
+                        keywords_checked=0,
+                        ai_overviews_present=0,
+                        target_cited_count=0,
+                        competitor_cited_count=0,
+                        citation_rate=0.0,
+                        target_citation_rate=0.0,
+                        query_details=query_details,
+                        detection_methodology="Provider supports AIO but no observations were returned",
+                    ),
+                    None,
                 )
 
             aio_result = analyze_aio_observations(
@@ -1850,27 +1865,33 @@ class SiteAnalysisService:
                         "action": "Create content that directly answers the query to get cited"
                     })
 
-            return SiteAIOAnalysis(
-                keywords_checked=len(aio_observations),
-                ai_overviews_present=aio_result.dataset_metrics.keywords_with_ai_overview,
-                target_cited_count=aio_result.dataset_metrics.keywords_target_cited,
-                competitor_cited_count=sum(km.competitor_cited_count for km in aio_result.keyword_metrics),
-                citation_rate=aio_result.dataset_metrics.target_citation_rate,
-                target_citation_rate=aio_result.dataset_metrics.target_citation_rate,
-                competitor_domains_cited=list(aio_result.dataset_metrics.competitor_cited_domains),
-                top_opportunities=opportunities[:10],
-                query_details=query_details,
-                detection_methodology="SERP feature analysis via provider AIO extraction (SerpAPI ai_overview field)",
+            return (
+                SiteAIOAnalysis(
+                    keywords_checked=len(aio_observations),
+                    ai_overviews_present=aio_result.dataset_metrics.keywords_with_ai_overview,
+                    target_cited_count=aio_result.dataset_metrics.keywords_target_cited,
+                    competitor_cited_count=sum(km.competitor_cited_count for km in aio_result.keyword_metrics),
+                    citation_rate=aio_result.dataset_metrics.target_citation_rate,
+                    target_citation_rate=aio_result.dataset_metrics.target_citation_rate,
+                    competitor_domains_cited=list(aio_result.dataset_metrics.competitor_cited_domains),
+                    top_opportunities=opportunities[:10],
+                    query_details=query_details,
+                    detection_methodology="SERP feature analysis via provider AIO extraction (SerpAPI ai_overview field)",
+                ),
+                aio_result,
             )
 
         except Exception as e:
             logger.warning("AIO analysis failed for %s: %s", domain, e)
-            return SiteAIOAnalysis(
-                keywords_checked=0, ai_overviews_present=0,
-                target_cited_count=0, competitor_cited_count=0,
-                citation_rate=0.0, target_citation_rate=0.0,
-                query_details=query_details,
-                detection_methodology=f"AIO analysis failed: {e}",
+            return (
+                SiteAIOAnalysis(
+                    keywords_checked=0, ai_overviews_present=0,
+                    target_cited_count=0, competitor_cited_count=0,
+                    citation_rate=0.0, target_citation_rate=0.0,
+                    query_details=query_details,
+                    detection_methodology=f"AIO analysis failed: {e}",
+                ),
+                None,
             )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1883,26 +1904,32 @@ class SiteAnalysisService:
         keywords: list[str],
         country: str,
         device: str,
-    ) -> SiteGEOAnalysis:
-        """Analyze Generative Engine Optimization presence using LLM provider."""
+    ) -> tuple[SiteGEOAnalysis, GEOResult | None]:
+        """Analyze Generative Engine Optimization presence using LLM provider.
+        
+        Returns tuple of (SiteGEOAnalysis summary, GEOResult raw data).
+        """
         query_details: list[GEODetailQuery] = []
 
         # Get GEO-capable provider
         geo_provider = self._get_geo_provider()
         if not geo_provider:
-            return SiteGEOAnalysis(
-                keywords_checked=0,
-                target_mentioned_count=0,
-                competitor_mentioned_count=0,
-                mention_rate=0.0,
-                avg_mention_count=0.0,
-                query_details=[],
-                detection_methodology=(
-                    "GEO analysis requires a provider that supports generative engine queries. "
-                    "No GEO-capable provider configured. "
-                    "Configure a GEO-capable provider (e.g., LLM-based) for real GEO data."
+            return (
+                SiteGEOAnalysis(
+                    keywords_checked=0,
+                    target_mentioned_count=0,
+                    competitor_mentioned_count=0,
+                    mention_rate=0.0,
+                    avg_mention_count=0.0,
+                    query_details=[],
+                    detection_methodology=(
+                        "GEO analysis requires a provider that supports generative engine queries. "
+                        "No GEO-capable provider configured. "
+                        "Configure a GEO-capable provider (e.g., LLM-based) for real GEO data."
+                    ),
+                    engines_tested=[],
                 ),
-                engines_tested=[],
+                None,
             )
 
         # Default to testing ChatGPT-style engine via the provider
@@ -1961,15 +1988,18 @@ class SiteAnalysisService:
                     continue
 
             if not geo_observations:
-                return SiteGEOAnalysis(
-                    keywords_checked=0,
-                    target_mentioned_count=0,
-                    competitor_mentioned_count=0,
-                    mention_rate=0.0,
-                    avg_mention_count=0.0,
-                    query_details=query_details,
-                    detection_methodology="Provider supports GEO but no observations were returned",
-                    engines_tested=engines_tested,
+                return (
+                    SiteGEOAnalysis(
+                        keywords_checked=0,
+                        target_mentioned_count=0,
+                        competitor_mentioned_count=0,
+                        mention_rate=0.0,
+                        avg_mention_count=0.0,
+                        query_details=query_details,
+                        detection_methodology="Provider supports GEO but no observations were returned",
+                        engines_tested=engines_tested,
+                    ),
+                    None,
                 )
 
             geo_result = analyze_geo_observations(
@@ -1987,43 +2017,36 @@ class SiteAnalysisService:
                         "action": "Build authoritative content and citations for generative engines"
                     })
 
-            return SiteGEOAnalysis(
-                keywords_checked=len(geo_observations),
-                target_mentioned_count=geo_result.dataset_metrics.keywords_target_mentioned,
-                competitor_mentioned_count=sum(km.competitor_mentioned_count for km in geo_result.keyword_metrics),
-                mention_rate=geo_result.dataset_metrics.overall_mention_rate,
-                avg_mention_count=geo_result.dataset_metrics.overall_mention_rate,
-                competitor_domains_mentioned=list(geo_result.dataset_metrics.competitor_domain_counts.keys()),
-                top_opportunities=opportunities[:10],
-                query_details=query_details,
-                detection_methodology=f"Generative engine response analysis via provider GEO query ({engine_type.value})",
-                engines_tested=engines_tested,
+            return (
+                SiteGEOAnalysis(
+                    keywords_checked=len(geo_observations),
+                    target_mentioned_count=geo_result.dataset_metrics.keywords_target_mentioned,
+                    competitor_mentioned_count=sum(km.competitor_mentioned_count for km in geo_result.keyword_metrics),
+                    mention_rate=geo_result.dataset_metrics.overall_mention_rate,
+                    avg_mention_count=geo_result.dataset_metrics.overall_mention_rate,
+                    competitor_domains_mentioned=list(geo_result.dataset_metrics.competitor_domain_counts.keys()),
+                    top_opportunities=opportunities[:10],
+                    query_details=query_details,
+                    detection_methodology=f"Generative engine response analysis via provider GEO query ({engine_type.value})",
+                    engines_tested=engines_tested,
+                ),
+                geo_result,
             )
 
         except Exception as e:
             logger.warning("GEO analysis failed for %s: %s", domain, e)
-            return SiteGEOAnalysis(
-                keywords_checked=0,
-                target_mentioned_count=0,
-                competitor_mentioned_count=0,
-                mention_rate=0.0,
-                avg_mention_count=0.0,
-                query_details=query_details,
-                detection_methodology=f"GEO analysis failed: {e}",
-                engines_tested=engines_tested,
-            )
-
-        except Exception as e:
-            logger.warning("GEO analysis failed for %s: %s", domain, e)
-            return SiteGEOAnalysis(
-                keywords_checked=0,
-                target_mentioned_count=0,
-                competitor_mentioned_count=0,
-                mention_rate=0.0,
-                avg_mention_count=0.0,
-                query_details=query_details,
-                detection_methodology=f"GEO analysis failed: {e}",
-                engines_tested=engines_tested,
+            return (
+                SiteGEOAnalysis(
+                    keywords_checked=0,
+                    target_mentioned_count=0,
+                    competitor_mentioned_count=0,
+                    mention_rate=0.0,
+                    avg_mention_count=0.0,
+                    query_details=query_details,
+                    detection_methodology=f"GEO analysis failed: {e}",
+                    engines_tested=engines_tested,
+                ),
+                None,
             )
 
     # ══════════════════════════════════════════════════════════════════════

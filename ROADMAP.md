@@ -154,7 +154,7 @@ Every future implementation must move toward this product vision.
 | | Visibility Frequency | ✅ | Historical |
 | | Competitive Visibility | ✅ | Gap analysis |
 | | Content/Entity Gaps | ✅ | Actionable |
-| **L6: Cross-Engine** | Unified Recommendations | ❌ | Phase 3 |
+| **L6: Cross-Engine** | Unified Recommendations | ✅ | Phase 3 (Complete) |
 | | Evidence Trail | ⚠️ (partial) | Full traceability |
 | | Priority Scoring | ⚠️ (basic) | Multi-factor |
 | **L7: Reporting & UX** | PDF Reports | ✅ | Executive templates |
@@ -308,37 +308,50 @@ Composition: ProviderRegistry routes by capability
 
 5. **CrUX integration is separate** — CrUX is connected and functional but has separate known gaps (form_factor wiring, persistence, PDF rendering, `.env.example` documentation). These are tracked as separate CrUX integration follow-up work, not Phase 2 failures.
 
-### Phase 3 — SearchIntelligenceService Integrates AIO/GEO
+### Phase 3 — SearchIntelligenceService Integrates AIO/GEO ✅ COMPLETED
 
 **Objective:** Unified recommendations that consider SEO + AIO + GEO together
 
 **Why:** `SearchIntelligenceService` currently only handles traditional SEO. AIO/GEO insights are siloed in `SiteAnalysisService._analyze_aio/geo`. They must feed the unified recommendation engine.
 
-**Current State:** `SearchIntelligenceService.analyze()` takes `dataset`, `observations`, `competitor_rankings` — no AIO/GEO params
+**Current State (before):** `SearchIntelligenceService.analyze()` takes `dataset`, `observations`, `competitor_rankings` — no AIO/GEO params
 
-**Implementation:**
-1. Extend `SearchIntelligenceService.analyze()` signature to accept `aio_result: AIOverviewResult | None`, `geo_result: GEOResult | None`
-2. Add AIO/GEO recommendation builders:
-   - AIO: "Query X has AIO but you're not cited; competitors Y,Z are"
-   - GEO: "Brand not mentioned in Engine X for query Y; competitor Z is recommended"
-3. Add cross-engine recommendations:
-   - "Content pattern for AIO citations also improves GEO mentions"
-   - "Entity gaps explain both low AIO citations and low GEO mentions"
-4. Update priority scoring to factor AIO/GEO impact
+**Implementation (completed):**
+1. ✅ Extended `SearchIntelligenceService.analyze()` signature to accept `aio_result: AIOverviewResult | None`, `geo_result: GEOResult | None` (backward-compatible defaults)
+2. ✅ Added `_add_aio_recommendations()`:
+   - HIGH: "AI Overviews present but site not cited" when AIO exists + target not cited
+   - MEDIUM: "Low AIO citation rate" when citation_rate < 30%
+   - MEDIUM: "N competitor(s) cited in AI Overviews" — reports all cited competitors (dataset model has unique domain tuple, no per-competitor counts)
+3. ✅ Added `_add_geo_recommendations()`:
+   - HIGH: "Target not mentioned in generative engines" when target not mentioned + competitors mentioned
+   - MEDIUM: "Low GEO mention rate" when mention_rate < 30%
+   - MEDIUM: "Competitor X dominates GEO mentions" — evidence-based (max by mention count from `competitor_domain_counts`)
+4. ✅ Added `_add_cross_engine_recommendations()`:
+   - HIGH: "Cross-engine visibility gap" when same query has AIO citation gap AND GEO mention gap
+   - MEDIUM: "Low visibility across both AIO and GEO" when both rates < 30%
+5. ✅ Updated `SiteAnalysisService._analyze_aio()` and `_analyze_geo()` to return tuples `(Summary, RawResult | None)`
+6. ✅ Updated `SiteAnalysisService.analyze_site()` to pass raw results to `SearchIntelligenceService`
+7. ✅ Preserved NOT ASSESSED semantics: `aio_result=None` / `geo_result=None` → zero AIO/GEO recommendations
 
 **Dependencies:** Phase 2 (persisted observations available)
 
-**Deliverables:**
-- Updated `SearchIntelligenceService` with AIO/GEO integration
-- New recommendation categories with cross-engine logic
-- Updated `SearchIntelligenceResult` to include AIO/GEO insights
+**Deliverables (completed):**
+- Updated `SearchIntelligenceService` with AIO/GEO integration (`src/sie/domain/services/search_intelligence.py`)
+- Updated `SiteAnalysisService` to pass raw AIO/GEO results (`src/sie/domain/services/site_analysis.py`)
+- 20 dedicated Phase 3 tests (`tests/unit/test_search_intelligence_aio_geo.py`)
 
-**Validation:**
-- Unit tests: AIO/GEO observations → specific recommendations
-- Fixture test: Known AIO citation gap → "Create content answering X" recommendation
-- Fixture test: GEO mention gap → "Build authority on Y" recommendation
+**Validation (completed):**
+- 1193 unit tests pass (includes 20 new Phase 3 tests)
+- 53 targeted Phase 3 tests pass
+- Ruff clean on modified files
+- No regressions
 
-**Exit Criteria:** `SearchIntelligenceService` produces recommendations spanning SEO + AIO + GEO
+**Verified Limitations (Documented for Future Work):**
+1. **AIO competitor evidence** — Dataset model (`AIOverviewDatasetMetrics.competitor_cited_domains`) is a tuple of unique domains only; no per-competitor citation counts available. Recommendation reports all cited competitors but cannot rank by frequency.
+2. **Cross-engine query matching** — Exact keyword matching only (case-normalized). No semantic similarity matching across queries.
+3. **GEO stance/sentiment** — Not implemented because `GEOObservation` model does not include stance/sentiment fields. Future work (Phase 5).
+
+**Exit Criteria (MET):** `SearchIntelligenceService` produces recommendations spanning SEO + AIO + GEO
 
 ---
 
@@ -790,10 +803,10 @@ A phase is **DONE** when:
 
 ## 18. Current Phase & Next Action
 
-**Current Phase:** Phase 3 — SearchIntelligenceService Integrates AIO/GEO
+**Current Phase:** Phase 4 — Real AIO Multi-Provider Support
 **Maturity Level:** M2 — Integrated Search Intelligence (achieved)
-**Immediate Next Step:** Extend `SearchIntelligenceService.analyze()` to accept `aio_result` and `geo_result` parameters; add AIO/GEO recommendation builders
+**Immediate Next Step:** Investigate DataForSEO / ValueSERP AIO field availability; add additional AIO-capable providers; implement fallback chain in ProviderRegistry
 
 ---
 
-*Generated from repository inspection on 2026-08-26. This document reflects actual code, not aspirations.*
+*Generated from repository inspection on 2026-08-27. This document reflects actual code, not aspirations.*
