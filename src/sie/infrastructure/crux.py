@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, UTC
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
@@ -65,9 +62,11 @@ class CruxService:
         self,
         api_key: str | None = None,
         timeout_seconds: float = 10.0,
+        form_factor: str = "PHONE",
     ) -> None:
         self._api_key = api_key or os.getenv("CRUX_API_KEY")
         self._timeout_seconds = timeout_seconds
+        self._form_factor = form_factor.upper()
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -80,7 +79,7 @@ class CruxService:
             await self._client.aclose()
             self._client = None
 
-    def _build_url(self, url: str, form_factor: str = "PHONE") -> str:
+    def _build_url(self, url: str) -> str:
         """Normalize URL to origin for CrUX API."""
         parsed = urlparse(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -89,7 +88,7 @@ class CruxService:
     async def query_origin(
         self,
         url: str,
-        form_factor: str = "PHONE",
+        form_factor: str | None = None,
     ) -> CruxResponse:
         """Query CrUX for origin-level metrics."""
         if not self._api_key:
@@ -98,9 +97,12 @@ class CruxService:
         origin = self._build_url(url)
         client = await self._get_client()
 
+        # Use instance form_factor if not explicitly provided
+        ff = (form_factor or self._form_factor).upper()
+
         payload = {
             "origin": origin,
-            "formFactor": form_factor.upper(),
+            "formFactor": ff,
         }
 
         try:
@@ -115,7 +117,7 @@ class CruxService:
                 return CruxResponse(error=f"CrUX API error: {response.status_code}", success=False)
 
             data = response.json()
-            record = self._parse_record(data, origin, form_factor)
+            record = self._parse_record(data, origin, ff)
             return CruxResponse(record=record, success=True)
 
         except httpx.TimeoutException:
@@ -129,7 +131,7 @@ class CruxService:
     async def query_url(
         self,
         url: str,
-        form_factor: str = "PHONE",
+        form_factor: str | None = None,
     ) -> CruxResponse:
         """Query CrUX for URL-level metrics."""
         if not self._api_key:
@@ -137,9 +139,11 @@ class CruxService:
 
         client = await self._get_client()
 
+        ff = (form_factor or self._form_factor).upper()
+
         payload = {
             "url": url,
-            "formFactor": form_factor.upper(),
+            "formFactor": ff,
         }
 
         try:
@@ -154,7 +158,7 @@ class CruxService:
                 return CruxResponse(error=f"CrUX API error: {response.status_code}", success=False)
 
             data = response.json()
-            record = self._parse_record(data, self._build_url(url), form_factor, url=url)
+            record = self._parse_record(data, self._build_url(url), ff, url=url)
             return CruxResponse(record=record, success=True)
 
         except httpx.TimeoutException:
@@ -168,7 +172,7 @@ class CruxService:
     async def query_history(
         self,
         url: str,
-        form_factor: str = "PHONE",
+        form_factor: str | None = None,
     ) -> list[CruxMetrics]:
         """Get historical CrUX data for trend analysis."""
         if not self._api_key:
@@ -177,9 +181,11 @@ class CruxService:
         origin = self._build_url(url)
         client = await self._get_client()
 
+        ff = (form_factor or self._form_factor).upper()
+
         payload = {
             "origin": origin,
-            "formFactor": form_factor.upper(),
+            "formFactor": ff,
         }
 
         try:
@@ -194,7 +200,7 @@ class CruxService:
             data = response.json()
             records = []
             for record_data in data.get("records", []):
-                record = self._parse_record(record_data, origin, form_factor)
+                record = self._parse_record(record_data, origin, ff)
                 if record:
                     records.append(record)
             return records
@@ -234,7 +240,11 @@ class CruxService:
                 total = sum(b.get("density", 0) for b in histogram)
                 if total == 0:
                     return 0.0
-                good = sum(b.get("density", 0) for b in histogram if int(b.get("start", 0)) <= threshold)
+                good = sum(
+                    b.get("density", 0)
+                    for b in histogram
+                    if int(b.get("start", 0)) <= threshold
+                )
                 return (good / total) * 100
 
             lcp_p75 = get_p75("largest_contentful_paint")
@@ -278,9 +288,9 @@ class CruxService:
 
     def merge_into_cwv_analysis(
         self,
-        cwv: "SiteCoreWebVitalsAnalysis",
+        cwv: SiteCoreWebVitalsAnalysis,
         crux: CruxMetrics,
-    ) -> "SiteCoreWebVitalsAnalysis":
+    ) -> SiteCoreWebVitalsAnalysis:
         """Merge CrUX real-user data into lab CWV analysis."""
         if not crux:
             return cwv
@@ -289,7 +299,6 @@ class CruxService:
         lcp_estimate = crux.lcp_p75
         fid_estimate = crux.fid_p75
         cls_estimate = crux.cls_p75
-        inp_estimate = crux.inp_p75
         ttfb_estimate = crux.ttfb_p75
 
         # Recalculate issues with real data
@@ -343,8 +352,7 @@ class CruxService:
             score=score,
         )
 
-
-# Convenience function for easy integration
+    # Convenience function for easy integration
 async def fetch_crux_data(
     url: str,
     api_key: str | None = None,
@@ -353,3 +361,4 @@ async def fetch_crux_data(
     """Fetch CrUX data for a URL."""
     async with CruxService(api_key=api_key) as service:
         return await service.query_origin(url, form_factor)
+

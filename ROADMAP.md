@@ -24,8 +24,6 @@ Every future implementation must move toward this product vision.
 
 ---
 
-## 2. Current Reality (as of latest commit)
-
 ### 2.1 Genuinely Working End-to-End Capabilities
 
 | Capability | Status | Evidence |
@@ -98,10 +96,10 @@ Every future implementation must move toward this product vision.
 2. **No provider chaining/composition** — Cannot say "use SerpAPI for rankings + LLM for GEO"
 3. **AIO/GEO not in SearchIntelligenceService** — Unified recommendations don't consider AIO/GEO observations
 4. **No historical AIO/GEO tracking** — Observations not persisted for trend analysis
-5. **No backlink data** — Authority gap analysis explicitly marked "Not assessed"
-6. **Entity extraction** — Regex-based; no NER/embedding model for semantic understanding
-7. **GEO prompt templates** — Hard-coded; no prompt rotation, categorization, or optimization
-8. **Mock provider** — Only supports fixtures; no recorded real-response replay
+4. **No backlink data** — Authority gap analysis explicitly marked "Not assessed"
+5. **Entity extraction** — Regex-based; no NER/embedding model for semantic understanding
+5. **GEO prompt templates** — Hard-coded; no prompt rotation, categorization, or optimization
+6. **Mock provider** — Only supports fixtures; no recorded real-response replay
 
 ### 2.7 Technical Debt Relevant to Roadmap
 
@@ -156,7 +154,7 @@ Every future implementation must move toward this product vision.
 | | Visibility Frequency | ✅ | Historical |
 | | Competitive Visibility | ✅ | Gap analysis |
 | | Content/Entity Gaps | ✅ | Actionable |
-| **L6: Cross-Engine** | Unified Recommendations | ❌ | Phase 2 |
+| **L6: Cross-Engine** | Unified Recommendations | ❌ | Phase 3 |
 | | Evidence Trail | ⚠️ (partial) | Full traceability |
 | | Priority Scoring | ⚠️ (basic) | Multi-factor |
 | **L7: Reporting & UX** | PDF Reports | ✅ | Executive templates |
@@ -263,7 +261,7 @@ Composition: ProviderRegistry routes by capability
 
 ---
 
-### Phase 2 — AIO/GEO Observations Persistence & Historical Tracking
+### Phase 2 — AIO/GEO Observations Persistence & Historical Tracking ✅ COMPLETED
 
 **Objective:** Persist AIO/GEO observations to enable historical analysis and trend detection
 
@@ -272,30 +270,43 @@ Composition: ProviderRegistry routes by capability
 **Current State:** `AIOverviewObservation` / `GEOObservation` are in-memory only; ORM models exist (`search_aio_geo_orm.py`) but not wired
 
 **Implementation:**
-1. Wire `search_aio_geo_orm.py` models to persistence layer
-2. Add `save_aio_observations()`, `save_geo_observations()` to repository
-3. Add `get_aio_history()`, `get_geo_history()` for trend queries
-4. Add `AIOTrendService` / `GEOTrendService` for:
+1. ✅ Wire `search_aio_geo_orm.py` models to persistence layer
+2. ✅ Add `save_aio_observations()`, `save_geo_observations()` to repository
+3. ✅ Add `get_aio_history()`, `get_geo_history()` for trend queries
+4. ✅ Add `AIOTrendService` / `GEOTrendService` (implemented as pure functions in `search_trends.py`) for:
    - Citation rate trends
    - Competitor citation tracking
    - Mention frequency trends
    - New query trigger detection
-5. Update `SiteAnalysisService` to persist observations after analysis
+5. ✅ Update `SiteAnalysisService` to persist observations after analysis
 
 **Dependencies:** Phase 1 (provider registry — observations need provider metadata)
 
-**Deliverables:**
-- Repository methods for AIO/GEO persistence
-- Trend analysis engines
+**Deliverables (completed):**
+- Repository methods for AIO/GEO persistence (`save_aio_observations`, `save_geo_observations`, `list_aio_observations`, `list_geo_observations`)
+- Trend analysis engines (`calculate_aio_trend`, `calculate_geo_trend` in `search_trends.py`)
 - Historical data in Site Analysis results
+- Trend metrics computable and computable after process restart
 
-**Validation:**
+**Validation (completed):**
 - Integration test: persist → retrieve → trend calculation
 - Real-data validation: SerpAPI AIO observations stored across multiple runs
 
-**Exit Criteria:** AIO/GEO observations survive process restart; trend metrics computable
+**Exit Criteria (MET):** AIO/GEO observations survive process restart; trend metrics computable
 
 ---
+
+### Phase 2 Known Limitations (Documented for Future Work)
+
+1. **Provider metadata NOT persisted** — Historical AIO/GEO observations currently use `source="site-analysis"` and do not identify the actual provider (e.g., SerpAPI, LLM). This limits cross-provider historical comparison.
+
+2. **Dataset ID collision risk** — Dataset IDs use second-level timestamps (`%Y%m%d%H%M%S`). Multiple analyses started in the same second can collide, causing silent persistence failure (caught and logged, but no retry). Track as technical debt.
+
+3. **Trend calculation edge case** — With only 1–2 snapshots in the same half-period, the period-over-period algorithm can report "improving" without a meaningful baseline. Reported as "improving" without meaningful baseline when <3 snapshots exist.
+
+4. **No automated snapshot-to-snapshot comparison** — Historical retrieval and period-over-period trend calculation exist, but direct "current vs previous analysis" comparison is future work (Phase 3+).
+
+5. **CrUX integration is separate** — CrUX is connected and functional but has separate known gaps (form_factor wiring, persistence, PDF rendering, `.env.example` documentation). These are tracked as separate CrUX integration follow-up work, not Phase 2 failures.
 
 ### Phase 3 — SearchIntelligenceService Integrates AIO/GEO
 
@@ -694,8 +705,8 @@ Phase 9 (Production Hardening) ← depends on all above
 | Level | Name | Criteria | Current |
 |-------|------|----------|---------|
 | **M0** | Prototype | Crawl + basic audit | ⬅️ Past |
-| **M1** | Functional SEO | L1 + L2 complete; Site Analysis works | ✅ **Current** |
-| **M2** | Integrated Search Intel | SearchIntelligence + AIO/GEO unified | Phase 3 |
+| **M1** | Functional SEO | L1 + L2 complete; Site Analysis works | ✅ **Past** |
+| **M2** | Integrated Search Intel | SearchIntelligence + AIO/GEO unified | ✅ **Current** |
 | **M3** | Real AIO Intelligence | Multi-provider AIO; historical trends | Phase 4 |
 | **M4** | Real GEO Intelligence | Multi-engine GEO; stance; sources | Phase 5 |
 | **M5** | Cross-Engine Intelligence | Unified optimization roadmap | Phase 7 |
@@ -715,6 +726,14 @@ Phase 9 (Production Hardening) ← depends on all above
 | E501 line length | `site_analysis.py` (pre-existing) | Low | Incremental |
 | `create_site_analysis_service` duplication | `site_analysis.py:3764` | Low | Phase 1 |
 | No structured provider decision logging | `SiteAnalysisService` | Low | Phase 1 |
+| Entity extraction regex-only | `search_entity.py` | Medium | Phase 6 |
+| GEO prompt templates hard-coded | `geo_provider.py:48-119` | Medium | Phase 5 |
+| No backlink provider abstraction | — | High | Post-M2 |
+| No JS rendering | `crawling/engine.py` | Medium | Post-M2 |
+| **Provider metadata NOT persisted** — Historical AIO/GEO observations use `source="site-analysis"` and do not identify the actual provider (SerpAPI, LLM, etc.) | `site_analysis.py:_persist_aio_geo_observations` | Medium | Phase 3+ |
+| **Dataset ID collision risk** — Second-level timestamps (`%Y%m%d%H%M%S`) can collide when multiple analyses start in the same second, causing silent persistence failure (caught, logged, no retry) | `site_analysis.py:_persist_aio_geo_observations` | Medium | Phase 3+ |
+| **Trend calculation edge case** — With 1–2 snapshots in the same half-period, the period-over-period algorithm can report "improving" without a meaningful baseline | `search_trends.py:calculate_aio_trend` / `calculate_geo_trend` | Low | Phase 3+ |
+| No automated snapshot-to-snapshot comparison — Historical retrieval and period-over-period trend calculation exist, but direct "current vs previous analysis" comparison is future work | `site_analysis.py` / `repositories.py` | Medium | Phase 3+ |
 | Entity extraction regex-only | `search_entity.py` | Medium | Phase 6 |
 | GEO prompt templates hard-coded | `geo_provider.py:48-119` | Medium | Phase 5 |
 | No backlink provider abstraction | — | High | Post-M2 |
@@ -771,9 +790,9 @@ A phase is **DONE** when:
 
 ## 18. Current Phase & Next Action
 
-**Current Phase:** Phase 2 — AIO/GEO Observations Persistence & Historical Tracking
+**Current Phase:** Phase 3 — SearchIntelligenceService Integrates AIO/GEO
 **Maturity Level:** M2 — Integrated Search Intelligence (achieved)
-**Immediate Next Step:** Wire `search_aio_geo_orm.py` models to persistence layer; add repository methods for AIO/GEO observation persistence
+**Immediate Next Step:** Extend `SearchIntelligenceService.analyze()` to accept `aio_result` and `geo_result` parameters; add AIO/GEO recommendation builders
 
 ---
 

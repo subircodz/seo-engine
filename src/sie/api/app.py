@@ -112,7 +112,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         # Create crawler engine with optional Cloudflare bypass
         if cf_bypass.enabled:
-            from sie.infrastructure.crawling.cloudflare_bypass_engine import CloudflareBypassCrawlerEngine
+            from sie.infrastructure.crawling.cloudflare_bypass_engine import (
+                CloudflareBypassCrawlerEngine,
+            )
             engine = CloudflareBypassCrawlerEngine(
                 fetcher=fetcher,
                 user_agent=cs.user_agent,
@@ -188,6 +190,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.crux_service = CruxService(
             api_key=settings.crux.api_key if settings.crux.enabled else None,
             timeout_seconds=settings.crux.timeout_seconds,
+            form_factor=settings.crux.form_factor,
         )
 
         logger.info("startup complete")
