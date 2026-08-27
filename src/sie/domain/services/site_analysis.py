@@ -32,6 +32,7 @@ from sie.domain.models.search import (
 from sie.domain.models.search_geo import GenerativeEngineType
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
+from sie.infrastructure.search.provider_registry import ProviderRegistry
 from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
 from sie.domain.services.crawl_service import CrawlService
@@ -552,7 +553,7 @@ class SiteAnalysisService:
         crawl_service: CrawlService,
         audit_service: AuditService,
         content_service: ContentService,
-        search_provider: SearchProvider,
+        search_provider: SearchProvider | ProviderRegistry,
         repository: CrawlRunRepository,
         crux_service: CruxService | None = None,
         collection_source: str = "site-analysis",
@@ -560,12 +561,22 @@ class SiteAnalysisService:
         self._crawl_service = crawl_service
         self._audit_service = audit_service
         self._content_service = content_service
-        self._search_provider = search_provider
         self._repository = repository
         self._crux_service = crux_service
 
+        # Handle both single provider (backward compat) and registry
+        if isinstance(search_provider, ProviderRegistry):
+            self._provider_registry = search_provider
+            self._search_provider = search_provider.get_for_aio() or search_provider.get_for_geo() or search_provider.get_for_rankings()
+            rankings_provider = search_provider.get_for_rankings()
+        else:
+            # Backward compatibility: single provider for all capabilities
+            self._provider_registry = None
+            self._search_provider = search_provider
+            rankings_provider = search_provider
+
         self._collection_service = SearchCollectionService(
-            search_provider,
+            rankings_provider,
             repository=repository,
             source=collection_source,
         )
@@ -1615,6 +1626,24 @@ class SiteAnalysisService:
     # AIO (AI Overview) Analysis
     # ══════════════════════════════════════════════════════════════════════
 
+    def _get_aio_provider(self) -> SearchProvider | None:
+        """Get the AIO-capable provider from registry or single provider."""
+        if self._provider_registry:
+            return self._provider_registry.get_for_aio()
+        return self._search_provider if getattr(self._search_provider, "supports_aio", False) else None
+
+    def _get_geo_provider(self) -> SearchProvider | None:
+        """Get the GEO-capable provider from registry or single provider."""
+        if self._provider_registry:
+            return self._provider_registry.get_for_geo()
+        return self._search_provider if getattr(self._search_provider, "supports_geo", False) else None
+
+    def _get_rankings_provider(self) -> SearchProvider | None:
+        """Get the rankings provider from registry or single provider."""
+        if self._provider_registry:
+            return self._provider_registry.get_for_rankings()
+        return self._search_provider
+
     async def _analyze_aio(
         self,
         domain: str,
@@ -1626,8 +1655,9 @@ class SiteAnalysisService:
         search_date = datetime.now(UTC).strftime("%Y-%m-%d")
         query_details: list[AIODetailQuery] = []
 
-        # Check if provider supports AIO extraction
-        if not getattr(self._search_provider, "supports_aio", False):
+        # Get AIO-capable provider
+        aio_provider = self._get_aio_provider()
+        if not aio_provider:
             return SiteAIOAnalysis(
                 keywords_checked=0,
                 ai_overviews_present=0,
@@ -1638,7 +1668,7 @@ class SiteAnalysisService:
                 query_details=[],
                 detection_methodology=(
                     "AIO analysis requires a search provider that supports AI Overview extraction. "
-                    f"Current provider ({type(self._search_provider).__name__}) does not support this capability. "
+                    "No AIO-capable provider configured. "
                     "Use SerpAPI or another AIO-capable provider for real AIO data."
                 ),
             )
@@ -1658,7 +1688,7 @@ class SiteAnalysisService:
                         max_results=10,
                     )
 
-                    observation = await self._search_provider.extract_aio(query, domain)
+                    observation = await aio_provider.extract_aio(query, domain)
 
                     if observation is None:
                         # Provider returned None - capability not available or error
@@ -1766,8 +1796,9 @@ class SiteAnalysisService:
         """Analyze Generative Engine Optimization presence using LLM provider."""
         query_details: list[GEODetailQuery] = []
 
-        # Check if provider supports GEO queries
-        if not getattr(self._search_provider, "supports_geo", False):
+        # Get GEO-capable provider
+        geo_provider = self._get_geo_provider()
+        if not geo_provider:
             return SiteGEOAnalysis(
                 keywords_checked=0,
                 target_mentioned_count=0,
@@ -1777,7 +1808,7 @@ class SiteAnalysisService:
                 query_details=[],
                 detection_methodology=(
                     "GEO analysis requires a provider that supports generative engine queries. "
-                    f"Current provider ({type(self._search_provider).__name__}) does not support this capability. "
+                    "No GEO-capable provider configured. "
                     "Configure a GEO-capable provider (e.g., LLM-based) for real GEO data."
                 ),
                 engines_tested=[],
@@ -1802,7 +1833,7 @@ class SiteAnalysisService:
                         max_results=10,
                     )
 
-                    observation = await self._search_provider.query_geo(query, domain, engine_type)
+                    observation = await geo_provider.query_geo(query, domain, engine_type)
 
                     if observation is None:
                         query_details.append(GEODetailQuery(
@@ -1875,6 +1906,19 @@ class SiteAnalysisService:
                 top_opportunities=opportunities[:10],
                 query_details=query_details,
                 detection_methodology=f"Generative engine response analysis via provider GEO query ({engine_type.value})",
+                engines_tested=engines_tested,
+            )
+
+        except Exception as e:
+            logger.warning("GEO analysis failed for %s: %s", domain, e)
+            return SiteGEOAnalysis(
+                keywords_checked=0,
+                target_mentioned_count=0,
+                competitor_mentioned_count=0,
+                mention_rate=0.0,
+                avg_mention_count=0.0,
+                query_details=query_details,
+                detection_methodology=f"GEO analysis failed: {e}",
                 engines_tested=engines_tested,
             )
 
@@ -3781,7 +3825,7 @@ def create_site_analysis_service(
     crawl_service: CrawlService,
     audit_service: AuditService,
     content_service: ContentService,
-    search_provider: SearchProvider,
+    search_provider: SearchProvider | ProviderRegistry,
     repository: CrawlRunRepository,
     crux_service: CruxService | None = None,
 ) -> SiteAnalysisService:

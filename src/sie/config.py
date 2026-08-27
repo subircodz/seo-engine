@@ -44,6 +44,20 @@ class CrawlerSettings(BaseModel):
     allow_localhost: bool = False
 
 
+class CloudflareBypassSettings(BaseModel):
+    """Cloudflare bypass settings for crawler engine.
+
+    When enabled, the crawler will automatically detect Cloudflare challenges
+    and bypass them using SeleniumBase + Playwright CDP session hijacking.
+    """
+
+    enabled: bool = False
+    headless: bool = True
+    browser_timeout_seconds: float = Field(default=30.0, gt=0)
+    browser_wait_seconds: float = Field(default=10.0, gt=0)
+    max_browser_retries: int = Field(default=2, ge=1)
+
+
 class AuditSettings(BaseModel):
     """Technical SEO + link-graph engine tuning."""
 
@@ -98,6 +112,32 @@ class LLMSettings(BaseModel):
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
 
 
+class SearchProviderCapabilitySettings(BaseModel):
+    """Settings for a single capability-specific search provider.
+
+    All values are read from environment variables prefixed with
+    ``SIE_SEARCH_PROVIDER__{CAPABILITY}__`` (e.g. ``SIE_SEARCH_PROVIDER__AIO__PROVIDER_NAME``).
+
+    When omitted, the capability falls back to the legacy single-provider settings.
+    """
+
+    provider_name: str = "mock"
+    base_url: str = ""
+    api_key: str = ""
+
+    # Granular timeouts (seconds)
+    connect_timeout_seconds: float = Field(default=5.0, gt=0)
+    read_timeout_seconds: float = Field(default=30.0, gt=0)
+    write_timeout_seconds: float = Field(default=10.0, gt=0)
+    pool_timeout_seconds: float = Field(default=5.0, gt=0)
+
+    # Legacy single timeout (used if granular not set)
+    timeout_seconds: float = Field(default=30.0, gt=0)
+
+    # SSRF protection: allow localhost/private IPs (dev only)
+    allow_localhost: bool = False
+
+
 class SearchProviderSettings(BaseModel):
     """Search provider configuration.
 
@@ -114,6 +154,14 @@ class SearchProviderSettings(BaseModel):
     OpenAI-compatible gateways, internal APIs) do not require one.
     When omitted or empty, the provider implementation must handle
     authentication-free operation gracefully.
+
+    Capability-specific providers can be configured via nested settings:
+    - ``rankings``: provider for search/ranking collection
+    - ``aio``: provider for AI Overview extraction
+    - ``geo``: provider for Generative Engine queries
+
+    When a capability is not configured, it falls back to the legacy
+    single-provider settings.
     """
 
     enabled: bool = False
@@ -133,6 +181,13 @@ class SearchProviderSettings(BaseModel):
     # SSRF protection: allow localhost/private IPs (dev only)
     allow_localhost: bool = False
 
+    # Capability-specific provider settings (optional)
+    rankings: SearchProviderCapabilitySettings | None = None
+    aio: SearchProviderCapabilitySettings | None = None
+    geo: SearchProviderCapabilitySettings | None = None
+    # LLM settings for GEO provider (used when GEO provider is "llm")
+    llm: LLMSettings | None = None
+
     def _masked_key(self) -> str:
         """Return masked API key for safe display."""
         return "'***'" if self.api_key else "''"
@@ -144,7 +199,11 @@ class SearchProviderSettings(BaseModel):
             f"provider_name={self.provider_name!r}, "
             f"base_url={self.base_url!r}, "
             f"api_key={self._masked_key()}, "
-            f"timeout_seconds={self.timeout_seconds!r})"
+            f"timeout_seconds={self.timeout_seconds!r}, "
+            f"rankings={self.rankings!r}, "
+            f"aio={self.aio!r}, "
+            f"geo={self.geo!r}, "
+            f"llm={self.llm!r})"
         )
 
     def __str__(self) -> str:
@@ -239,6 +298,7 @@ class Settings(BaseSettings):
     content: ContentSettings = Field(default_factory=ContentSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search_provider: SearchProviderSettings = Field(default_factory=SearchProviderSettings)
+    cloudflare_bypass: CloudflareBypassSettings = Field(default_factory=CloudflareBypassSettings)
     crux: CruxSettings = Field(default_factory=CruxSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     api: APISettings = Field(default_factory=APISettings)

@@ -96,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             run_migrations(settings.database_url)
 
         cs = settings.crawler
+        cf_bypass = settings.cloudflare_bypass
         fetcher = RetryingFetcher(
             HttpxFetcher(
                 user_agent=cs.user_agent,
@@ -109,15 +110,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             max_retries=cs.max_retries,
             base_delay_seconds=cs.retry_backoff_seconds,
         )
-        engine = HttpxCrawlerEngine(
-            fetcher=fetcher,
-            user_agent=cs.user_agent,
-            max_concurrency=cs.max_concurrent_requests,
-            rate_limit_per_host=cs.rate_limit_per_host,
-            respect_robots_txt=cs.respect_robots_txt,
-            follow_cross_origin=cs.follow_cross_origin,
-            visited_cache_size=cs.visited_cache_size,
-        )
+        # Create crawler engine with optional Cloudflare bypass
+        if cf_bypass.enabled:
+            from sie.infrastructure.crawling.cloudflare_bypass_engine import CloudflareBypassCrawlerEngine
+            engine = CloudflareBypassCrawlerEngine(
+                fetcher=fetcher,
+                user_agent=cs.user_agent,
+                max_concurrency=cs.max_concurrent_requests,
+                rate_limit_per_host=cs.rate_limit_per_host,
+                respect_robots_txt=cs.respect_robots_txt,
+                follow_cross_origin=cs.follow_cross_origin,
+                visited_cache_size=cs.visited_cache_size,
+                enable_bypass=True,
+                browser_timeout_seconds=cf_bypass.browser_timeout_seconds,
+                browser_wait_seconds=cf_bypass.browser_wait_seconds,
+                headless=cf_bypass.headless,
+                max_browser_retries=cf_bypass.max_browser_retries,
+            )
+            logger.info("Cloudflare bypass enabled for crawler")
+        else:
+            engine = HttpxCrawlerEngine(
+                fetcher=fetcher,
+                user_agent=cs.user_agent,
+                max_concurrency=cs.max_concurrent_requests,
+                rate_limit_per_host=cs.rate_limit_per_host,
+                respect_robots_txt=cs.respect_robots_txt,
+                follow_cross_origin=cs.follow_cross_origin,
+                visited_cache_size=cs.visited_cache_size,
+            )
         repo = SqlAlchemyCrawlRunRepository(app.state.database.session_factory)
         app.state.crawled_pages = {}  # run_id -> list[FetchedPage]
         app.state.crawl_service = CrawlService(
@@ -158,10 +178,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.repository = repo
         app.state.industry_intelligence_service = IndustryIntelligenceService()
 
-        # Search provider — created via the provider factory
-        from sie.infrastructure.search.provider_factory import create_search_provider
+        # Search provider / registry — created via the provider factory
+        from sie.infrastructure.search.provider_factory import create_provider_registry
 
-        app.state.search_provider = create_search_provider(settings.search_provider)
+        app.state.search_provider = create_provider_registry(settings.search_provider)
 
         # CrUX service for real-user Core Web Vitals
         from sie.infrastructure.crux import CruxService
