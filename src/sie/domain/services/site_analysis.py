@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 from sie.domain.engines.search_aio import analyze_aio_observations
 from sie.domain.engines.search_geo import analyze_geo_observations
+from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewType, AIOCitation, CitationSource
 from sie.domain.models.audit import SiteArchitectureReport, TechnicalAuditResult
 from sie.domain.models.content import ContentQualityReport
 from sie.domain.models.search import (
@@ -29,7 +30,7 @@ from sie.domain.models.search import (
     SearchDevice,
     SearchQuery,
 )
-from sie.domain.models.search_geo import GenerativeEngineType
+from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation, EntityMention, EntityType
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
 from sie.infrastructure.search.provider_registry import ProviderRegistry
@@ -962,6 +963,11 @@ class SiteAnalysisService:
         # Semantic alignment
         semantic_alignment = self._compute_semantic_alignment(target_keywords, crawl_pages)
 
+        # Persist AIO/GEO observations for historical tracking
+        await self._persist_aio_geo_observations(
+            clean_domain, aio_analysis, geo_analysis, target_keywords, country
+        )
+
         return SiteAnalysisResult(
             domain=clean_domain,
             analyzed_at=analysis_end,
@@ -1003,6 +1009,91 @@ class SiteAnalysisService:
             crux_metrics=crux_metrics,
             crux_status=crux_status,
         )
+
+    async def _persist_aio_geo_observations(
+        self,
+        domain: str,
+        aio_analysis: SiteAIOAnalysis | None,
+        geo_analysis: SiteGEOAnalysis | None,
+        target_keywords: list[str],
+        country: str,
+    ) -> None:
+        """Persist AIO and GEO observations for historical tracking."""
+        if not aio_analysis and not geo_analysis:
+            return
+
+        # Create a dataset for this analysis
+        dataset_id = f"site-{domain}-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
+        dataset = SearchDataset(
+            dataset_id=dataset_id,
+            name=domain,
+            source="site-analysis",
+            created_at=datetime.now(UTC),
+            total_keywords=len(target_keywords),
+            total_observations=0,  # Will be updated after saving
+        )
+
+        try:
+            # Save dataset
+            await self._repository.save_search_dataset(dataset)
+
+            # Persist AIO observations
+            if aio_analysis and aio_analysis.query_details:
+                aio_observations = []
+                for detail in aio_analysis.query_details:
+                    obs = AIOverviewObservation(
+                        keyword=detail.keyword,
+                        ai_type=AIOverviewType.AI_OVERVIEW if detail.ai_overview_detected else AIOverviewType.OTHER,
+                        present=detail.ai_overview_detected,
+                        target_cited=detail.target_cited,
+                        target_domain=domain,
+                        citation_count=len(detail.cited_sources),
+                        citations=tuple(
+                            AIOCitation(
+                                domain=url.split("/")[2].lower().removeprefix("www."),
+                                url=url,
+                                position=i,
+                                source_type=CitationSource.WEB_PAGE,
+                                title="",
+                            )
+                            for i, url in enumerate(detail.cited_sources)
+                        ),
+                        competitor_cited_domains=tuple(
+                            d for d in detail.cited_sources
+                            if d.split("/")[2].lower().removeprefix("www.") != self._normalize_domain(domain)
+                        ),
+                        observed_at=datetime.now(UTC),
+                        source="site-analysis",
+                    )
+                    aio_observations.append(obs)
+
+                if aio_observations:
+                    await self._repository.save_aio_observations(f"site-aio-{domain}", aio_observations)
+
+            # Persist GEO observations
+            if geo_analysis and geo_analysis.query_details:
+                geo_observations = []
+                for detail in geo_analysis.query_details:
+                    obs = GEOObservation(
+                        keyword=detail.query,
+                        engine_type=GenerativeEngineType.CHATGPT,  # Default to ChatGPT
+                        target_mentioned=detail.target_mentioned,
+                        target_domain=domain,
+                        mention_count=1 if detail.target_mentioned else 0,
+                        entity_mentions=(),
+                        competitor_domains=tuple(detail.competitors_mentioned),
+                        citation_urls=(),
+                        answer_length=0,
+                        observed_at=datetime.now(UTC),
+                        source="site-analysis",
+                    )
+                    geo_observations.append(obs)
+
+                if geo_observations:
+                    await self._repository.save_geo_observations(f"site-geo-{domain}", geo_observations)
+
+        except Exception as e:
+            logger.warning("Failed to persist AIO/GEO observations for %s: %s", domain, e)
 
     # ══════════════════════════════════════════════════════════════════════
     # Access Detection & Website Type

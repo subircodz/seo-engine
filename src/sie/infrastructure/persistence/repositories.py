@@ -1239,6 +1239,299 @@ class SqlAlchemyCrawlRunRepository:
             )
         return total, observations
 
+    # ── AIO/GEO Historical Retrieval (Phase 2) ──────────────────────────────
+
+    async def get_aio_history(
+        self,
+        domain: str,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[int, list]:
+        """Retrieve AIO observations history for a domain across all datasets.
+
+        Returns observations ordered by observed_at descending (newest first).
+        """
+        from sie.domain.models.search_aio import (
+            AIOCitation,
+            AIOverviewObservation,
+            AIOverviewType,
+            CitationSource,
+        )
+        from sie.infrastructure.models.search_aio_geo_orm import AIOverviewObservationRow
+
+        async with self._sf() as session:
+            # Find datasets for this domain
+            from sie.infrastructure.models.search_orm import SearchDatasetRow
+            dataset_ids = [
+                r[0]
+                for r in await session.execute(
+                    select(SearchDatasetRow.id).where(SearchDatasetRow.name.ilike(f"%{domain}%"))
+                )
+            ]
+
+            if not dataset_ids:
+                return 0, []
+
+            base_filter = AIOverviewObservationRow.dataset_id.in_(dataset_ids)
+            if start_date:
+                base_filter = base_filter & (AIOverviewObservationRow.observed_at >= start_date)
+            if end_date:
+                base_filter = base_filter & (AIOverviewObservationRow.observed_at <= end_date)
+
+            count_stmt = select(func.count(AIOverviewObservationRow.id)).where(base_filter)
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(AIOverviewObservationRow)
+                .where(base_filter)
+                .order_by(AIOverviewObservationRow.observed_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        observations = []
+        for r in rows:
+            citations = ()
+            if r.citations:
+                citations = tuple(
+                    AIOCitation(
+                        domain=c["domain"],
+                        url=c.get("url", ""),
+                        position=c.get("position", 0),
+                        source_type=CitationSource(c.get("source_type", "web_page")),
+                        title=c.get("title", ""),
+                    )
+                    for c in r.citations
+                )
+
+            observations.append(
+                AIOverviewObservation(
+                    keyword=r.keyword,
+                    ai_type=AIOverviewType(r.ai_type),
+                    present=bool(r.present),
+                    target_cited=bool(r.target_cited),
+                    target_domain=r.target_domain,
+                    citation_count=r.citation_count,
+                    citations=citations,
+                    competitor_cited_domains=tuple(r.competitor_cited_domains)
+                    if r.competitor_cited_domains
+                    else (),
+                    observed_at=_to_aware(r.observed_at) or r.observed_at.replace(tzinfo=UTC),
+                    source=r.source,
+                )
+            )
+        return total, observations
+
+    async def get_geo_history(
+        self,
+        domain: str,
+        *,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[int, list]:
+        """Retrieve GEO observations history for a domain across all datasets.
+
+        Returns observations ordered by observed_at descending (newest first).
+        """
+        from sie.domain.models.search_geo import (
+            EntityMention,
+            EntityType,
+            GenerativeEngineType,
+            GEOObservation,
+        )
+        from sie.infrastructure.models.search_aio_geo_orm import GEOObservationRow
+
+        async with self._sf() as session:
+            from sie.infrastructure.models.search_orm import SearchDatasetRow
+            domain_datasets = await session.execute(
+                select(SearchDatasetRow.id).where(SearchDatasetRow.name.ilike(f"%{domain}%"))
+            )
+            dataset_ids = [r[0] for r in domain_datasets]
+
+            if not dataset_ids:
+                return 0, []
+
+            base_filter = GEOObservationRow.dataset_id.in_(dataset_ids)
+            if start_date:
+                base_filter = base_filter & (GEOObservationRow.observed_at >= start_date)
+            if end_date:
+                base_filter = base_filter & (GEOObservationRow.observed_at <= end_date)
+
+            count_stmt = select(func.count(GEOObservationRow.id)).where(base_filter)
+            total = (await session.execute(count_stmt)).scalar_one()
+
+            stmt = (
+                select(GEOObservationRow)
+                .where(base_filter)
+                .order_by(GEOObservationRow.observed_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        observations = []
+        for r in rows:
+            entity_mentions = ()
+            if r.entity_mentions:
+                entity_mentions = tuple(
+                    EntityMention(
+                        text=e["text"],
+                        entity_type=EntityType(e.get("entity_type", "other")),
+                        is_target=e.get("is_target", False),
+                        domain=e.get("domain", ""),
+                    )
+                    for e in r.entity_mentions
+                )
+
+            observations.append(
+                GEOObservation(
+                    keyword=r.keyword,
+                    engine_type=GenerativeEngineType(r.engine_type),
+                    target_mentioned=bool(r.target_mentioned),
+                    target_domain=r.target_domain,
+                    mention_count=r.mention_count,
+                    entity_mentions=entity_mentions,
+                    competitor_domains=tuple(r.competitor_domains) if r.competitor_domains else (),
+                    citation_urls=tuple(r.citation_urls) if r.citation_urls else (),
+                    answer_length=r.answer_length,
+                    observed_at=_to_aware(r.observed_at) or r.observed_at.replace(tzinfo=UTC),
+                    source=r.source,
+                )
+            )
+        return total, observations
+
+    async def get_aio_trend(
+        self,
+        domain: str,
+        *,
+        days: int = 30,
+    ) -> dict:
+        """Calculate AIO trend metrics for a domain over the specified period."""
+        from datetime import UTC, timedelta
+
+        end_date = datetime.now(UTC)
+        start_date = end_date - timedelta(days=days)
+
+        _, observations = await self.get_aio_history(
+            domain, start_date=start_date, end_date=end_date, limit=1000
+        )
+
+        if not observations:
+            return {
+                "domain": domain,
+                "period_days": days,
+                "total_observations": 0,
+                "ai_overview_rate": 0.0,
+                "citation_rate": 0.0,
+                "target_citation_rate": 0.0,
+                "trend": "insufficient_data",
+            }
+
+        # Calculate current period (last half) vs previous period (first half)
+        mid_date = end_date - timedelta(days=days // 2)
+        current_obs = [o for o in observations if o.observed_at >= mid_date]
+        previous_obs = [o for o in observations if o.observed_at < mid_date]
+
+        def calc_metrics(obs_list):
+            if not obs_list:
+                return {"ai_overview_rate": 0.0, "citation_rate": 0.0, "target_citation_rate": 0.0}
+            total = len(obs_list)
+            ai_present = sum(1 for o in obs_list if o.present)
+            cited = sum(1 for o in obs_list if o.target_cited)
+            total_citations = sum(o.citation_count for o in obs_list)
+            return {
+                "ai_overview_rate": ai_present / total,
+                "citation_rate": total_citations / total if total > 0 else 0.0,
+                "target_citation_rate": cited / total if total > 0 else 0.0,
+            }
+
+        current_metrics = calc_metrics(current_obs)
+        previous_metrics = calc_metrics(previous_obs)
+
+        trend = "stable"
+        curr_cite = current_metrics["target_citation_rate"]
+        prev_cite = previous_metrics["target_citation_rate"]
+        if curr_cite > prev_cite + 0.05:
+            trend = "improving"
+        elif curr_cite < prev_cite - 0.05:
+            trend = "declining"
+
+        return {
+            "domain": domain,
+            "period_days": days,
+            "total_observations": len(observations),
+            "current_period": current_metrics,
+            "previous_period": previous_metrics,
+            "trend": trend,
+        }
+
+    async def get_geo_trend(
+        self,
+        domain: str,
+        *,
+        days: int = 30,
+    ) -> dict:
+        """Calculate GEO trend metrics for a domain over the specified period."""
+        from datetime import UTC, timedelta
+
+        end_date = datetime.now(UTC)
+        start_date = end_date - timedelta(days=days)
+
+        _, observations = await self.get_geo_history(
+            domain, start_date=start_date, end_date=end_date, limit=1000
+        )
+
+        if not observations:
+            return {
+                "domain": domain,
+                "period_days": days,
+                "total_observations": 0,
+                "mention_rate": 0.0,
+                "competitor_mention_rate": 0.0,
+                "trend": "insufficient_data",
+            }
+
+        mid_date = end_date - timedelta(days=days // 2)
+        current_obs = [o for o in observations if o.observed_at >= mid_date]
+        previous_obs = [o for o in observations if o.observed_at < mid_date]
+
+        def calc_metrics(obs_list):
+            if not obs_list:
+                return {"mention_rate": 0.0, "competitor_mention_rate": 0.0, "avg_mentions": 0.0}
+            total = len(obs_list)
+            mentioned = sum(1 for o in obs_list if o.target_mentioned)
+            comp_mentioned = sum(1 for o in obs_list if o.competitor_domains)
+            total_mentions = sum(o.mention_count for o in obs_list)
+            return {
+                "mention_rate": mentioned / total,
+                "competitor_mention_rate": comp_mentioned / total,
+                "avg_mentions": total_mentions / total,
+            }
+
+        current_metrics = calc_metrics(current_obs)
+        previous_metrics = calc_metrics(previous_obs)
+
+        trend = "stable"
+        if current_metrics["mention_rate"] > previous_metrics["mention_rate"] + 0.05:
+            trend = "improving"
+        elif current_metrics["mention_rate"] < previous_metrics["mention_rate"] - 0.05:
+            trend = "declining"
+
+        return {
+            "domain": domain,
+            "period_days": days,
+            "total_observations": len(observations),
+            "current_period": current_metrics,
+            "previous_period": previous_metrics,
+            "trend": trend,
+        }
+
     # ── Phase 8: Performance, Entity, Optimization persistence ──────────────
 
     async def save_performance_findings(
