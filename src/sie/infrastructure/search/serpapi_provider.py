@@ -1,8 +1,4 @@
-"""SerpAPI search provider with AIO extraction support.
-
-Implements the ``SearchProvider`` protocol for SerpAPI's GET-based API.
-Supports AI Overview (AIO) extraction from SerpAPI responses.
-"""
+"""SerpAPI search provider with AIO extraction support."""
 
 from __future__ import annotations
 
@@ -27,7 +23,7 @@ from sie.domain.ports.search_provider import (
     SearchProviderRateLimit,
     SearchProviderTimeout,
 )
-from sie.infrastructure.search.quota_tracker import QuotaTracker
+from sie.infrastructure.search.quota_tracker import QuotaExceeded, QuotaTracker
 from sie.infrastructure.search.response_cache import CacheKey, SearchResponseCache
 from sie.logging import get_logger
 
@@ -39,22 +35,8 @@ __all__ = ["SerpApiProvider"]
 class SerpApiProvider:
     """SerpAPI implementation of the ``SearchProvider`` protocol.
 
-    Parameters
-    ----------
-    api_key:
-        SerpAPI API key.
-    timeout_seconds:
-        Per-request timeout.
-    connect_timeout_seconds:
-        TCP connection timeout.
-    read_timeout_seconds:
-        Response body read timeout.
-    write_timeout_seconds:
-        Request body write timeout.
-    pool_timeout_seconds:
-        Connection pool acquisition timeout.
-    client:
-        Optional pre-configured ``httpx.AsyncClient`` (for testing).
+    Cache and quota policies are constructor-injected so provider pricing and
+    limits never become hard-coded application behaviour.
     """
 
     def __init__(
@@ -66,6 +48,10 @@ class SerpApiProvider:
         read_timeout_seconds: float = 30.0,
         write_timeout_seconds: float = 10.0,
         pool_timeout_seconds: float = 5.0,
+        quota_cost_per_request_usd: float = 0.0,
+        monthly_request_limit: int = 0,
+        cache_max_entries: int = 5000,
+        cache_ttl_seconds: float = 86400.0,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not api_key:
@@ -73,39 +59,42 @@ class SerpApiProvider:
 
         self._api_key = api_key
         self._base_url = "https://serpapi.com/search"
-
         timeout = httpx.Timeout(
             connect=connect_timeout_seconds,
             read=read_timeout_seconds,
             write=write_timeout_seconds,
             pool=pool_timeout_seconds,
         )
-
         self._client = client or httpx.AsyncClient(timeout=timeout)
         self._owns_client = client is None
 
-        # Quota tracking: SerpAPI charges ~$0.005 per search request
         self._quota = QuotaTracker(
             provider_name="serpapi",
-            cost_per_request_usd=0.005,
+            cost_per_request_usd=quota_cost_per_request_usd,
+            monthly_request_limit=monthly_request_limit,
         )
-        # Response cache: avoid redundant API calls for same queries
-        self._cache = SearchResponseCache(max_entries=5000, ttl_seconds=86400)
+        self._cache = SearchResponseCache(
+            max_entries=cache_max_entries,
+            ttl_seconds=cache_ttl_seconds,
+        )
+        # AIO is a distinct representation of the same SERP request. Keep a
+        # separate cache so a ranking lookup and an AIO lookup cannot corrupt
+        # each other's value types.
+        self._aio_cache = SearchResponseCache(
+            max_entries=cache_max_entries,
+            ttl_seconds=cache_ttl_seconds,
+        )
 
     @property
     def supports_aio(self) -> bool:
-        """SerpAPI supports AI Overview extraction via the ai_overview field."""
         return True
 
     @property
     def supports_geo(self) -> bool:
-        """SerpAPI does not directly support generative engine queries."""
         return False
 
-    async def search(self, query: SearchQuery) -> SearchResult:
-        """Execute a search query via SerpAPI and return provider-neutral results."""
-        # Check cache first to avoid redundant API calls
-        cache_key = CacheKey.from_query(
+    def _cache_key(self, query: SearchQuery) -> CacheKey:
+        return CacheKey.from_query(
             keyword=query.query,
             country=query.country,
             language=query.language,
@@ -113,21 +102,50 @@ class SerpApiProvider:
             provider="serpapi",
             search_engine=query.search_engine,
         )
+
+    async def search(self, query: SearchQuery) -> SearchResult:
+        """Execute a search query via SerpAPI and return provider-neutral results."""
+        cache_key = self._cache_key(query)
         cached = self._cache.get(cache_key)
         if cached is not None:
             logger.debug("SerpAPI cache hit for query=%r", query.query)
             return cached
 
-        params = self._build_params(query)
+        data = await self._request_json(self._build_params(query))
+        result = self._parse_response(query, data)
+        self._cache.put(cache_key, result)
+        return result
 
-        logger.debug("SerpAPI request query=%r", query.query)
+    async def extract_aio(
+        self, query: SearchQuery, target_domain: str
+    ) -> AIOverviewObservation | None:
+        """Extract AIO from the same SERP request, with independent caching."""
+        cache_key = self._cache_key(query)
+        cached = self._aio_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        data = await self._request_json(self._build_params(query))
+        observation = self._parse_aio_response(query.query, target_domain, data)
+        self._aio_cache.put(cache_key, observation)
+        return observation
+
+    async def _request_json(self, params: dict[str, str]) -> dict:
+        """Perform exactly one billable outbound request and parse its JSON body."""
+        try:
+            self._quota.reserve()
+        except QuotaExceeded as exc:
+            logger.warning("SerpAPI local quota exhausted: %s", exc)
+            raise SearchProviderRateLimit(str(exc)) from exc
 
         try:
             response = await self._client.get(self._base_url, params=params)
         except httpx.TimeoutException as exc:
+            self._quota.record_request(success=False)
             logger.warning("SerpAPI request timed out: %s", exc)
             raise SearchProviderTimeout(f"Search request timed out: {exc}") from exc
         except httpx.HTTPError as exc:
+            self._quota.record_request(success=False)
             logger.warning("SerpAPI request transport error: %s", exc)
             raise SearchProviderError(f"Search transport error: {exc}") from exc
 
@@ -148,76 +166,41 @@ class SerpApiProvider:
             self._quota.record_request(success=False)
             raise SearchProviderError(f"SerpAPI returned invalid JSON: {exc}") from exc
 
-        self._quota.record_request(success=True)
-        result = self._parse_response(query, data)
-        self._cache.put(cache_key, result)
-        return result
-
-    async def extract_aio(
-        self, query: SearchQuery, target_domain: str
-    ) -> AIOverviewObservation | None:
-        """Extract AI Overview observation from SerpAPI response.
-
-        SerpAPI returns AI Overview data in the 'ai_overview' field.
-        Returns None if the provider cannot extract AIO data (should not happen
-        since supports_aio is True, but included for protocol compliance).
-        """
-        params = self._build_params(query)
-
-        try:
-            response = await self._client.get(self._base_url, params=params)
-        except httpx.TimeoutException as exc:
-            logger.warning("SerpAPI AIO request timed out: %s", exc)
-            raise SearchProviderTimeout(f"Search request timed out: {exc}") from exc
-        except httpx.HTTPError as exc:
-            logger.warning("SerpAPI AIO request transport error: %s", exc)
-            raise SearchProviderError(f"Search transport error: {exc}") from exc
-
-        if response.status_code in (401, 403):
+        if not isinstance(data, dict):
             self._quota.record_request(success=False)
-            raise SearchProviderAuthenticationError("SerpAPI key is invalid or missing")
-        if response.status_code == 429:
-            self._quota.record_request(rate_limited=True)
-            raise SearchProviderRateLimit("SerpAPI rate limit exceeded")
-        if response.status_code >= 400:
-            self._quota.record_request(success=False)
-            body = response.text[:500]
-            raise SearchProviderError(f"SerpAPI returned HTTP {response.status_code}: {body}")
-
-        try:
-            data = response.json()
-        except (json.JSONDecodeError, ValueError) as exc:
-            self._quota.record_request(success=False)
-            raise SearchProviderError(f"SerpAPI returned invalid JSON: {exc}") from exc
+            raise SearchProviderError(
+                f"SerpAPI response is not a JSON object, got {type(data).__name__}"
+            )
 
         self._quota.record_request(success=True)
-        return self._parse_aio_response(query.query, target_domain, data)
+        return data
 
     async def query_geo(
         self, query: SearchQuery, target_domain: str, engine_type: GenerativeEngineType
     ) -> GEOObservation | None:
-        """SerpAPI does not support generative engine queries.
-
-        Raises SearchProviderCapabilityError since this provider cannot
-        perform GEO observations.
-        """
         raise SearchProviderCapabilityError(
             f"SerpApiProvider does not support GEO queries for engine {engine_type.value}"
         )
 
     @property
     def quota(self) -> QuotaTracker:
-        """Return the quota tracker for this provider instance."""
         return self._quota
 
+    @property
+    def stats(self) -> dict[str, object]:
+        """Expose provider cache/quota telemetry without exposing credentials."""
+        return {
+            "quota": self._quota.snapshot(),
+            "search_cache": self._cache.stats,
+            "aio_cache": self._aio_cache.stats,
+        }
+
     async def close(self) -> None:
-        """Release the internally-created HTTP client (if any)."""
         if self._owns_client:
             await self._client.aclose()
 
     def _build_params(self, query: SearchQuery) -> dict[str, str]:
-        """Serialize a ``SearchQuery`` into SerpAPI query parameters."""
-        params = {
+        return {
             "q": query.query,
             "gl": query.country,
             "hl": query.language,
@@ -226,15 +209,12 @@ class SerpApiProvider:
             "num": str(query.max_results),
             "api_key": self._api_key,
         }
-        return params
 
     def _parse_response(self, query: SearchQuery, data: object) -> SearchResult:
-        """Validate and convert SerpAPI JSON into a ``SearchResult``."""
         if not isinstance(data, dict):
             raise SearchProviderError(
                 f"SerpAPI response is not a JSON object, got {type(data).__name__}"
             )
-
         organic_results = data.get("organic_results")
         if organic_results is None:
             raise SearchProviderError("SerpAPI response missing 'organic_results' field")
@@ -263,11 +243,8 @@ class SerpApiProvider:
     def _parse_aio_response(
         self, keyword: str, target_domain: str, data: dict
     ) -> AIOverviewObservation:
-        """Parse AI Overview data from SerpAPI response."""
         ai_overview = data.get("ai_overview")
-
         if not ai_overview or not isinstance(ai_overview, dict):
-            # No AI Overview present
             return AIOverviewObservation(
                 keyword=keyword,
                 ai_type=AIOverviewType.AI_OVERVIEW,
@@ -280,14 +257,9 @@ class SerpApiProvider:
                 source="serpapi",
             )
 
-        # AI Overview is present - extract citations
         citations = []
         competitor_domains = set()
         target_cited = False
-
-        # SerpAPI ai_overview structure typically contains:
-        # - text: the AI overview text
-        # - citations: list of citation objects with title, link, etc.
         raw_citations = ai_overview.get("citations")
         if isinstance(raw_citations, list):
             for idx, cite in enumerate(raw_citations):
@@ -295,15 +267,12 @@ class SerpApiProvider:
                     continue
                 cite_url = cite.get("link") or cite.get("url")
                 cite_title = cite.get("title") or ""
-                if not cite_url or not isinstance(cite_url, str):
+                if not isinstance(cite_url, str) or not cite_url:
                     continue
                 parsed = urlparse(cite_url)
                 if parsed.scheme not in ("http", "https") or not parsed.netloc:
                     continue
-                domain = parsed.netloc.split(":")[0].casefold()
-                if domain.startswith("www."):
-                    domain = domain[4:]
-
+                domain = parsed.netloc.split(":")[0].casefold().removeprefix("www.")
                 citation = AIOCitation(
                     domain=domain,
                     url=cite_url,
@@ -312,13 +281,10 @@ class SerpApiProvider:
                     title=cite_title if isinstance(cite_title, str) else "",
                 )
                 citations.append(citation)
-
                 if domain == target_domain.casefold().removeprefix("www."):
                     target_cited = True
                 else:
                     competitor_domains.add(domain)
-
-        citation_count = len(citations)
 
         return AIOverviewObservation(
             keyword=keyword,
@@ -326,7 +292,7 @@ class SerpApiProvider:
             present=True,
             target_cited=target_cited,
             target_domain=target_domain,
-            citation_count=citation_count,
+            citation_count=len(citations),
             citations=tuple(citations),
             competitor_cited_domains=tuple(sorted(competitor_domains)),
             source="serpapi",
@@ -334,26 +300,16 @@ class SerpApiProvider:
 
     @staticmethod
     def _parse_item(raw: dict[str, object], index: int) -> SearchResultItem | None:
-        """Validate one SerpAPI organic result and return a ``SearchResultItem``."""
-        # -- title --
         title = raw.get("title")
         if not isinstance(title, str) or not title.strip():
             return None
-
-        # -- url --
         url = raw.get("link")
         if not isinstance(url, str) or not url.strip():
             return None
         parsed_url = urlparse(url.strip())
         if parsed_url.scheme not in ("http", "https") or not parsed_url.netloc:
             return None
-
-        # -- position --
         position = raw.get("position")
-        if isinstance(position, bool) or not isinstance(position, int):
+        if isinstance(position, bool) or not isinstance(position, int) or position < 1:
             return None
-        if position < 1:
-            return None
-
         return SearchResultItem(position=position, title=title.strip(), url=url.strip())
-
