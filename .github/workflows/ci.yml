@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install project and development dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Check Python compilation
+        run: python -m compileall -q src
+
+      - name: Run Ruff
+        run: ruff check .
+
+      - name: Run test suite
+        run: pytest -v --tb=short
+
+      - name: Validate Alembic migrations
+        env:
+          SIE_ENVIRONMENT: test
+          SIE_DATABASE_URL: sqlite+aiosqlite:///./ci_migrations.db
+        run: alembic upgrade head
+
+      - name: Verify migration state
+        env:
+          SIE_ENVIRONMENT: test
+          SIE_DATABASE_URL: sqlite+aiosqlite:///./ci_migrations.db
+        run: alembic check
