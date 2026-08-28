@@ -1,21 +1,17 @@
-"""Search provider quota tracking — production observability for API costs.
-
-Tracks request counts, successes, failures, and estimated costs per provider
-instance.  Thread-safe via simple counters (asyncio is single-threaded per
-event loop so no lock is needed).
-
-Every ``SearchProvider`` implementation can optionally hold a ``QuotaTracker``
-instance.  The tracker is purely observational — it never blocks or retries.
-"""
+"""Search-provider quota tracking and local cost enforcement."""
 
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 
-@dataclass
+class QuotaExceeded(RuntimeError):
+    """Raised before an outbound request when the configured local quota is exhausted."""
+
+
+@dataclass(frozen=True)
 class QuotaSnapshot:
     """Point-in-time view of quota usage."""
 
@@ -27,48 +23,86 @@ class QuotaSnapshot:
     estimated_cost_usd: float
     first_request_at: str | None
     last_request_at: str | None
-    requests_by_minute: list[tuple[str, int]]  # (minute_key, count)
+    requests_by_minute: list[tuple[str, int]]
+    monthly_request_limit: int | None
+    requests_remaining_estimate: int | None
 
 
 class QuotaTracker:
-    """Lightweight, in-memory quota tracker for a single provider.
+    """Track and optionally enforce a provider request budget.
 
-    Parameters
-    ----------
-    provider_name:
-        Human-readable provider label (e.g. ``"serpapi"``).
-    cost_per_request_usd:
-        Estimated cost per successful request in USD.  Set to ``0.0`` for
-        free providers.  The actual SerpAPI cost is ~$0.005/request.
+    The tracker is intentionally provider-agnostic. Pricing and quota limits
+    must be supplied by configuration; no provider's current pricing or free
+    tier is hard-coded here.
+
+    This is a process-local guard. A distributed deployment should place the
+    same reservation logic behind Redis or another shared atomic store.
     """
 
     def __init__(
         self,
         provider_name: str,
         cost_per_request_usd: float = 0.0,
+        monthly_request_limit: int = 0,
     ) -> None:
+        if cost_per_request_usd < 0:
+            raise ValueError("cost_per_request_usd must be >= 0")
+        if monthly_request_limit < 0:
+            raise ValueError("monthly_request_limit must be >= 0")
+
         self._provider_name = provider_name
         self._cost_per_request = cost_per_request_usd
-
-        self._total_requests: int = 0
-        self._successful: int = 0
-        self._failed: int = 0
-        self._rate_limited: int = 0
+        self._monthly_limit = monthly_request_limit or None
+        self._period_key = self._current_period_key()
+        self._total_requests = 0
+        self._successful = 0
+        self._failed = 0
+        self._rate_limited = 0
         self._first_request_at: float | None = None
         self._last_request_at: float | None = None
-        # Minute-keyed request counts for recent window
         self._minute_counts: dict[str, int] = {}
 
-    # ── Recording methods ─────────────────────────────────────────────
+    @staticmethod
+    def _current_period_key() -> str:
+        return datetime.now(UTC).strftime("%Y-%m")
 
-    def record_request(self, *, success: bool = True, rate_limited: bool = False) -> None:
-        """Record a single API request."""
-        now = time.time()
+    def _roll_period_if_needed(self) -> None:
+        period = self._current_period_key()
+        if period != self._period_key:
+            self.reset()
+            self._period_key = period
+
+    def reserve(self) -> None:
+        """Reserve one outbound request or raise ``QuotaExceeded``.
+
+        Call this immediately before the actual provider request. Failed and
+        successful requests both consume the provider quota, so reservation is
+        based on total outbound attempts rather than successful responses.
+        """
+        self._roll_period_if_needed()
+        if self._monthly_limit is not None and self._total_requests >= self._monthly_limit:
+            raise QuotaExceeded(
+                f"{self._provider_name} local monthly request limit exhausted "
+                f"({self._monthly_limit})"
+            )
         self._total_requests += 1
+        now = time.time()
         self._last_request_at = now
         if self._first_request_at is None:
             self._first_request_at = now
+        minute_key = datetime.fromtimestamp(now, tz=UTC).strftime("%Y-%m-%dT%H:%M")
+        self._minute_counts[minute_key] = self._minute_counts.get(minute_key, 0) + 1
+        self._prune_old_minutes()
 
+    def record_request(self, *, success: bool = True, rate_limited: bool = False) -> None:
+        """Record the outcome of a request previously reserved with ``reserve``.
+
+        For backwards compatibility, calling this method without a prior
+        reservation still records a request.
+        """
+        self._roll_period_if_needed()
+        if self._total_requests == 0:
+            self.reserve()
         if rate_limited:
             self._rate_limited += 1
         elif success:
@@ -76,20 +110,10 @@ class QuotaTracker:
         else:
             self._failed += 1
 
-        # Track per-minute counts (sliding window of last 10 minutes)
-        minute_key = datetime.fromtimestamp(now, tz=UTC).strftime("%Y-%m-%dT%H:%M")
-        self._minute_counts[minute_key] = self._minute_counts.get(minute_key, 0) + 1
-        self._prune_old_minutes()
-
     def _prune_old_minutes(self) -> None:
-        """Remove minute keys older than 10 minutes."""
-        if len(self._minute_counts) <= 10:
-            return
-        keys = sorted(self._minute_counts.keys())
-        for old_key in keys[:-10]:
-            del self._minute_counts[old_key]
-
-    # ── Query methods ─────────────────────────────────────────────────
+        if len(self._minute_counts) > 10:
+            for old_key in sorted(self._minute_counts)[:-10]:
+                del self._minute_counts[old_key]
 
     @property
     def total_requests(self) -> int:
@@ -109,54 +133,50 @@ class QuotaTracker:
 
     @property
     def estimated_cost_usd(self) -> float:
-        """Estimated cost based on successful requests only."""
-        return self._successful * self._cost_per_request
+        """Estimated provider cost based on all outbound attempts."""
+        return self._total_requests * self._cost_per_request
 
     @property
     def requests_last_minute(self) -> int:
-        """Number of requests in the most recent minute."""
         if not self._minute_counts:
             return 0
-        latest_key = max(self._minute_counts.keys())
-        return self._minute_counts[latest_key]
+        return self._minute_counts[max(self._minute_counts)]
 
     @property
     def requests_remaining_estimate(self) -> int | None:
-        """Rough estimate of remaining quota.
-
-        SerpAPI's free tier allows ~100 requests/month.  This is a heuristic
-        and should be replaced with actual quota tracking when the provider
-        exposes a quota endpoint.
-        """
-        # Only approximate for SerpAPI
-        if self._provider_name.lower() != "serpapi":
+        if self._monthly_limit is None:
             return None
-        monthly_limit = 100  # Free tier
-        return max(0, monthly_limit - self._total_requests)
+        self._roll_period_if_needed()
+        return max(0, self._monthly_limit - self._total_requests)
 
     def snapshot(self) -> QuotaSnapshot:
-        """Return a point-in-time snapshot of quota usage."""
-        first_at = None
-        if self._first_request_at:
-            first_at = datetime.fromtimestamp(self._first_request_at, tz=UTC).isoformat()
-        last_at = None
-        if self._last_request_at:
-            last_at = datetime.fromtimestamp(self._last_request_at, tz=UTC).isoformat()
-
+        self._roll_period_if_needed()
+        first_at = (
+            datetime.fromtimestamp(self._first_request_at, tz=UTC).isoformat()
+            if self._first_request_at is not None
+            else None
+        )
+        last_at = (
+            datetime.fromtimestamp(self._last_request_at, tz=UTC).isoformat()
+            if self._last_request_at is not None
+            else None
+        )
         return QuotaSnapshot(
             provider_name=self._provider_name,
             total_requests=self._total_requests,
             successful_requests=self._successful,
             failed_requests=self._failed,
             rate_limited_requests=self._rate_limited,
-            estimated_cost_usd=round(self.estimated_cost_usd, 4),
+            estimated_cost_usd=round(self.estimated_cost_usd, 6),
             first_request_at=first_at,
             last_request_at=last_at,
             requests_by_minute=list(self._minute_counts.items()),
+            monthly_request_limit=self._monthly_limit,
+            requests_remaining_estimate=self.requests_remaining_estimate,
         )
 
     def reset(self) -> None:
-        """Reset all counters (e.g. for a new billing period)."""
+        """Reset the current period's counters."""
         self._total_requests = 0
         self._successful = 0
         self._failed = 0
