@@ -29,11 +29,7 @@ class QuotaSnapshot:
 
 
 class QuotaTracker:
-    """Track and optionally enforce a provider request budget.
-
-    Pricing and limits are configuration inputs. This class intentionally has
-    no knowledge of any provider's current plan or pricing.
-    """
+    """Track and optionally enforce a provider request budget."""
 
     def __init__(self, provider_name: str, cost_per_request_usd: float = 0.0, monthly_request_limit: int = 0) -> None:
         if cost_per_request_usd < 0:
@@ -73,15 +69,15 @@ class QuotaTracker:
         self._prune_old_minutes()
 
     def record_request(self, *, success: bool = True, rate_limited: bool = False) -> None:
-        """Record an outcome.
+        """Record an outcome, reserving automatically for legacy callers.
 
-        ``record_request`` is deliberately not a reservation API. Provider code
-        must call ``reserve`` before the HTTP request so failed requests also
-        consume quota exactly once.
+        New provider code should call ``reserve`` immediately before I/O. The
+        compatibility path prevents older providers from silently bypassing
+        quota accounting.
         """
         self._roll_period_if_needed()
-        if self._total_requests <= self._recorded_outcomes:
-            raise RuntimeError("record_request() called without a matching reserve()")
+        if self._recorded_outcomes >= self._total_requests:
+            self.reserve()
         self._recorded_outcomes += 1
         if rate_limited:
             self._rate_limited += 1
@@ -128,8 +124,8 @@ class QuotaTracker:
 
     def snapshot(self) -> QuotaSnapshot:
         self._roll_period_if_needed()
-        first_at = datetime.fromtimestamp(self._first_request_at, tz=UTC).isoformat() if self._first_request_at else None
-        last_at = datetime.fromtimestamp(self._last_request_at, tz=UTC).isoformat() if self._last_request_at else None
+        first_at = datetime.fromtimestamp(self._first_request_at, tz=UTC).isoformat() if self._first_request_at is not None else None
+        last_at = datetime.fromtimestamp(self._last_request_at, tz=UTC).isoformat() if self._last_request_at is not None else None
         return QuotaSnapshot(
             provider_name=self._provider_name,
             total_requests=self._total_requests,
@@ -150,6 +146,6 @@ class QuotaTracker:
         self._successful = 0
         self._failed = 0
         self._rate_limited = 0
-        self._first_request_at: float | None = None
-        self._last_request_at: float | None = None
+        self._first_request_at = None
+        self._last_request_at = None
         self._minute_counts: dict[str, int] = {}
