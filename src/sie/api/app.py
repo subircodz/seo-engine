@@ -15,14 +15,14 @@ from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
 from sie.domain.services.crawl_service import CrawlService
 from sie.domain.services.diagnosis_service import DiagnosisService
+from sie.domain.services.evidence_aware_site_analysis import EvidenceAwareSiteAnalysisService
 from sie.domain.services.industry_intelligence import IndustryIntelligenceService
 from sie.domain.services.intelligence_service import IntelligenceService
 from sie.domain.services.site_analysis import create_site_analysis_service
-from sie.domain.services.evidence_aware_site_analysis import EvidenceAwareSiteAnalysisService
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
+from sie.infrastructure.external_provider_factory import create_external_providers
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 from sie.infrastructure.fetching.retrying_fetcher import RetryingFetcher
-from sie.infrastructure.external_provider_factory import create_external_providers
 from sie.infrastructure.jobs.durable_queue import DurableJobQueue
 from sie.infrastructure.llm.openai_provider import OpenAICompatibleProvider
 from sie.infrastructure.parsing.html_parser import Bs4PageParser
@@ -101,8 +101,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.crux_service = CruxService(api_key=settings.crux.api_key if settings.crux.enabled else None, timeout_seconds=settings.crux.timeout_seconds, form_factor=settings.crux.form_factor)
         raw_site_service = create_site_analysis_service(crawl_service=app.state.crawl_service, audit_service=app.state.audit_service, content_service=app.state.content_service, search_provider=app.state.search_provider, repository=app.state.repository, crux_service=app.state.crux_service)
         app.state.site_analysis_service = EvidenceAwareSiteAnalysisService(raw_site_service)
-
         app.state.external_providers = create_external_providers(settings)
+
         app.state.job_queue = DurableJobQueue(app.state.database.session_factory, lease_seconds=settings.jobs.lease_seconds, max_attempts=settings.jobs.max_attempts)
 
         async def run_site_analysis(payload: dict):
@@ -143,6 +143,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    # All site-analysis API calls use the single production service instance,
+    # including the legacy synchronous endpoint.
+    app.dependency_overrides[site_analysis._site_analysis_service] = lambda request: request.app.state.site_analysis_service
     app.include_router(audit.router)
     app.include_router(content.router)
     app.include_router(crawl.router)
