@@ -1,8 +1,7 @@
 """Redis-backed shared response cache for search providers.
 
-The cache stores provider *raw JSON responses*, not pickled Python objects. This
-keeps the cache language/runtime independent and avoids unsafe deserialization.
-A local in-process LRU should still be used as the first-level cache.
+The cache stores provider raw JSON responses, not pickled Python objects. Redis
+is an optimization: a Redis outage must never become a search-provider outage.
 """
 
 from __future__ import annotations
@@ -29,32 +28,38 @@ class RedisSearchResponseCache:
         return f"{self._prefix}{operation}:{key.hash()}"
 
     async def get(self, key: CacheKey, *, operation: str = "search") -> dict[str, Any] | None:
-        value = await self._redis.get(self._key(key, operation))
+        redis_key = self._key(key, operation)
+        try:
+            value = await self._redis.get(redis_key)
+        except Exception:
+            return None
         if value is None:
             return None
         try:
             decoded = json.loads(value)
-        except json.JSONDecodeError:
-            await self._redis.delete(self._key(key, operation))
+        except (TypeError, json.JSONDecodeError):
+            try:
+                await self._redis.delete(redis_key)
+            except Exception:
+                pass
             return None
         return decoded if isinstance(decoded, dict) else None
 
-    async def put(
-        self,
-        key: CacheKey,
-        value: dict[str, Any],
-        *,
-        operation: str = "search",
-        ttl_seconds: int | None = None,
-    ) -> None:
-        await self._redis.set(
-            self._key(key, operation),
-            json.dumps(value, separators=(",", ":")),
-            ex=ttl_seconds or self._ttl,
-        )
+    async def put(self, key: CacheKey, value: dict[str, Any], *, operation: str = "search", ttl_seconds: int | None = None) -> None:
+        try:
+            await self._redis.set(
+                self._key(key, operation),
+                json.dumps(value, separators=(",", ":")),
+                ex=ttl_seconds or self._ttl,
+            )
+        except Exception:
+            return
 
     async def close(self) -> None:
-        await self._redis.aclose()
+        try:
+            await self._redis.aclose()
+        except Exception:
+            return
 
     async def ping(self) -> bool:
         try:
