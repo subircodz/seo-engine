@@ -36,50 +36,22 @@ class SearchConsoleProvider:
         self._property_url = property_url
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
 
-    async def query(
-        self,
-        start_date: date,
-        end_date: date,
-        *,
-        dimensions: tuple[str, ...] = ("query", "page"),
-        row_limit: int = 25000,
-        start_row: int = 0,
-        search_type: str = "web",
-    ) -> tuple[SearchConsoleObservation, ...]:
+    async def query(self, start_date: date, end_date: date, *, dimensions: tuple[str, ...] = ("query", "page"), row_limit: int = 25000, start_row: int = 0, search_type: str = "web") -> tuple[SearchConsoleObservation, ...]:
         token = await self._oauth.access_token()
         encoded_property = quote(self._property_url, safe="")
         response = await self._client.post(
             f"{self.ENDPOINT}/{encoded_property}/searchAnalytics/query",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "startDate": start_date.isoformat(),
-                "endDate": end_date.isoformat(),
-                "dimensions": list(dimensions),
-                "rowLimit": row_limit,
-                "startRow": start_row,
-                "type": search_type,
-            },
+            json={"startDate": start_date.isoformat(), "endDate": end_date.isoformat(), "dimensions": list(dimensions), "rowLimit": row_limit, "startRow": start_row, "type": search_type},
         )
         response.raise_for_status()
-        data = response.json()
-        rows = data.get("rows", [])
         observations: list[SearchConsoleObservation] = []
-        for row in rows:
-            if not isinstance(row, dict):
+        for row in response.json().get("rows", []):
+            if not isinstance(row, dict) or not isinstance(row.get("keys", []), list):
                 continue
-            keys = row.get("keys", [])
-            if not isinstance(keys, list):
-                continue
-            observations.append(
-                SearchConsoleObservation(
-                    keys=tuple(str(key) for key in keys),
-                    clicks=float(row.get("clicks", 0.0)),
-                    impressions=float(row.get("impressions", 0.0)),
-                    ctr=float(row.get("ctr", 0.0)),
-                    position=float(row.get("position", 0.0)),
-                )
-            )
+            observations.append(SearchConsoleObservation(tuple(str(key) for key in row["keys"]), float(row.get("clicks", 0.0)), float(row.get("impressions", 0.0)), float(row.get("ctr", 0.0)), float(row.get("position", 0.0))))
         return tuple(observations)
 
     async def close(self) -> None:
         await self._client.aclose()
+        await self._oauth.close()
