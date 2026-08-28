@@ -1,4 +1,4 @@
-"""Search provider factory (Phase 6L + Provider Registry + GEO LLM)."""
+"""Search provider factory with capability routing and production caching."""
 
 from __future__ import annotations
 
@@ -21,20 +21,18 @@ __all__ = [
 ]
 
 
-def _create_mock(
-    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
-) -> SearchProvider:
+class SearchProviderConfigError(Exception):
+    """Raised when the search provider cannot be constructed from config."""
+
+
+def _create_mock(settings: SearchProviderSettings | SearchProviderCapabilitySettings) -> SearchProvider:
     from sie.infrastructure.search.mock_provider import MockSearchProvider
     return MockSearchProvider()
 
 
-def _create_http(
-    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
-) -> SearchProvider:
+def _create_http(settings: SearchProviderSettings | SearchProviderCapabilitySettings) -> SearchProvider:
     if not settings.base_url or not settings.base_url.strip():
-        raise SearchProviderConfigError(
-            "Search provider 'http' requires SIE_SEARCH_PROVIDER__BASE_URL"
-        )
+        raise SearchProviderConfigError("Search provider 'http' requires a base URL")
     from sie.infrastructure.search.http_provider import HttpSearchProvider
     return HttpSearchProvider(
         base_url=settings.base_url,
@@ -55,9 +53,7 @@ def _create_serpapi(
     monthly_request_limit: int = 0,
 ) -> SearchProvider:
     if not settings.api_key or not settings.api_key.strip():
-        raise SearchProviderConfigError(
-            "Search provider 'serpapi' requires SIE_SEARCH_PROVIDER__API_KEY"
-        )
+        raise SearchProviderConfigError("Search provider 'serpapi' requires an API key")
     from sie.infrastructure.search.serpapi_provider import SerpApiProvider
     return SerpApiProvider(
         api_key=settings.api_key,
@@ -71,13 +67,9 @@ def _create_serpapi(
     )
 
 
-def _create_valueserp(
-    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
-) -> SearchProvider:
+def _create_valueserp(settings: SearchProviderSettings | SearchProviderCapabilitySettings) -> SearchProvider:
     if not settings.api_key or not settings.api_key.strip():
-        raise SearchProviderConfigError(
-            "Search provider 'valueserp' requires SIE_SEARCH_PROVIDER__API_KEY"
-        )
+        raise SearchProviderConfigError("Search provider 'valueserp' requires an API key")
     from sie.infrastructure.search.valueserp_provider import ValueSerpProvider
     return ValueSerpProvider(
         api_key=settings.api_key,
@@ -94,15 +86,10 @@ def _create_llm(
     *,
     llm_settings: LLMSettings | None = None,
 ) -> SearchProvider:
-    """Create a GEO LLM provider using OpenAI-compatible LLM."""
     if not settings.base_url or not settings.base_url.strip():
-        raise SearchProviderConfigError(
-            "Search provider 'llm' requires SIE_SEARCH_PROVIDER__BASE_URL"
-        )
+        raise SearchProviderConfigError("Search provider 'llm' requires a base URL")
     if not settings.api_key or not settings.api_key.strip():
-        raise SearchProviderConfigError(
-            "Search provider 'llm' requires SIE_SEARCH_PROVIDER__API_KEY"
-        )
+        raise SearchProviderConfigError("Search provider 'llm' requires an API key")
 
     llm = LLMSettings(
         enabled=True,
@@ -117,7 +104,6 @@ def _create_llm(
         write_timeout_seconds=llm_settings.write_timeout_seconds if llm_settings else 30.0,
         pool_timeout_seconds=llm_settings.pool_timeout_seconds if llm_settings else 10.0,
     )
-
     from sie.infrastructure.llm.openai_provider import OpenAICompatibleProvider
     from sie.infrastructure.search.geo_provider import GEOLLMProvider
 
@@ -143,8 +129,27 @@ _REGISTRY: dict[str, tuple[str, object]] = {
 }
 
 
-class SearchProviderConfigError(Exception):
-    """Raised when the search provider cannot be constructed from config."""
+def _wrap_distributed_cache(provider: SearchProvider, settings) -> SearchProvider:
+    """Add shared Redis caching when explicitly enabled.
+
+    Redis is an L2 cache. Provider-local caches remain useful as the L1 cache.
+    If Redis is unavailable, the provider continues to function using its local
+    cache rather than turning a cache outage into a search outage.
+    """
+    from sie.infrastructure.search.distributed_cache_provider import DistributedCacheSearchProvider
+    from sie.infrastructure.search.redis_response_cache import RedisSearchResponseCache
+
+    if not getattr(settings, "enabled", False):
+        return provider
+    cache_cfg = settings._cache_settings if hasattr(settings, "_cache_settings") else None
+    if cache_cfg is None or not cache_cfg.enabled:
+        return provider
+    cache = RedisSearchResponseCache(
+        cache_cfg.redis_url,
+        prefix=f"{cache_cfg.key_prefix}search:",
+        ttl_seconds=cache_cfg.response_ttl_seconds,
+    )
+    return DistributedCacheSearchProvider(provider, cache)
 
 
 def _create_provider_from_capability_settings(
@@ -153,95 +158,102 @@ def _create_provider_from_capability_settings(
     llm_settings: LLMSettings | None = None,
     serpapi_request_cost_usd: float = 0.0,
     serpapi_monthly_request_limit: int = 0,
+    cache_settings=None,
 ) -> SearchProvider:
     if not settings.provider_name or settings.provider_name.lower().strip() == "mock":
-        return _create_mock(settings)
+        provider = _create_mock(settings)
+    else:
+        name = settings.provider_name.lower().strip()
+        entry = _REGISTRY.get(name)
+        if entry is None:
+            raise SearchProviderConfigError(
+                f"Unsupported search provider: {settings.provider_name!r}. "
+                f"Supported providers: {', '.join(sorted(_REGISTRY))}"
+            )
+        _label, factory = entry
+        logger.info("Capability provider enabled: name=%s base_url=%s", name, settings.base_url)
+        if name == "llm":
+            provider = factory(settings, llm_settings=llm_settings)
+        elif name == "serpapi":
+            provider = factory(
+                settings,
+                request_cost_usd=serpapi_request_cost_usd,
+                monthly_request_limit=serpapi_monthly_request_limit,
+            )
+        else:
+            provider = factory(settings)
+    if cache_settings is not None and cache_settings.enabled:
+        cache_settings_holder = type("CacheSettingsHolder", (), {"_cache_settings": cache_settings, "enabled": True})()
+        provider = _wrap_distributed_cache(provider, cache_settings_holder)
+    return provider
 
+
+def create_search_provider(
+    settings: SearchProviderSettings,
+    *,
+    serpapi_request_cost_usd: float = 0.0,
+    serpapi_monthly_request_limit: int = 0,
+    cache_settings=None,
+) -> SearchProvider:
+    """Construct one provider from explicit settings.
+
+    All runtime settings are passed explicitly; the factory never re-reads the
+    process singleton, which keeps tests and multi-tenant composition correct.
+    """
+    if not settings.enabled:
+        return _create_mock(settings)
     name = settings.provider_name.lower().strip()
     entry = _REGISTRY.get(name)
     if entry is None:
-        supported = ", ".join(sorted(_REGISTRY))
         raise SearchProviderConfigError(
             f"Unsupported search provider: {settings.provider_name!r}. "
-            f"Supported providers: {supported}"
+            f"Supported providers: {', '.join(sorted(_REGISTRY))}"
         )
-
     _label, factory = entry
-    logger.info("Capability provider enabled: name=%s base_url=%s", name, settings.base_url)
-    if name == "llm":
-        return factory(settings, llm_settings=llm_settings)
     if name == "serpapi":
-        return factory(
+        provider = factory(
             settings,
             request_cost_usd=serpapi_request_cost_usd,
             monthly_request_limit=serpapi_monthly_request_limit,
         )
-    return factory(settings)
+    else:
+        provider = factory(settings)
+    if cache_settings is not None and cache_settings.enabled:
+        cache_settings_holder = type("CacheSettingsHolder", (), {"_cache_settings": cache_settings, "enabled": True})()
+        provider = _wrap_distributed_cache(provider, cache_settings_holder)
+    return provider
 
 
-def create_search_provider(settings: SearchProviderSettings) -> SearchProvider:
-    """Construct and return a ``SearchProvider`` from settings."""
+def create_provider_registry(settings: SearchProviderSettings, *, serpapi_settings=None, cache_settings=None) -> ProviderRegistry:
+    """Construct a capability-routed provider registry from explicit settings."""
     if not settings.enabled:
-        logger.info("Search provider disabled — mock provider active.")
-        return _create_mock(settings)
-
-    name = settings.provider_name.lower().strip()
-    entry = _REGISTRY.get(name)
-    if entry is None:
-        supported = ", ".join(sorted(_REGISTRY))
-        raise SearchProviderConfigError(
-            f"Unsupported search provider: {settings.provider_name!r}. "
-            f"Supported providers: {supported}"
-        )
-
-    _label, factory = entry
-    logger.info("Search provider enabled: name=%s base_url=%s", name, settings.base_url)
-    if name == "serpapi":
-        return factory(
-            settings,
-            request_cost_usd=0.0,
-            monthly_request_limit=0,
-        )
-    return factory(settings)
-
-
-def create_provider_registry(settings: SearchProviderSettings) -> ProviderRegistry:
-    """Construct a ``ProviderRegistry`` from capability-specific settings."""
-    if not settings.enabled:
-        logger.info("Search provider disabled — mock provider active.")
         return ProviderRegistry(default=_create_mock(settings))
 
-    has_capability_settings = any(
-        s is not None for s in (settings.rankings, settings.aio, settings.geo)
-    )
+    has_capability_settings = any(s is not None for s in (settings.rankings, settings.aio, settings.geo))
     if not has_capability_settings:
-        provider = create_search_provider(settings)
+        provider = create_search_provider(
+            settings,
+            serpapi_request_cost_usd=serpapi_settings.request_cost_usd if serpapi_settings else 0.0,
+            serpapi_monthly_request_limit=serpapi_settings.monthly_request_limit if serpapi_settings else 0,
+            cache_settings=cache_settings,
+        )
         return ProviderRegistry(default=provider)
 
     providers: dict[str, SearchProvider] = {}
-    capability_settings = {
+    for cap_name, cap_settings in {
         "rankings": settings.rankings,
         "aio": settings.aio,
         "geo": settings.geo,
-    }
-
-    # Import lazily to keep configuration construction lightweight.
-    from sie.config import get_settings
-    quota = get_settings().serpapi
-
-    for cap_name, cap_settings in capability_settings.items():
-        if cap_settings is not None:
-            llm_settings = settings.llm if cap_name == "geo" else None
-            providers[cap_name] = _create_provider_from_capability_settings(
-                cap_settings,
-                llm_settings=llm_settings,
-                serpapi_request_cost_usd=quota.request_cost_usd,
-                serpapi_monthly_request_limit=quota.monthly_request_limit,
-            )
-            logger.info(
-                "Created %s provider: %s", cap_name, type(providers[cap_name]).__name__
-            )
-
+    }.items():
+        if cap_settings is None:
+            continue
+        providers[cap_name] = _create_provider_from_capability_settings(
+            cap_settings,
+            llm_settings=settings.llm if cap_name == "geo" else None,
+            serpapi_request_cost_usd=serpapi_settings.request_cost_usd if serpapi_settings else 0.0,
+            serpapi_monthly_request_limit=serpapi_settings.monthly_request_limit if serpapi_settings else 0,
+            cache_settings=cache_settings,
+        )
     return ProviderRegistry(
         rankings=providers.get("rankings"),
         aio=providers.get("aio"),
