@@ -1,5 +1,6 @@
-"""FastAPI application factory -- the Phase 3 composition root."""
+"""FastAPI application factory and production composition root."""
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -14,6 +15,7 @@ from sie.api.routes import (
     crawl,
     diagnosis,
     intelligence,
+    jobs,
     report,
     search,
     search_intelligence,
@@ -29,9 +31,11 @@ from sie.domain.services.crawl_service import CrawlService
 from sie.domain.services.diagnosis_service import DiagnosisService
 from sie.domain.services.industry_intelligence import IndustryIntelligenceService
 from sie.domain.services.intelligence_service import IntelligenceService
+from sie.domain.services.site_analysis import create_site_analysis_service
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 from sie.infrastructure.fetching.retrying_fetcher import RetryingFetcher
+from sie.infrastructure.jobs.durable_queue import DurableJobQueue
 from sie.infrastructure.llm.openai_provider import OpenAICompatibleProvider
 from sie.infrastructure.parsing.html_parser import Bs4PageParser
 from sie.infrastructure.persistence.database import Database
@@ -46,23 +50,15 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
     """Middleware to generate and track request IDs for correlation."""
 
     async def dispatch(self, request: Request, call_next):
-        # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-
-        # Set request ID in context variable for logging
         set_request_id(request_id)
         request.state.request_id = request_id
-
-        # Process request
-        response = await call_next(request)
-
-        # Add request ID to response headers
-        response.headers["X-Request-ID"] = request_id
-
-        # Clear request ID from context
-        set_request_id(None)
-
-        return response
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            set_request_id(None)
 
 
 def _log_event_factory():
@@ -110,11 +106,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             max_retries=cs.max_retries,
             base_delay_seconds=cs.retry_backoff_seconds,
         )
-        # Create crawler engine with optional Cloudflare bypass
         if cf_bypass.enabled:
-            from sie.infrastructure.crawling.cloudflare_bypass_engine import (
-                CloudflareBypassCrawlerEngine,
-            )
+            from sie.infrastructure.crawling.cloudflare_bypass_engine import CloudflareBypassCrawlerEngine
             engine = CloudflareBypassCrawlerEngine(
                 fetcher=fetcher,
                 user_agent=cs.user_agent,
@@ -129,7 +122,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 headless=cf_bypass.headless,
                 max_browser_retries=cf_bypass.max_browser_retries,
             )
-            logger.info("Cloudflare bypass enabled for crawler")
         else:
             engine = HttpxCrawlerEngine(
                 fetcher=fetcher,
@@ -140,17 +132,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 follow_cross_origin=cs.follow_cross_origin,
                 visited_cache_size=cs.visited_cache_size,
             )
+
         repo = SqlAlchemyCrawlRunRepository(app.state.database.session_factory)
-        app.state.crawled_pages = {}  # run_id -> list[FetchedPage]
+        app.state.crawled_pages = {}
+        app.state.fetcher = fetcher
         app.state.crawl_service = CrawlService(
             engine, repo, handlers=[_log_event_factory()], pages_store=app.state.crawled_pages
         )
-        app.state.fetcher = fetcher
         app.state.audit_service = AuditService(repo, Bs4PageParser())
         app.state.content_service = ContentService(repo, Bs4PageParser())
         app.state.diagnosis_service = DiagnosisService(repo, Bs4PageParser())
 
-        # LLM provider — conditionally created
         llm_provider = None
         llm_cfg = settings.llm
         if llm_cfg.enabled:
@@ -164,13 +156,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 write_timeout_seconds=llm_cfg.write_timeout_seconds,
                 pool_timeout_seconds=llm_cfg.pool_timeout_seconds,
             )
-            logger.info(
-                "LLM provider enabled: model=%s base_url=%s",
-                llm_cfg.model,
-                llm_cfg.base_url,
-            )
-        else:
-            logger.info("LLM provider disabled (set SIE_LLM__ENABLED=true)")
         app.state.llm_provider = llm_provider
         app.state.intelligence_service = IntelligenceService(
             llm_provider,
@@ -180,12 +165,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.repository = repo
         app.state.industry_intelligence_service = IndustryIntelligenceService()
 
-        # Search provider / registry — created via the provider factory
         from sie.infrastructure.search.provider_factory import create_provider_registry
+        app.state.search_provider = create_provider_registry(
+            settings.search_provider,
+            serpapi_settings=settings.serpapi,
+            cache_settings=settings.cache,
+        )
 
-        app.state.search_provider = create_provider_registry(settings.search_provider)
-
-        # CrUX service for real-user Core Web Vitals
         from sie.infrastructure.crux import CruxService
         app.state.crux_service = CruxService(
             api_key=settings.crux.api_key if settings.crux.enabled else None,
@@ -193,9 +179,54 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             form_factor=settings.crux.form_factor,
         )
 
+        # Create one site-analysis service for both synchronous and durable paths.
+        app.state.site_analysis_service = create_site_analysis_service(
+            crawl_service=app.state.crawl_service,
+            audit_service=app.state.audit_service,
+            content_service=app.state.content_service,
+            search_provider=app.state.search_provider,
+            repository=app.state.repository,
+            crux_service=app.state.crux_service,
+        )
+
+        # Durable worker infrastructure. Jobs contain JSON payloads only and are
+        # leased from the database, so a worker crash does not silently lose work.
+        app.state.job_queue = DurableJobQueue(
+            app.state.database.session_factory,
+            lease_seconds=settings.jobs.lease_seconds,
+            max_attempts=settings.jobs.max_attempts,
+        )
+
+        async def run_site_analysis(payload: dict):
+            result = await app.state.site_analysis_service.analyze_site(**payload)
+            return {
+                "domain": result.domain,
+                "crawl_run_id": result.crawl_run_id,
+                "overall_score": result.overall_score,
+                "analyzed_at": result.analyzed_at.isoformat(),
+            }
+
+        app.state.job_queue.register("site-analysis", run_site_analysis)
+        app.state.job_stop_event = asyncio.Event()
+        app.state.job_workers = []
+        if settings.jobs.enabled:
+            for index in range(settings.jobs.concurrency):
+                app.state.job_workers.append(
+                    asyncio.create_task(
+                        app.state.job_queue.run_worker(
+                            f"sie-worker-{uuid.uuid4().hex[:12]}-{index}",
+                            poll_interval_seconds=settings.jobs.poll_interval_seconds,
+                            stop_event=app.state.job_stop_event,
+                        )
+                    )
+                )
+
         logger.info("startup complete")
         yield
 
+        app.state.job_stop_event.set()
+        if app.state.job_workers:
+            await asyncio.gather(*app.state.job_workers, return_exceptions=True)
         await app.state.crawl_service.shutdown()
         await fetcher.close()
         if llm_provider is not None:
@@ -210,19 +241,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
-    # Add request ID middleware for correlation
     app.add_middleware(RequestIdMiddleware)
 
-    # Mount static files for favicon, robots.txt, etc.
     import os
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
     app.include_router(audit.router)
     app.include_router(content.router)
     app.include_router(crawl.router)
     app.include_router(diagnosis.router)
     app.include_router(intelligence.router)
+    app.include_router(jobs.router)
     app.include_router(report.router)
     app.include_router(search.router)
     app.include_router(search_intelligence.router)
