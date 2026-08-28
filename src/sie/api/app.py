@@ -18,6 +18,7 @@ from sie.domain.services.diagnosis_service import DiagnosisService
 from sie.domain.services.industry_intelligence import IndustryIntelligenceService
 from sie.domain.services.intelligence_service import IntelligenceService
 from sie.domain.services.site_analysis import create_site_analysis_service
+from sie.domain.services.evidence_aware_site_analysis import EvidenceAwareSiteAnalysisService
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 from sie.infrastructure.fetching.retrying_fetcher import RetryingFetcher
@@ -69,11 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         cs = settings.crawler
         cf_bypass = settings.cloudflare_bypass
-        fetcher = RetryingFetcher(
-            HttpxFetcher(user_agent=cs.user_agent, timeout_seconds=cs.request_timeout_seconds, connect_timeout_seconds=cs.connect_timeout_seconds, read_timeout_seconds=cs.read_timeout_seconds, write_timeout_seconds=cs.write_timeout_seconds, pool_timeout_seconds=cs.pool_timeout_seconds, allow_localhost=cs.allow_localhost),
-            max_retries=cs.max_retries,
-            base_delay_seconds=cs.retry_backoff_seconds,
-        )
+        fetcher = RetryingFetcher(HttpxFetcher(user_agent=cs.user_agent, timeout_seconds=cs.request_timeout_seconds, connect_timeout_seconds=cs.connect_timeout_seconds, read_timeout_seconds=cs.read_timeout_seconds, write_timeout_seconds=cs.write_timeout_seconds, pool_timeout_seconds=cs.pool_timeout_seconds, allow_localhost=cs.allow_localhost), max_retries=cs.max_retries, base_delay_seconds=cs.retry_backoff_seconds)
         if cf_bypass.enabled:
             from sie.infrastructure.crawling.cloudflare_bypass_engine import CloudflareBypassCrawlerEngine
             engine = CloudflareBypassCrawlerEngine(fetcher=fetcher, user_agent=cs.user_agent, max_concurrency=cs.max_concurrent_requests, rate_limit_per_host=cs.rate_limit_per_host, respect_robots_txt=cs.respect_robots_txt, follow_cross_origin=cs.follow_cross_origin, visited_cache_size=cs.visited_cache_size, enable_bypass=True, browser_timeout_seconds=cf_bypass.browser_timeout_seconds, browser_wait_seconds=cf_bypass.browser_wait_seconds, headless=cf_bypass.headless, max_browser_retries=cf_bypass.max_browser_retries)
@@ -102,12 +99,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         from sie.infrastructure.crux import CruxService
         app.state.crux_service = CruxService(api_key=settings.crux.api_key if settings.crux.enabled else None, timeout_seconds=settings.crux.timeout_seconds, form_factor=settings.crux.form_factor)
-        app.state.site_analysis_service = create_site_analysis_service(crawl_service=app.state.crawl_service, audit_service=app.state.audit_service, content_service=app.state.content_service, search_provider=app.state.search_provider, repository=app.state.repository, crux_service=app.state.crux_service)
+        raw_site_service = create_site_analysis_service(crawl_service=app.state.crawl_service, audit_service=app.state.audit_service, content_service=app.state.content_service, search_provider=app.state.search_provider, repository=app.state.repository, crux_service=app.state.crux_service)
+        app.state.site_analysis_service = EvidenceAwareSiteAnalysisService(raw_site_service)
 
-        # Real external data providers are constructed once and kept in app state.
-        # They do not perform network I/O until explicitly queried by an analysis service.
         app.state.external_providers = create_external_providers(settings)
-
         app.state.job_queue = DurableJobQueue(app.state.database.session_factory, lease_seconds=settings.jobs.lease_seconds, max_attempts=settings.jobs.max_attempts)
 
         async def run_site_analysis(payload: dict):
