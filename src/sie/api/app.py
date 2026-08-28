@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from sie.api.routes import (audit, content, crawl, diagnosis, intelligence, jobs, report, search, search_intelligence, search_performance, site_analysis, system, web)
+from sie.api.routes import (audit, content, crawl, diagnosis, intelligence, jobs, report, search, search_intelligence, search_performance, search_visibility, site_analysis, system, web)
 from sie.config import Settings, get_settings
 from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
@@ -156,6 +156,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(search.router)
     app.include_router(search_intelligence.router)
     app.include_router(search_performance.router)
+    app.include_router(search_visibility.router)
     app.include_router(site_analysis.router)
     app.include_router(system.router)
     app.include_router(web.router)
