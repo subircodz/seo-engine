@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -17,14 +16,6 @@ from sie.infrastructure.search.redis_response_cache import RedisSearchResponseCa
 from sie.infrastructure.search.response_cache import CacheKey
 
 __all__ = ["DistributedCacheSearchProvider"]
-
-
-def _json_default(value: Any) -> Any:
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, datetime):
-        return value.isoformat()
-    raise TypeError(f"Unsupported cached value: {type(value).__name__}")
 
 
 def _feature_to_dict(feature: SearchSERPFeature) -> dict[str, Any]:
@@ -258,3 +249,4 @@ class DistributedCacheSearchProvider:
         close = getattr(self._provider, "close", None)
         if close is not None:
             await close()
+        await self._cache.close()
