@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
 
 import httpx
 
@@ -55,25 +54,24 @@ class AnalyticsDataProvider:
         )
         response.raise_for_status()
         data = response.json()
-        rows = data.get("rows", [])
         result: list[AnalyticsObservation] = []
-        for row in rows:
+        for row in data.get("rows", []):
             if not isinstance(row, dict):
                 continue
-            dimension_values = tuple(
-                str(item.get("value", "")) for item in row.get("dimensionValues", []) if isinstance(item, dict)
+            dimensions_values = tuple(
+                str(item.get("value", ""))
+                for item in row.get("dimensionValues", [])
+                if isinstance(item, dict)
             )
-            metric_values = row.get("metricValues", [])
             normalized: list[tuple[str, float]] = []
-            for name, item in zip(metrics, metric_values, strict=False):
+            for name, item in zip(metrics, row.get("metricValues", []), strict=False):
                 if not isinstance(item, dict):
                     continue
-                raw = item.get("value", "0")
                 try:
-                    normalized.append((name, float(raw)))
+                    normalized.append((name, float(item.get("value", "0"))))
                 except (TypeError, ValueError):
                     normalized.append((name, 0.0))
-            result.append(AnalyticsObservation(dimension_values, tuple(normalized)))
+            result.append(AnalyticsObservation(dimensions_values, tuple(normalized)))
         return tuple(result)
 
     async def close(self) -> None:
