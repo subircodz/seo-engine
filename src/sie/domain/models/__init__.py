@@ -124,6 +124,12 @@ from sie.domain.models.search_serp import (
     SearchSERPFeature,
     SERPFeatureType,
 )
+from sie.domain.models.search_surface import (
+    SearchSurface,
+    SurfaceAssessment,
+    SurfaceStatus,
+    UnifiedSearchVisibility,
+)
 from sie.domain.models.search_validation import (
     DatasetValidationIssue,
     DatasetValidationResult,
@@ -236,8 +242,12 @@ __all__ = [
     "SearchResult",
     "SearchResultItem",
     "SearchSERPFeature",
+    "SearchSurface",
     "SourceType",
     "StructuredDataAnalysis",
+    "SurfaceAssessment",
+    "SurfaceStatus",
     "TopicCluster",
+    "UnifiedSearchVisibility",
     "calculate_priority_score",
 ]
