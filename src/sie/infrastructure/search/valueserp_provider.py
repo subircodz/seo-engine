@@ -1,7 +1,7 @@
-"""SerpAPI search provider with AIO extraction support.
+"""ValueSERP search provider with AIO extraction support.
 
-Implements the ``SearchProvider`` protocol for SerpAPI's GET-based API.
-Supports AI Overview (AIO) extraction from SerpAPI responses.
+Implements the ``SearchProvider`` protocol for ValueSERP's GET-based API.
+Supports AI Overview (AIO) extraction via the ``include_ai_overview`` parameter.
 """
 
 from __future__ import annotations
@@ -27,22 +27,20 @@ from sie.domain.ports.search_provider import (
     SearchProviderRateLimit,
     SearchProviderTimeout,
 )
-from sie.infrastructure.search.quota_tracker import QuotaTracker
-from sie.infrastructure.search.response_cache import CacheKey, SearchResponseCache
 from sie.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["SerpApiProvider"]
+__all__ = ["ValueSerpProvider"]
 
 
-class SerpApiProvider:
-    """SerpAPI implementation of the ``SearchProvider`` protocol.
+class ValueSerpProvider:
+    """ValueSERP implementation of the ``SearchProvider`` protocol.
 
     Parameters
     ----------
     api_key:
-        SerpAPI API key.
+        ValueSERP API key.
     timeout_seconds:
         Per-request timeout.
     connect_timeout_seconds:
@@ -69,10 +67,10 @@ class SerpApiProvider:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not api_key:
-            raise SearchProviderError("SerpAPI requires an API key")
+            raise SearchProviderError("ValueSERP requires an API key")
 
         self._api_key = api_key
-        self._base_url = "https://serpapi.com/search"
+        self._base_url = "https://api.valueserp.com/search"
 
         timeout = httpx.Timeout(
             connect=connect_timeout_seconds,
@@ -84,131 +82,94 @@ class SerpApiProvider:
         self._client = client or httpx.AsyncClient(timeout=timeout)
         self._owns_client = client is None
 
-        # Quota tracking: SerpAPI charges ~$0.005 per search request
-        self._quota = QuotaTracker(
-            provider_name="serpapi",
-            cost_per_request_usd=0.005,
-        )
-        # Response cache: avoid redundant API calls for same queries
-        self._cache = SearchResponseCache(max_entries=5000, ttl_seconds=86400)
-
     @property
     def supports_aio(self) -> bool:
-        """SerpAPI supports AI Overview extraction via the ai_overview field."""
+        """ValueSERP supports AI Overview extraction via the include_ai_overview parameter."""
         return True
 
     @property
     def supports_geo(self) -> bool:
-        """SerpAPI does not directly support generative engine queries."""
+        """ValueSERP does not directly support generative engine queries."""
         return False
 
     async def search(self, query: SearchQuery) -> SearchResult:
-        """Execute a search query via SerpAPI and return provider-neutral results."""
-        # Check cache first to avoid redundant API calls
-        cache_key = CacheKey.from_query(
-            keyword=query.query,
-            country=query.country,
-            language=query.language,
-            device=query.device.value,
-            provider="serpapi",
-            search_engine=query.search_engine,
-        )
-        cached = self._cache.get(cache_key)
-        if cached is not None:
-            logger.debug("SerpAPI cache hit for query=%r", query.query)
-            return cached
-
+        """Execute a search query via ValueSERP and return provider-neutral results."""
         params = self._build_params(query)
 
-        logger.debug("SerpAPI request query=%r", query.query)
+        logger.debug("ValueSERP request query=%r", query.query)
 
         try:
             response = await self._client.get(self._base_url, params=params)
         except httpx.TimeoutException as exc:
-            logger.warning("SerpAPI request timed out: %s", exc)
+            logger.warning("ValueSERP request timed out: %s", exc)
             raise SearchProviderTimeout(f"Search request timed out: {exc}") from exc
         except httpx.HTTPError as exc:
-            logger.warning("SerpAPI request transport error: %s", exc)
+            logger.warning("ValueSERP request transport error: %s", exc)
             raise SearchProviderError(f"Search transport error: {exc}") from exc
 
         if response.status_code in (401, 403):
-            self._quota.record_request(success=False)
-            raise SearchProviderAuthenticationError("SerpAPI key is invalid or missing")
+            raise SearchProviderAuthenticationError("ValueSERP key is invalid or missing")
         if response.status_code == 429:
-            self._quota.record_request(rate_limited=True)
-            raise SearchProviderRateLimit("SerpAPI rate limit exceeded")
+            raise SearchProviderRateLimit("ValueSERP rate limit exceeded")
         if response.status_code >= 400:
-            self._quota.record_request(success=False)
             body = response.text[:500]
-            raise SearchProviderError(f"SerpAPI returned HTTP {response.status_code}: {body}")
+            raise SearchProviderError(f"ValueSERP returned HTTP {response.status_code}: {body}")
 
         try:
             data = response.json()
         except (json.JSONDecodeError, ValueError) as exc:
-            self._quota.record_request(success=False)
-            raise SearchProviderError(f"SerpAPI returned invalid JSON: {exc}") from exc
+            raise SearchProviderError(f"ValueSERP returned invalid JSON: {exc}") from exc
 
-        self._quota.record_request(success=True)
-        result = self._parse_response(query, data)
-        self._cache.put(cache_key, result)
-        return result
+        return self._parse_response(query, data)
 
     async def extract_aio(
         self, query: SearchQuery, target_domain: str
     ) -> AIOverviewObservation | None:
-        """Extract AI Overview observation from SerpAPI response.
+        """Extract AI Overview observation from ValueSERP response.
 
-        SerpAPI returns AI Overview data in the 'ai_overview' field.
-        Returns None if the provider cannot extract AIO data (should not happen
-        since supports_aio is True, but included for protocol compliance).
+        ValueSERP returns AI Overview data in the 'ai_overview' field when
+        ``include_ai_overview=true`` is passed.
+        Returns None if the provider cannot extract AIO data.
         """
         params = self._build_params(query)
+        # Always request AI Overview data
+        params["include_ai_overview"] = "true"
 
         try:
             response = await self._client.get(self._base_url, params=params)
         except httpx.TimeoutException as exc:
-            logger.warning("SerpAPI AIO request timed out: %s", exc)
+            logger.warning("ValueSERP AIO request timed out: %s", exc)
             raise SearchProviderTimeout(f"Search request timed out: {exc}") from exc
         except httpx.HTTPError as exc:
-            logger.warning("SerpAPI AIO request transport error: %s", exc)
+            logger.warning("ValueSERP AIO request transport error: %s", exc)
             raise SearchProviderError(f"Search transport error: {exc}") from exc
 
         if response.status_code in (401, 403):
-            self._quota.record_request(success=False)
-            raise SearchProviderAuthenticationError("SerpAPI key is invalid or missing")
+            raise SearchProviderAuthenticationError("ValueSERP key is invalid or missing")
         if response.status_code == 429:
-            self._quota.record_request(rate_limited=True)
-            raise SearchProviderRateLimit("SerpAPI rate limit exceeded")
+            raise SearchProviderRateLimit("ValueSERP rate limit exceeded")
         if response.status_code >= 400:
-            self._quota.record_request(success=False)
             body = response.text[:500]
-            raise SearchProviderError(f"SerpAPI returned HTTP {response.status_code}: {body}")
+            raise SearchProviderError(f"ValueSERP returned HTTP {response.status_code}: {body}")
 
         try:
             data = response.json()
         except (json.JSONDecodeError, ValueError) as exc:
-            self._quota.record_request(success=False)
-            raise SearchProviderError(f"SerpAPI returned invalid JSON: {exc}") from exc
+            raise SearchProviderError(f"ValueSERP returned invalid JSON: {exc}") from exc
 
-        self._quota.record_request(success=True)
         return self._parse_aio_response(query.query, target_domain, data)
 
     async def query_geo(
         self, query: SearchQuery, target_domain: str, engine_type: GenerativeEngineType
     ) -> GEOObservation | None:
-        """SerpAPI does not support generative engine queries.
+        """ValueSERP does not support generative engine queries.
 
         Raises SearchProviderCapabilityError since this provider cannot
         perform GEO observations.
         """
         raise SearchProviderCapabilityError(
-            f"SerpApiProvider does not support GEO queries for engine {engine_type.value}"
+            f"ValueSerpProvider does not support GEO queries for engine {engine_type.value}"
         )
-
-    @property
-    def quota(self) -> QuotaTracker:
-        """Return the quota tracker for this provider instance."""
-        return self._quota
 
     async def close(self) -> None:
         """Release the internally-created HTTP client (if any)."""
@@ -216,28 +177,28 @@ class SerpApiProvider:
             await self._client.aclose()
 
     def _build_params(self, query: SearchQuery) -> dict[str, str]:
-        """Serialize a ``SearchQuery`` into SerpAPI query parameters."""
+        """Serialize a ``SearchQuery`` into ValueSERP query parameters."""
         params = {
             "q": query.query,
             "gl": query.country,
             "hl": query.language,
             "device": query.device.value,
-            "engine": query.search_engine,
+            "engine": "google",
             "num": str(query.max_results),
             "api_key": self._api_key,
         }
         return params
 
     def _parse_response(self, query: SearchQuery, data: object) -> SearchResult:
-        """Validate and convert SerpAPI JSON into a ``SearchResult``."""
+        """Validate and convert ValueSERP JSON into a ``SearchResult``."""
         if not isinstance(data, dict):
             raise SearchProviderError(
-                f"SerpAPI response is not a JSON object, got {type(data).__name__}"
+                f"ValueSERP response is not a JSON object, got {type(data).__name__}"
             )
 
         organic_results = data.get("organic_results")
         if organic_results is None:
-            raise SearchProviderError("SerpAPI response missing 'organic_results' field")
+            raise SearchProviderError("ValueSERP response missing 'organic_results' field")
         if not isinstance(organic_results, list):
             raise SearchProviderError(
                 f"'organic_results' must be a list, got {type(organic_results).__name__}"
@@ -263,7 +224,15 @@ class SerpApiProvider:
     def _parse_aio_response(
         self, keyword: str, target_domain: str, data: dict
     ) -> AIOverviewObservation:
-        """Parse AI Overview data from SerpAPI response."""
+        """Parse AI Overview data from ValueSERP response.
+
+        ValueSERP returns AI Overview data in the 'ai_overview' field when
+        ``include_ai_overview=true`` is passed. The structure includes:
+        - ai_overview_banner: string
+        - ai_overview_contents: list of content objects
+        - ai_overview_sources: list of source objects with title, url, etc.
+        - ai_overview_footer: string
+        """
         ai_overview = data.get("ai_overview")
 
         if not ai_overview or not isinstance(ai_overview, dict):
@@ -277,24 +246,28 @@ class SerpApiProvider:
                 citation_count=0,
                 citations=(),
                 competitor_cited_domains=(),
-                source="serpapi",
+                source="valueserp",
             )
 
-        # AI Overview is present - extract citations
+        # AI Overview is present - extract sources
         citations = []
         competitor_domains = set()
         target_cited = False
 
-        # SerpAPI ai_overview structure typically contains:
-        # - text: the AI overview text
-        # - citations: list of citation objects with title, link, etc.
-        raw_citations = ai_overview.get("citations")
-        if isinstance(raw_citations, list):
-            for idx, cite in enumerate(raw_citations):
-                if not isinstance(cite, dict):
+        # ValueSERP ai_overview structure contains:
+        # - ai_overview_sources: list of source objects with:
+        #   - source_title: title of the source
+        #   - source_description: description
+        #   - source_url: URL of the source
+        #   - source_image: base64 encoded image
+        #   - source_name: name of the source
+        raw_sources = ai_overview.get("ai_overview_sources")
+        if isinstance(raw_sources, list):
+            for idx, source in enumerate(raw_sources):
+                if not isinstance(source, dict):
                     continue
-                cite_url = cite.get("link") or cite.get("url")
-                cite_title = cite.get("title") or ""
+                cite_url = source.get("source_url")
+                cite_title = source.get("source_title") or source.get("source_name") or ""
                 if not cite_url or not isinstance(cite_url, str):
                     continue
                 parsed = urlparse(cite_url)
@@ -329,12 +302,12 @@ class SerpApiProvider:
             citation_count=citation_count,
             citations=tuple(citations),
             competitor_cited_domains=tuple(sorted(competitor_domains)),
-            source="serpapi",
+            source="valueserp",
         )
 
     @staticmethod
     def _parse_item(raw: dict[str, object], index: int) -> SearchResultItem | None:
-        """Validate one SerpAPI organic result and return a ``SearchResultItem``."""
+        """Validate one ValueSERP organic result and return a ``SearchResultItem``."""
         # -- title --
         title = raw.get("title")
         if not isinstance(title, str) or not title.strip():
@@ -356,4 +329,3 @@ class SerpApiProvider:
             return None
 
         return SearchResultItem(position=position, title=title.strip(), url=url.strip())
-

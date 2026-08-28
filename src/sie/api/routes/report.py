@@ -118,10 +118,11 @@ async def generate_pdf_from_analysis(body: ReportDataRequest) -> Response:
 
     renderer = PDFRenderer()
 
+    from datetime import UTC, datetime
     report_data = {
         "intelligence_id": body.intelligence_id,
         "summary": body.summary or f"Search Intelligence Report - {len(body.findings)} findings, {len(body.recommendations)} recommendations",
-        "generated_at": "2026-01-01T00:00:00Z",  # placeholder
+        "generated_at": datetime.now(UTC).isoformat(),
         "findings": body.findings,
         "recommendations": body.recommendations,
     }

@@ -32,7 +32,13 @@ from sie.domain.models.search import (
 from sie.domain.models.search_aio import AIOverviewResult
 from sie.domain.models.search_geo import GenerativeEngineType, GEOResult
 from sie.domain.ports.persistence import CrawlRunRepository
-from sie.domain.ports.search_provider import SearchProvider
+from sie.domain.ports.search_provider import (
+    SearchProvider,
+    SearchProviderError,
+    SearchProviderAuthenticationError,
+    SearchProviderRateLimit,
+    SearchProviderTimeout,
+)
 from sie.infrastructure.search.provider_registry import ProviderRegistry
 from sie.domain.services.audit_service import AuditService
 from sie.domain.services.content_service import ContentService
@@ -319,7 +325,9 @@ class SiteRankingSnapshot:
     keywords_in_top_20: int
     keywords_not_ranking: int
     visibility_score: float
-    estimated_monthly_traffic: int
+    estimated_monthly_traffic: int  # Heuristic estimate only — see _estimate_traffic()
+    freshness_status: str = "FRESH"  # FRESH, STALE, NEVER_COLLECTED, COLLECTION_FAILED
+    collected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     top_keywords: list[dict[str, Any]] = field(default_factory=list)
     keyword_details: list[KeywordRankingDetail] = field(default_factory=list)
     keyword_discovery_method: str = "TF-IDF extraction from crawled content"
@@ -341,6 +349,7 @@ class SiteAIOAnalysis:
     top_opportunities: list[dict[str, Any]] = field(default_factory=list)
     query_details: list[AIODetailQuery] = field(default_factory=list)
     detection_methodology: str = "SERP feature analysis for AI Overview snippets"
+    freshness_status: str = "FRESH"  # FRESH, STALE, NEVER_COLLECTED, COLLECTION_FAILED, NOT_ASSESSED
     collected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -357,6 +366,7 @@ class SiteGEOAnalysis:
     query_details: list[GEODetailQuery] = field(default_factory=list)
     detection_methodology: str = "Generative engine response analysis for brand mentions"
     engines_tested: list[str] = field(default_factory=list)
+    freshness_status: str = "FRESH"  # FRESH, STALE, NEVER_COLLECTED, COLLECTION_FAILED, NOT_ASSESSED
     collected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -969,6 +979,76 @@ class SiteAnalysisService:
         # Semantic alignment
         semantic_alignment = self._compute_semantic_alignment(target_keywords, crawl_pages)
 
+        # ─── Step 13: Cross-engine optimization synthesis ───
+        optimization_synthesis = None
+        try:
+            from sie.domain.engines.search_optimization import (
+                synthesize_optimization_recommendations,
+            )
+            opt_kwargs: dict[str, object] = {
+                "dataset_id": f"site-{clean_domain}-{datetime.now(UTC).strftime('%Y%m%d')}",
+            }
+            if ranking_snapshot:
+                opt_kwargs.update({
+                    "visibility_score": ranking_snapshot.visibility_score,
+                    "keywords_not_ranking": ranking_snapshot.keywords_not_ranking,
+                    "total_keywords": ranking_snapshot.total_keywords_tracked,
+                    "top_10_count": ranking_snapshot.keywords_in_top_10,
+                    "top_20_count": ranking_snapshot.keywords_in_top_20,
+                })
+            if search_intel:
+                opt_kwargs.update({
+                    "cannibalization_count": len(search_intel.cannibalization_findings),
+                    "volatile_keyword_count": sum(
+                        1 for v in search_intel.volatility_metrics
+                        if v.volatility_index > 0.5
+                    ),
+                    "total_volatility_keywords": len(search_intel.volatility_metrics),
+                })
+                if search_intel.opportunity_result:
+                    opp = search_intel.opportunity_result
+                    opt_kwargs.update({
+                        "competitor_gap_count": len(opp.competitor_gaps),
+                        "weak_ranking_count": len(opp.weak_ranking_opportunities),
+                        "content_gap_count": len(opp.content_gaps),
+                        "total_opportunities": opp.total_opportunities,
+                        "competitor_gap_keywords": tuple(
+                            g.keyword for g in opp.competitor_gaps[:10]
+                        ),
+                        "weak_ranking_keywords": tuple(
+                            w.keyword for w in opp.weak_ranking_opportunities[:10]
+                        ),
+                        "content_gap_keywords": tuple(
+                            c.keyword for c in opp.content_gaps[:10]
+                        ),
+                    })
+            if aio_analysis:
+                opt_kwargs.update({
+                    "aio_keywords_with_overview": aio_analysis.ai_overviews_present,
+                    "aio_target_cited_count": aio_analysis.target_cited_count,
+                    "aio_total_keywords": aio_analysis.keywords_checked,
+                })
+            if geo_analysis:
+                opt_kwargs.update({
+                    "geo_keywords_mentioned": geo_analysis.target_mentioned_count,
+                    "geo_total_keywords": geo_analysis.keywords_checked,
+                    "geo_overall_mention_rate": geo_analysis.mention_rate,
+                })
+            if performance_summary:
+                opt_kwargs.update({
+                    "avg_performance_score": performance_summary.avg_performance_score,
+                    "pages_below_threshold": performance_summary.pages_below_threshold,
+                    "performance_total_pages": performance_summary.pages_analyzed,
+                })
+            if entity_analysis:
+                opt_kwargs.update({
+                    "entity_coverage": entity_analysis.knowledge_graph_coverage,
+                    "entity_gap_count": len(entity_analysis.missing_entity_types),
+                })
+            optimization_synthesis = synthesize_optimization_recommendations(**opt_kwargs)  # type: ignore[arg-type]
+        except Exception as e:
+            logger.warning("Optimization synthesis failed: %s", e)
+
         # Persist AIO/GEO observations for historical tracking
         await self._persist_aio_geo_observations(
             clean_domain, aio_analysis, geo_analysis, target_keywords, country
@@ -1011,7 +1091,7 @@ class SiteAnalysisService:
             entity_analysis=entity_analysis,
             performance_summary=performance_summary,
             search_opportunities=search_intel.opportunity_result if search_intel and hasattr(search_intel, 'opportunity_result') else None,
-            optimization_synthesis=None,  # Requires full cross-engine data; TODO: wire when all engines integrated
+            optimization_synthesis=optimization_synthesis,
             crux_metrics=crux_metrics,
             crux_status=crux_status,
         )
@@ -1666,7 +1746,22 @@ class SiteAnalysisService:
         )
 
     def _estimate_traffic(self, position: int) -> int:
-        """Very rough traffic estimate by position."""
+        """Heuristic traffic estimate based on average CTR curve.
+
+        Uses industry-average click-through-rate values by SERP position
+        and a nominal base volume of 1000 searches/month per keyword.
+
+        .. warning::
+            This is a **rough heuristic**, not real traffic data.  The actual
+            monthly search volume per keyword is unknown without Search Console
+            or a keyword-volume provider.  The value should be displayed as
+            ``estimated_traffic_heuristic`` and clearly labelled as derived
+            from position-based CTR models, not from any analytics source.
+
+        Source of CTR values: aggregated industry studies (Advanced Web
+        Ranking, Sistrix, etc.) — position 1 ≈ 30 %, position 2 ≈ 15 %,
+        tapering to ≈ 1-2 % for positions 8-10.
+        """
         ctr_by_position = {
             1: 0.30, 2: 0.15, 3: 0.10, 4: 0.07, 5: 0.05,
             6: 0.04, 7: 0.03, 8: 0.03, 9: 0.02, 10: 0.02,
@@ -1683,12 +1778,19 @@ class SiteAnalysisService:
         country: str,
         device: str,
     ) -> tuple[CompetitorRanking, ...]:
-        """Collect competitor rankings for the site's top keywords."""
+        """Collect competitor rankings for the site's top keywords.
+
+        Queries the search provider for each (competitor, keyword) pair and
+        returns ``CompetitorRanking`` objects for observed positions.  Uses
+        ``collect()`` (in-memory) rather than ``collect_and_persist()`` since
+        competitor data is consumed immediately and does not require a
+        pre-existing dataset.
+        """
         if not top_keywords:
             return ()
 
         comp_domains = competitors or []
-        if not comp_domains and top_keywords:
+        if not comp_domains:
             return ()
 
         queries = [
@@ -1709,25 +1811,40 @@ class SiteAnalysisService:
             return ()
 
         try:
-            await self._collection_service.collect_and_persist(
-                dataset_id=f"comp-{domain}-{datetime.now(UTC).strftime('%Y%m%d')}",
-                queries=queries,
-            )
+            items = await self._collection_service.collect(queries)
         except Exception as e:
             logger.warning("Competitor collection failed: %s", e)
             return ()
 
-        return ()
+        rankings: list[CompetitorRanking] = []
+        for item in items:
+            if item.observation is not None:
+                rankings.append(CompetitorRanking(
+                    keyword=item.observation.keyword,
+                    competitor_domain=item.query.target_domain or "",
+                    competitor_url=item.observation.target_url,
+                    position=item.observation.position,
+                    observed_at=item.observation.observed_at,
+                ))
+
+        return tuple(rankings)
 
     # ══════════════════════════════════════════════════════════════════════
     # AIO (AI Overview) Analysis
     # ══════════════════════════════════════════════════════════════════════
 
     def _get_aio_provider(self) -> SearchProvider | None:
-        """Get the AIO-capable provider from registry or single provider."""
+        """Get the AIO-capable provider from registry or single provider (legacy single-provider mode)."""
         if self._provider_registry:
             return self._provider_registry.get_for_aio()
         return self._search_provider if getattr(self._search_provider, "supports_aio", False) else None
+
+    def _get_aio_providers(self) -> list[SearchProvider]:
+        """Get all AIO-capable providers in priority order for fallback."""
+        if self._provider_registry:
+            return self._provider_registry.get_aio_providers()
+        aio_provider = self._get_aio_provider()
+        return [aio_provider] if aio_provider else []
 
     def _get_geo_provider(self) -> SearchProvider | None:
         """Get the GEO-capable provider from registry or single provider."""
@@ -1751,13 +1868,14 @@ class SiteAnalysisService:
         """Analyze AI Overview presence and citation opportunities using provider extraction.
         
         Returns tuple of (SiteAIOAnalysis summary, AIOverviewResult raw data).
+        Implements deterministic fallback across configured AIO-capable providers.
         """
         search_date = datetime.now(UTC).strftime("%Y-%m-%d")
         query_details: list[AIODetailQuery] = []
 
-        # Get AIO-capable provider
-        aio_provider = self._get_aio_provider()
-        if not aio_provider:
+        # Get all AIO-capable providers in priority order
+        aio_providers = self._get_aio_providers()
+        if not aio_providers:
             return (
                 SiteAIOAnalysis(
                     keywords_checked=0,
@@ -1780,59 +1898,105 @@ class SiteAnalysisService:
             aio_observations = []
 
             for kw in keywords[:20]:
-                try:
-                    query = SearchQuery(
-                        query=kw,
-                        search_engine="google",
-                        country=country,
-                        language="en",
-                        device=SearchDevice(device),
-                        target_domain=domain,
-                        max_results=10,
-                    )
+                observation = None
+                last_exception: Exception | None = None
 
-                    observation = await aio_provider.extract_aio(query, domain)
+                # Try each provider in priority order until one succeeds
+                for aio_provider in aio_providers:
+                    try:
+                        query = SearchQuery(
+                            query=kw,
+                            search_engine="google",
+                            country=country,
+                            language="en",
+                            device=SearchDevice(device),
+                            target_domain=domain,
+                            max_results=10,
+                        )
 
-                    if observation is None:
-                        # Provider returned None - capability not available or error
-                        query_details.append(AIODetailQuery(
-                            keyword=kw,
-                            ai_overview_detected=False,
-                            target_cited=False,
-                            search_location=country.upper(),
-                            search_date=search_date,
-                            evidence=f"Provider does not support AIO extraction for '{kw}'",
-                        ))
-                        continue
+                        observation = await aio_provider.extract_aio(query, domain)
 
-                    aio_observations.append(observation)
+                        if observation is None:
+                            # Provider returned None - capability not available
+                            # This is a valid "not supported" result, not a failure
+                            # Don't fall back to next provider for this case
+                            last_exception = None
+                            break
 
-                    # Build per-query detail from actual observation
-                    cited_sources = [c.url for c in observation.citations] if observation.citations else []
-                    query_details.append(AIODetailQuery(
-                        keyword=kw,
-                        ai_overview_detected=observation.present,
-                        target_cited=observation.target_cited,
-                        cited_sources=cited_sources,
-                        search_location=country.upper(),
-                        search_date=search_date,
-                        evidence=(
-                            f"AI Overview {'detected' if observation.present else 'not detected'} "
-                            f"for '{kw}' in {country.upper()} Google search"
-                            + (f". Target cited: {observation.target_cited}" if observation.present else "")
-                            + (f". Citations: {len(cited_sources)}" if cited_sources else "")
-                        ),
-                    ))
-                except Exception as exc:
+                        # Valid observation (present=True or present=False)
+                        # Success - stop trying other providers
+                        last_exception = None
+                        break
+
+                    except SearchProviderAuthenticationError as exc:
+                        # Authentication error = configuration problem, don't retry
+                        logger.warning(
+                            "AIO provider authentication failed for '%s': %s",
+                            kw, exc
+                        )
+                        last_exception = exc
+                        break  # Don't retry with next provider for auth errors
+
+                    except (SearchProviderTimeout, SearchProviderRateLimit) as exc:
+                        # Retryable provider failure - try next provider
+                        logger.warning(
+                            "AIO provider retryable error for '%s': %s",
+                            kw, exc
+                        )
+                        last_exception = exc
+                        continue  # Try next provider
+
+                    except SearchProviderError as exc:
+                        # Other provider errors (5xx, transport errors) - retryable
+                        logger.warning(
+                            "AIO provider error for '%s': %s",
+                            kw, exc
+                        )
+                        last_exception = exc
+                        continue  # Try next provider
+
+                # After trying all providers
+                if observation is None and last_exception is not None:
+                    # All providers failed with exceptions
                     query_details.append(AIODetailQuery(
                         keyword=kw,
                         ai_overview_detected=False,
                         target_cited=False,
                         search_location=country.upper(),
                         search_date=search_date,
-                        evidence=f"Unable to verify AI Overview status for '{kw}': {exc}",
+                        evidence=f"All AIO providers failed for '{kw}': {last_exception}",
                     ))
                     continue
+                elif observation is None:
+                    # All providers returned None (capability not available)
+                    query_details.append(AIODetailQuery(
+                        keyword=kw,
+                        ai_overview_detected=False,
+                        target_cited=False,
+                        search_location=country.upper(),
+                        search_date=search_date,
+                        evidence="No AIO-capable provider available for this query",
+                    ))
+                    continue
+
+                aio_observations.append(observation)
+
+                # Build per-query detail from actual observation
+                cited_sources = [c.url for c in observation.citations] if observation.citations else []
+                query_details.append(AIODetailQuery(
+                    keyword=kw,
+                    ai_overview_detected=observation.present,
+                    target_cited=observation.target_cited,
+                    cited_sources=cited_sources,
+                    search_location=country.upper(),
+                    search_date=search_date,
+                    evidence=(
+                        f"AI Overview {'detected' if observation.present else 'not detected'} "
+                        f"for '{kw}' in {country.upper()} Google search"
+                        + (f". Target cited: {observation.target_cited}" if observation.present else "")
+                        + (f". Citations: {len(cited_sources)}" if cited_sources else "")
+                    ),
+                ))
 
             if not aio_observations:
                 return (
@@ -1876,7 +2040,7 @@ class SiteAnalysisService:
                     competitor_domains_cited=list(aio_result.dataset_metrics.competitor_cited_domains),
                     top_opportunities=opportunities[:10],
                     query_details=query_details,
-                    detection_methodology="SERP feature analysis via provider AIO extraction (SerpAPI ai_overview field)",
+                    detection_methodology="SERP feature analysis via provider AIO extraction with fallback",
                 ),
                 aio_result,
             )
@@ -2126,6 +2290,15 @@ class SiteAnalysisService:
                 score += 15
             score = min(100.0, score)
 
+            # Compute schema-entity alignment from actual data
+            # Ratio of entities that have structured data identifiers (wiki/wikidata)
+            schema_alignment = 0.0
+            if unique > 0:
+                aligned_count = wiki_aligned + wikidata_aligned
+                # Avoid double-counting: use max unique aligned, not sum
+                aligned_unique = min(aligned_count, unique)
+                schema_alignment = round(aligned_unique / unique, 4)
+
             return SiteEntityKnowledgeGraphAnalysis(
                 entities_extracted=sum(all_entities.values()),
                 unique_entities=len(all_entities),
@@ -2137,7 +2310,7 @@ class SiteAnalysisService:
                 missing_entity_types=missing,
                 entity_relationships=relationships[:50],
                 entity_gaps_vs_competitors=[],
-                schema_entity_alignment=0.5,
+                schema_entity_alignment=schema_alignment,
                 recommendations=recommendations,
                 score=score,
             )
@@ -2567,7 +2740,7 @@ class SiteAnalysisService:
 
     def _score_aio(self, aio: SiteAIOAnalysis | None) -> float:
         if not aio or aio.keywords_checked == 0:
-            return 50.0
+            return 0.0  # NOT ASSESSED — no data available, not a midpoint guess
         score = aio.target_citation_rate * 100
         if aio.ai_overviews_present > 0:
             score += min(20, aio.ai_overviews_present * 2)
@@ -2575,7 +2748,7 @@ class SiteAnalysisService:
 
     def _score_geo(self, geo: SiteGEOAnalysis | None) -> float:
         if not geo or geo.keywords_checked == 0:
-            return 50.0
+            return 0.0  # NOT ASSESSED — no data available, not a midpoint guess
         score = geo.mention_rate * 100
         if geo.target_mentioned_count > 0:
             score += min(30, geo.target_mentioned_count * 3)

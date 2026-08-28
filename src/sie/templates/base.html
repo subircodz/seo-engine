@@ -333,6 +333,54 @@
         tr:hover { background: var(--surface-hover); }
         .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+        /* ── Recent Datasets Table ───────────────────────────────── */
+        #recent-datasets table {
+            table-layout: fixed;
+        }
+        #recent-datasets th:nth-child(1),
+        #recent-datasets td:nth-child(1) {
+            width: 100%;  /* Flexible name column */
+            min-width: 150px;
+        }
+        #recent-datasets th:nth-child(2),
+        #recent-datasets td:nth-child(2) {
+            width: 100px;  /* Fixed keywords column */
+            text-align: center;
+            white-space: nowrap;
+        }
+        #recent-datasets th:nth-child(3),
+        #recent-datasets td:nth-child(3) {
+            width: 90px;  /* Fixed action column for View button */
+            text-align: center;
+            white-space: nowrap;
+        }
+        #recent-datasets td:nth-child(3) .btn {
+            white-space: nowrap;
+        }
+        #recent-datasets td {
+            vertical-align: middle;
+        }
+
+        /* Mobile responsive for Recent Datasets */
+        @media (max-width: 768px) {
+            #recent-datasets th:nth-child(1),
+            #recent-datasets td:nth-child(1) {
+                width: auto;
+                min-width: 0;
+            }
+            #recent-datasets th:nth-child(2),
+            #recent-datasets td:nth-child(2) {
+                width: auto;
+            }
+            #recent-datasets th:nth-child(3),
+            #recent-datasets td:nth-child(3) {
+                width: auto;
+            }
+            #recent-datasets table {
+                table-layout: auto;
+            }
+        }
+
         /* ── Badges ───────────────────────────────────────────────── */
         .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; vertical-align: middle; }
         .badge-success { background: var(--success-dim); color: var(--success); }

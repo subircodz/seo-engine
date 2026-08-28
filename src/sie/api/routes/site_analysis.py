@@ -126,6 +126,11 @@ def _serialize_rankings(rankings) -> dict | None:
         "keywords_not_ranking": rankings.keywords_not_ranking,
         "visibility_score": rankings.visibility_score,
         "estimated_monthly_traffic": rankings.estimated_monthly_traffic,
+        "estimated_monthly_traffic_methodology": (
+            "Heuristic estimate based on position-based CTR curve "
+            "with nominal 1000 searches/month base volume. "
+            "Not real traffic data — use Search Console for actual traffic."
+        ),
         "top_keywords": rankings.top_keywords,
         "collected_at": rankings.collected_at.isoformat() if rankings.collected_at else None,
     }

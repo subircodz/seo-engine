@@ -110,6 +110,31 @@ class ProviderRegistry:
         """
         return self.aio_provider
 
+    def get_aio_providers(self) -> list[SearchProvider]:
+        """Get all AIO-capable providers in priority order for fallback.
+
+        Returns a list of providers that support AIO, in priority order:
+        1. Explicit AIO provider
+        2. Default provider (if it supports AIO)
+        3. Any other registered provider that supports AIO
+        """
+        providers: list[SearchProvider] = []
+        seen: set[int] = set()
+
+        def add_provider(p: SearchProvider | None) -> None:
+            if p is not None and getattr(p, "supports_aio", False):
+                pid = id(p)
+                if pid not in seen:
+                    seen.add(pid)
+                    providers.append(p)
+
+        add_provider(self._aio)
+        add_provider(self._default)
+        for p in self._all_providers:
+            add_provider(p)
+
+        return providers
+
     def get_for_geo(self) -> SearchProvider | None:
         """Get the provider for Generative Engine queries.
 

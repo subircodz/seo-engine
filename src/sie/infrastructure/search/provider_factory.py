@@ -91,6 +91,25 @@ def _create_serpapi(
     )
 
 
+def _create_valueserp(
+    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
+) -> SearchProvider:
+    if not settings.api_key or not settings.api_key.strip():
+        raise SearchProviderConfigError(
+            "Search provider 'valueserp' requires SIE_SEARCH_PROVIDER__API_KEY"
+        )
+    from sie.infrastructure.search.valueserp_provider import ValueSerpProvider
+
+    return ValueSerpProvider(
+        api_key=settings.api_key,
+        timeout_seconds=settings.timeout_seconds,
+        connect_timeout_seconds=settings.connect_timeout_seconds,
+        read_timeout_seconds=settings.read_timeout_seconds,
+        write_timeout_seconds=settings.write_timeout_seconds,
+        pool_timeout_seconds=settings.pool_timeout_seconds,
+    )
+
+
 def _create_llm(
     settings: SearchProviderSettings | SearchProviderCapabilitySettings,
     *,
@@ -143,6 +162,7 @@ _REGISTRY: dict[str, tuple[str, object]] = {
     "mock": ("MockSearchProvider", _create_mock),
     "http": ("HttpSearchProvider", _create_http),
     "serpapi": ("SerpApiProvider", _create_serpapi),
+    "valueserp": ("ValueSerpProvider", _create_valueserp),
     "llm": ("GEOLLMProvider", _create_llm),
 }
 
