@@ -37,7 +37,7 @@ def _create_http(
     settings: SearchProviderSettings | SearchProviderCapabilitySettings,
 ) -> SearchProvider:
     if not settings.base_url or not settings.base_url.strip():
-        raise SearchProviderConfigError("Search provider 'http' requires a base URL")
+        raise SearchProviderConfigError("requires SIE_SEARCH_PROVIDER__BASE_URL")
     from sie.infrastructure.search.http_provider import HttpSearchProvider
 
     return HttpSearchProvider(

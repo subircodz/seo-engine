@@ -204,7 +204,7 @@ class GEOLLMProvider:
             competitor_domains=tuple(sorted(competitor_domains)),
             citation_urls=tuple(citation_urls),
             answer_length=len(response_text),
-            source=f"llm-simulation:{engine_type.value}",
+            source=f"llm-{engine_type.value}",
             provenance=EvidenceProvenance(
                 provider_name="openai-compatible-llm",
                 observation_kind=ObservationKind.LLM_SIMULATION,
