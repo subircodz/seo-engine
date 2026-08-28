@@ -9,6 +9,7 @@ from sie.api.routes import (
     report,
     search,
     search_performance,
+    search_visibility,
     system,
     web,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "report",
     "search",
     "search_performance",
+    "search_visibility",
     "system",
     "web",
 ]
