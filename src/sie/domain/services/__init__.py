@@ -13,6 +13,7 @@ from sie.domain.services.search_opportunity import SearchOpportunityService
 from sie.domain.services.search_optimization import OptimizationIntelligenceService
 from sie.domain.services.search_performance import PerformanceIntelligenceService
 from sie.domain.services.search_report import ReportingService
+from sie.domain.services.unified_search_intelligence import UnifiedSearchIntelligenceService
 
 __all__ = [
     "CannibalizationDetector",
@@ -28,4 +29,5 @@ __all__ = [
     "SearchImportService",
     "SearchIntelligenceService",
     "SearchOpportunityService",
+    "UnifiedSearchIntelligenceService",
 ]
