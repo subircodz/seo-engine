@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "seo-intelligence-engine"
 version = "0.1.0"
-description = "Zero-paid-API website intelligence platform: technical SEO, content intelligence, AIO/GEO readiness."
+description = "Unified search intelligence platform for traditional SEO, Google AI Overview visibility, and Generative Engine Optimization (GEO)."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Subir Sutradhar" }]
