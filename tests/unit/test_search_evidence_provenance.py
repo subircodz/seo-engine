@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewType
-from sie.domain.models.search_geo import GEOObservation, GenerativeEngineType
+from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation
 from sie.domain.models.search_surface import EvidenceProvenance, ObservationKind
 
 

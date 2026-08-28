@@ -3,10 +3,7 @@ fragments do not leak into the target keyword list."""
 
 from __future__ import annotations
 
-import pytest
-
 from sie.domain.services.site_analysis import SiteAnalysisService
-
 
 # ════════════════════════════════════════════════════════════════════════════
 # _strip_html_for_keywords
@@ -59,6 +56,7 @@ class TestStripHtmlForKeywords:
         """Numeric-only tokens should not become keywords (regex requires leading letter)."""
         svc_obj = object.__new__(SiteAnalysisService)
         from unittest.mock import MagicMock
+
         svc_obj._crawl_service = MagicMock()
         svc_obj._audit_service = MagicMock()
         svc_obj._content_service = MagicMock()
@@ -71,7 +69,7 @@ class TestStripHtmlForKeywords:
         pages = [_FakePage(html)]
         keywords = svc_obj._extract_target_keywords(pages, max_keywords=50)
         for kw in keywords:
-            assert kw not in ('42', '2024'), f"Numeric token in keywords: {kw}"
+            assert kw not in ("42", "2024"), f"Numeric token in keywords: {kw}"
 
     def test_complex_mixed_html(self):
         """Realistic HTML with entities, tags, and content."""
@@ -79,7 +77,7 @@ class TestStripHtmlForKeywords:
             '<div class="header">&quot;SEO &amp; Marketing&quot;</div>'
             '<p>Best practices for <a href="https://example.com">search engines</a></p>'
             '<script>track("pageview");</script>'
-            '<p>Another paragraph with content</p>'
+            "<p>Another paragraph with content</p>"
         )
         result = SiteAnalysisService._strip_html_for_keywords(html)
         assert "quot" not in result.lower().split()
@@ -138,7 +136,7 @@ class _FakePage:
         self._html = html
         self.is_html = is_html
 
-    def decoded_text(self) -> str:  # noqa: D401
+    def decoded_text(self) -> str:
         return self._html
 
 

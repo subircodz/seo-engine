@@ -1,4 +1,5 @@
 """Security utilities for the SEO Intelligence Engine."""
+
 from sie.domain.security.ssrf import (
     is_cloud_metadata_ip,
     is_private_ip,

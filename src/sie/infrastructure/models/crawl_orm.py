@@ -34,43 +34,43 @@ class CrawlRunRow(Base):
     total_pages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    pages: Mapped[list["CrawlPageRow"]] = relationship(
+    pages: Mapped[list[CrawlPageRow]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
         order_by="CrawlPageRow.id",
     )
 
     # Phase 4: Content Intelligence relationships
-    content_metrics: Mapped[list["ContentMetricsRow"]] = relationship(
+    content_metrics: Mapped[list[ContentMetricsRow]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
     )
-    content_comparisons: Mapped[list["ContentComparisonRow"]] = relationship(
+    content_comparisons: Mapped[list[ContentComparisonRow]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
     )
-    content_quality_report: Mapped["ContentQualityReportRow | None"] = relationship(
+    content_quality_report: Mapped[ContentQualityReportRow | None] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
         uselist=False,
     )
 
     # Phase 5: Diagnosis relationship
-    diagnosis_result: Mapped["DiagnosisResultRow | None"] = relationship(
+    diagnosis_result: Mapped[DiagnosisResultRow | None] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
         uselist=False,
     )
 
-# Phase 5C: Intelligence report relationship
-    intelligence_reports: Mapped[list["IntelligenceReportRow"]] = relationship(
+    # Phase 5C: Intelligence report relationship
+    intelligence_reports: Mapped[list[IntelligenceReportRow]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
         uselist=False,
     )
 
     # Site analysis results
-    site_analysis_results: Mapped[list["SiteAnalysisResultRow"]] = relationship(
+    site_analysis_results: Mapped[list[SiteAnalysisResultRow]] = relationship(
         back_populates="crawl_run",
         cascade="all, delete-orphan",
     )
@@ -93,7 +93,7 @@ class CrawlPageRow(Base):
     depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     parent_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    run: Mapped["CrawlRunRow"] = relationship(back_populates="pages")
+    run: Mapped[CrawlRunRow] = relationship(back_populates="pages")
 
 
 class SiteAnalysisResultRow(Base):
@@ -138,7 +138,9 @@ class SiteAnalysisResultRow(Base):
     amp_score: Mapped[float] = mapped_column(Float, nullable=False)
 
     # Overall grade
-    overall_grade: Mapped[str] = mapped_column(String(2), nullable=False)  # A+, A, B+, B, C+, C, D, F
+    overall_grade: Mapped[str] = mapped_column(
+        String(2), nullable=False
+    )  # A+, A, B+, B, C+, C, D, F
 
     # Full analysis JSON for drill-down
     analysis_json: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -152,4 +154,4 @@ class SiteAnalysisResultRow(Base):
     crux_last_updated: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    crawl_run: Mapped["CrawlRunRow"] = relationship(back_populates="site_analysis_results")
+    crawl_run: Mapped[CrawlRunRow] = relationship(back_populates="site_analysis_results")

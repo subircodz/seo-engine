@@ -1,13 +1,11 @@
 """Server-rendered HTML routes (Jinja2 + HTMX-ready)."""
 
 from datetime import UTC, datetime
-from typing import Optional
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
 from sie.api.templates import templates
-from sie.config import get_settings
 
 router = APIRouter(tags=["web"])
 
@@ -39,7 +37,7 @@ async def robots_txt(request: Request) -> PlainTextResponse:
     """Serve robots.txt for search engine crawlers."""
     base_url = _get_base_url(request)
     sitemap_url = f"{base_url}/sitemap.xml"
-    
+
     content = f"""# SEO Intelligence Engine - robots.txt
 User-agent: *
 Allow: /
@@ -64,7 +62,7 @@ async def sitemap_xml(request: Request) -> Response:
     """Generate dynamic sitemap.xml for search engines."""
     base_url = _get_base_url(request)
     now = datetime.now(UTC).strftime("%Y-%m-%d")
-    
+
     # Static pages
     urls = [
         {"loc": f"{base_url}/", "changefreq": "daily", "priority": "1.0"},
@@ -75,13 +73,13 @@ async def sitemap_xml(request: Request) -> Response:
         {"loc": f"{base_url}/industry", "changefreq": "weekly", "priority": "0.6"},
         {"loc": f"{base_url}/reports", "changefreq": "monthly", "priority": "0.5"},
     ]
-    
+
     xml_parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"',
         '        xmlns:xhtml="http://www.w3.org/1999/xhtml">',
     ]
-    
+
     for url in urls:
         xml_parts.append("  <url>")
         xml_parts.append(f"    <loc>{url['loc']}</loc>")
@@ -89,9 +87,9 @@ async def sitemap_xml(request: Request) -> Response:
         xml_parts.append(f"    <changefreq>{url['changefreq']}</changefreq>")
         xml_parts.append(f"    <priority>{url['priority']}</priority>")
         xml_parts.append("  </url>")
-    
+
     xml_parts.append("</urlset>")
-    
+
     return Response(
         content="\n".join(xml_parts),
         media_type="application/xml",

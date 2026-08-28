@@ -470,9 +470,7 @@ class SearchIntelligenceService:
         # AIO presence but target not cited
         if dm.keywords_with_ai_overview > 0 and dm.keywords_target_cited == 0:
             competitors = (
-                ", ".join(dm.competitor_cited_domains)
-                if dm.competitor_cited_domains
-                else "none"
+                ", ".join(dm.competitor_cited_domains) if dm.competitor_cited_domains else "none"
             )
             recs.append(
                 SearchRecommendation(

@@ -1265,6 +1265,7 @@ class SqlAlchemyCrawlRunRepository:
         async with self._sf() as session:
             # Find datasets for this domain
             from sie.infrastructure.models.search_orm import SearchDatasetRow
+
             dataset_ids = [
                 r[0]
                 for r in await session.execute(
@@ -1349,6 +1350,7 @@ class SqlAlchemyCrawlRunRepository:
 
         async with self._sf() as session:
             from sie.infrastructure.models.search_orm import SearchDatasetRow
+
             domain_datasets = await session.execute(
                 select(SearchDatasetRow.id).where(SearchDatasetRow.name.ilike(f"%{domain}%"))
             )
@@ -1946,6 +1948,7 @@ class SqlAlchemyCrawlRunRepository:
     async def save_site_analysis_result(self, result) -> str:
         """Save a site analysis result for historical comparison."""
         import uuid
+
         from sie.infrastructure.models.crawl_orm import SiteAnalysisResultRow
 
         analysis_id = uuid.uuid4().hex[:32]
@@ -1980,19 +1983,18 @@ class SqlAlchemyCrawlRunRepository:
             grade = "F"
 
         # Serialize result to JSON
-        import json
         from dataclasses import asdict
 
         def serialize(obj):
-            if hasattr(obj, '__dataclass_fields__'):
+            if hasattr(obj, "__dataclass_fields__"):
                 return {k: serialize(v) for k, v in asdict(obj).items() if v is not None}
             elif isinstance(obj, (list, tuple)):
                 return [serialize(v) for v in obj]
             elif isinstance(obj, dict):
                 return {k: serialize(v) for k, v in obj.items() if v is not None}
-            elif hasattr(obj, 'value'):  # Enum
+            elif hasattr(obj, "value"):  # Enum
                 return obj.value
-            elif hasattr(obj, 'isoformat'):  # datetime
+            elif hasattr(obj, "isoformat"):  # datetime
                 return obj.isoformat()
             return obj
 
@@ -2013,29 +2015,51 @@ class SqlAlchemyCrawlRunRepository:
             javascript_score=result.javascript.score if result.javascript else 0.0,
             structured_data_score=result.structured_data.score if result.structured_data else 0.0,
             core_web_vitals_score=result.core_web_vitals.score if result.core_web_vitals else 0.0,
-            semantic_coverage_score=result.semantic_coverage.score if result.semantic_coverage else 0.0,
-            internal_link_equity_score=result.internal_link_equity.score if result.internal_link_equity else 0.0,
+            semantic_coverage_score=result.semantic_coverage.score
+            if result.semantic_coverage
+            else 0.0,
+            internal_link_equity_score=result.internal_link_equity.score
+            if result.internal_link_equity
+            else 0.0,
             search_intent_score=result.search_intent.score if result.search_intent else 0.0,
             serp_features_score=result.serp_features.score if result.serp_features else 0.0,
             competitor_gaps_score=result.competitor_gaps.score if result.competitor_gaps else 0.0,
             indexation_score=result.indexation.score if result.indexation else 0.0,
             eeat_score=result.eeat.score if result.eeat else 0.0,
             content_decay_score=result.content_decay.score if result.content_decay else 0.0,
-            entity_kg_score=result.entity_knowledge_graph.score if result.entity_knowledge_graph else 0.0,
-            advanced_competitor_score=result.advanced_competitor_intelligence.score if result.advanced_competitor_intelligence else 0.0,
-            hreflang_score=result.hreflang_international.score if result.hreflang_international else 0.0,
-            advanced_link_score=result.advanced_link_intelligence.score if result.advanced_link_intelligence else 0.0,
-            predictive_ranking_score=result.predictive_ranking.score if result.predictive_ranking else 0.0,
-            rag_optimization_score=result.rag_optimization.score if result.rag_optimization else 0.0,
-            content_quality_adv_score=result.content_quality_advanced.score if result.content_quality_advanced else 0.0,
-            pagination_faceted_score=result.pagination_faceted.score if result.pagination_faceted else 0.0,
+            entity_kg_score=result.entity_knowledge_graph.score
+            if result.entity_knowledge_graph
+            else 0.0,
+            advanced_competitor_score=result.advanced_competitor_intelligence.score
+            if result.advanced_competitor_intelligence
+            else 0.0,
+            hreflang_score=result.hreflang_international.score
+            if result.hreflang_international
+            else 0.0,
+            advanced_link_score=result.advanced_link_intelligence.score
+            if result.advanced_link_intelligence
+            else 0.0,
+            predictive_ranking_score=result.predictive_ranking.score
+            if result.predictive_ranking
+            else 0.0,
+            rag_optimization_score=result.rag_optimization.score
+            if result.rag_optimization
+            else 0.0,
+            content_quality_adv_score=result.content_quality_advanced.score
+            if result.content_quality_advanced
+            else 0.0,
+            pagination_faceted_score=result.pagination_faceted.score
+            if result.pagination_faceted
+            else 0.0,
             amp_score=result.amp.score if result.amp else 0.0,
             overall_grade=grade,
             analysis_json=analysis_json,
             crux_lcp=result.core_web_vitals.lcp_estimate_ms if result.core_web_vitals else None,
             crux_fid=result.core_web_vitals.fid_estimate_ms if result.core_web_vitals else None,
             crux_cls=result.core_web_vitals.cls_estimate if result.core_web_vitals else None,
-            crux_inp=result.core_web_vitals.fid_estimate_ms if result.core_web_vitals else None,  # INP not directly available
+            crux_inp=result.core_web_vitals.fid_estimate_ms
+            if result.core_web_vitals
+            else None,  # INP not directly available
             crux_ttfb=result.core_web_vitals.ttfb_estimate_ms if result.core_web_vitals else None,
         )
 
@@ -2046,8 +2070,9 @@ class SqlAlchemyCrawlRunRepository:
 
     async def get_site_analysis_history(self, domain: str, limit: int = 10):
         """Get historical analysis results for a domain."""
-        from sie.infrastructure.models.crawl_orm import SiteAnalysisResultRow
         from sqlalchemy import desc
+
+        from sie.infrastructure.models.crawl_orm import SiteAnalysisResultRow
 
         async with self._sf() as session:
             stmt = (

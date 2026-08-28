@@ -33,7 +33,7 @@ class CacheKey:
         provider: str,
         search_engine: str = "google",
         context: str = "",
-    ) -> "CacheKey":
+    ) -> CacheKey:
         return cls(
             keyword=keyword.strip().casefold(),
             country=country.strip().casefold(),
@@ -46,7 +46,15 @@ class CacheKey:
 
     def hash(self) -> str:
         raw = "|".join(
-            (self.keyword, self.country, self.language, self.device, self.provider, self.search_engine, self.context)
+            (
+                self.keyword,
+                self.country,
+                self.language,
+                self.device,
+                self.provider,
+                self.search_engine,
+                self.context,
+            )
         )
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 

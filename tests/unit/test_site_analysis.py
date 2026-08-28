@@ -242,8 +242,16 @@ class TestTrafficEstimation:
 
     def _estimate(self, position: int) -> int:
         ctr = {
-            1: 0.30, 2: 0.15, 3: 0.10, 4: 0.07, 5: 0.05,
-            6: 0.04, 7: 0.03, 8: 0.03, 9: 0.02, 10: 0.02,
+            1: 0.30,
+            2: 0.15,
+            3: 0.10,
+            4: 0.07,
+            5: 0.05,
+            6: 0.04,
+            7: 0.03,
+            8: 0.03,
+            9: 0.02,
+            10: 0.02,
         }
         base = 1000
         return int(base * ctr.get(position, 0.01))

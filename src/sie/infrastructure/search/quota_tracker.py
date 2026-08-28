@@ -31,7 +31,9 @@ class QuotaSnapshot:
 class QuotaTracker:
     """Track and optionally enforce a provider request budget."""
 
-    def __init__(self, provider_name: str, cost_per_request_usd: float = 0.0, monthly_request_limit: int = 0) -> None:
+    def __init__(
+        self, provider_name: str, cost_per_request_usd: float = 0.0, monthly_request_limit: int = 0
+    ) -> None:
         if cost_per_request_usd < 0:
             raise ValueError("cost_per_request_usd must be >= 0")
         if monthly_request_limit < 0:
@@ -57,7 +59,8 @@ class QuotaTracker:
         self._roll_period_if_needed()
         if self._monthly_limit is not None and self._total_requests >= self._monthly_limit:
             raise QuotaExceeded(
-                f"{self._provider_name} local monthly request limit exhausted ({self._monthly_limit})"
+                f"{self._provider_name} local monthly request limit "
+                f"exhausted ({self._monthly_limit})"
             )
         self._total_requests += 1
         now = time.time()
@@ -124,8 +127,16 @@ class QuotaTracker:
 
     def snapshot(self) -> QuotaSnapshot:
         self._roll_period_if_needed()
-        first_at = datetime.fromtimestamp(self._first_request_at, tz=UTC).isoformat() if self._first_request_at is not None else None
-        last_at = datetime.fromtimestamp(self._last_request_at, tz=UTC).isoformat() if self._last_request_at is not None else None
+        first_at = (
+            datetime.fromtimestamp(self._first_request_at, tz=UTC).isoformat()
+            if self._first_request_at is not None
+            else None
+        )
+        last_at = (
+            datetime.fromtimestamp(self._last_request_at, tz=UTC).isoformat()
+            if self._last_request_at is not None
+            else None
+        )
         return QuotaSnapshot(
             provider_name=self._provider_name,
             total_requests=self._total_requests,

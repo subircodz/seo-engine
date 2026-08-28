@@ -43,11 +43,28 @@ _PATTERN_GAME_PROVIDER = re.compile(
 )
 
 # Known casino game keywords for more precise matching
-_CASINO_GAME_KEYWORDS = frozenset({
-    "slot", "slots", "jackpot", "roulette", "blackjack", "baccarat", "poker",
-    "craps", "keno", "bingo", "video poker", "live dealer", "table game",
-    "progressive", "megaways", "hold and win", "free spins", "bonus game",
-})
+_CASINO_GAME_KEYWORDS = frozenset(
+    {
+        "slot",
+        "slots",
+        "jackpot",
+        "roulette",
+        "blackjack",
+        "baccarat",
+        "poker",
+        "craps",
+        "keno",
+        "bingo",
+        "video poker",
+        "live dealer",
+        "table game",
+        "progressive",
+        "megaways",
+        "hold and win",
+        "free spins",
+        "bonus game",
+    }
+)
 
 _MIN_ENTITY_LENGTH = 2
 _MAX_ENTITY_LENGTH = 100

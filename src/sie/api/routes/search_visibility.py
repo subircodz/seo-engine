@@ -14,7 +14,12 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from sie.api.auth import api_key_auth
-from sie.domain.models.search_surface import SearchSurface, SurfaceAssessment, SurfaceStatus, UnifiedSearchVisibility
+from sie.domain.models.search_surface import (
+    SearchSurface,
+    SurfaceAssessment,
+    SurfaceStatus,
+    UnifiedSearchVisibility,
+)
 
 router = APIRouter(
     prefix="/api/search-visibility",
@@ -77,7 +82,8 @@ def _seo_assessment(result) -> SurfaceAssessment:
         result.architecture_breakdown,
     )
     assessed = [
-        category for category in categories
+        category
+        for category in categories
         if category is not None
         and category.score_status == "ASSESSED"
         and category.overall_score is not None
@@ -90,13 +96,19 @@ def _seo_assessment(result) -> SurfaceAssessment:
             score_basis="No assessed traditional-search SEO categories are available.",
             observation_count=0,
             data_source="site analysis",
-            limitations=("SEO visibility requires assessed technical, content, ranking, or architecture evidence.",),
+            limitations=(
+                "SEO visibility requires assessed technical, content, "
+                "ranking, or architecture evidence.",
+            ),
         )
     return SurfaceAssessment(
         surface=SearchSurface.SEO,
         status=SurfaceStatus.ASSESSED,
         score=round(sum(c.overall_score for c in assessed) / len(assessed), 2),
-        score_basis="Arithmetic mean of assessed technical, content, ranking, and architecture SEO categories.",
+        score_basis=(
+            "Arithmetic mean of assessed technical, content, "
+            "ranking, and architecture SEO categories."
+        ),
         observation_count=sum(c.sample_size for c in assessed),
         data_source="site analysis",
         limitations=tuple(sorted({limit for c in assessed for limit in c.limitations})),
@@ -117,7 +129,9 @@ def _serialize_recommendation(rec) -> dict[str, Any]:
 
 
 @router.post("/analyze", response_model=UnifiedVisibilityResponse)
-async def analyze_search_visibility(body: dict[str, Any], request: Request) -> UnifiedVisibilityResponse:
+async def analyze_search_visibility(
+    body: dict[str, Any], request: Request
+) -> UnifiedVisibilityResponse:
     """Run the existing site analysis and expose its SEO/AIO/GEO result as one envelope."""
     result = await request.app.state.site_analysis_service.analyze_site(
         domain=body.get("domain", ""),
@@ -136,7 +150,9 @@ async def analyze_search_visibility(body: dict[str, Any], request: Request) -> U
         _assessment(SearchSurface.AIO, result.aio_breakdown, "AIO observations"),
         _assessment(SearchSurface.GEO, result.geo_breakdown, "GEO observations"),
     )
-    assessed_scores = [a.score for a in assessments if a.status == SurfaceStatus.ASSESSED and a.score is not None]
+    assessed_scores = [
+        a.score for a in assessments if a.status == SurfaceStatus.ASSESSED and a.score is not None
+    ]
     aggregate = round(sum(assessed_scores) / len(assessed_scores), 2) if assessed_scores else None
     visibility = UnifiedSearchVisibility(
         assessments=assessments,

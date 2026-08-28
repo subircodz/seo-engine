@@ -7,24 +7,15 @@ correctly routed through ProviderRegistry to SiteAnalysisService.
 
 from __future__ import annotations
 
-import httpx
 import pytest
 
 from sie.config import LLMSettings, SearchProviderCapabilitySettings, SearchProviderSettings
-from sie.domain.models.search import SearchDevice, SearchQuery
-from sie.domain.models.search_geo import (
-    GEOObservation,
-    GenerativeEngineType,
-)
-from sie.domain.models.search_result import SearchResult, SearchResultItem
-from sie.domain.ports.search_provider import SearchProvider
+from sie.domain.models.search import SearchQuery
+from sie.infrastructure.search.geo_provider import GEOLLMProvider
 from sie.infrastructure.search.provider_factory import (
     _create_provider_from_capability_settings,
     create_provider_registry,
 )
-from sie.infrastructure.search.mock_provider import MockSearchProvider
-from sie.infrastructure.search.geo_provider import GEOLLMProvider
-from sie.infrastructure.llm.openai_provider import OpenAICompatibleProvider
 
 
 def _query(**overrides) -> SearchQuery:
@@ -43,8 +34,6 @@ class TestGEOLLMProviderFactoryWiring:
 
     def test_llm_provider_created_from_capability_settings(self):
         """Test that provider factory creates GEOLLMProvider when provider_name='llm'."""
-        from sie.infrastructure.search.provider_factory import _create_provider_from_capability_settings
-        from sie.config import LLMSettings
 
         # Create capability settings with provider_name="llm"
         cap_settings = SearchProviderCapabilitySettings(
@@ -66,14 +55,13 @@ class TestGEOLLMProviderFactoryWiring:
 
         # Verify the provider is a GEOLLMProvider
         from sie.infrastructure.search.geo_provider import GEOLLMProvider
+
         assert isinstance(provider, GEOLLMProvider)
         assert provider.supports_geo is True
         assert provider.supports_aio is False
 
     def test_llm_provider_uses_llm_settings(self):
         """Test that GEOLLMProvider uses LLMSettings for model, temperature, etc."""
-        from sie.infrastructure.search.provider_factory import _create_provider_from_capability_settings
-        from sie.config import LLMSettings
 
         cap_settings = SearchProviderCapabilitySettings(
             provider_name="llm",
@@ -106,8 +94,7 @@ class TestGEOLLMProviderRegistryRouting:
 
     async def test_registry_routes_geo_to_llm_provider(self):
         """Test that ProviderRegistry routes GEO requests to LLM provider."""
-        from sie.infrastructure.search.provider_factory import create_provider_registry
-        from sie.config import SearchProviderSettings, SearchProviderCapabilitySettings, LLMSettings
+        from sie.config import SearchProviderCapabilitySettings
 
         # Configure settings with GEO using "llm" provider
         settings = SearchProviderSettings(
@@ -127,7 +114,6 @@ class TestGEOLLMProviderRegistryRouting:
             ),
         )
 
-        from sie.infrastructure.search.provider_factory import create_provider_registry
         registry = create_provider_registry(settings)
 
         # Verify the registry routes GEO to the LLM provider
@@ -135,6 +121,7 @@ class TestGEOLLMProviderRegistryRouting:
         assert geo_provider is not None
 
         from sie.infrastructure.search.geo_provider import GEOLLMProvider
+
         assert isinstance(geo_provider, GEOLLMProvider), (
             f"Expected GEOLLMProvider, got {type(geo_provider)}"
         )

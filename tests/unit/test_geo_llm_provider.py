@@ -9,13 +9,13 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from sie.domain.models.search import SearchDevice, SearchQuery
+from sie.domain.models.search import SearchQuery
 from sie.domain.models.search_geo import (
-    EntityMention,
     EntityType,
-    GEOObservation,
     GenerativeEngineType,
+    GEOObservation,
 )
+from sie.domain.ports.llm import LLMProviderError
 from sie.infrastructure.llm.openai_provider import OpenAICompatibleProvider
 from sie.infrastructure.search.geo_provider import GEOLLMProvider
 
@@ -27,13 +27,12 @@ def _mock_llm_response(
 ) -> httpx.Response:
     """Build a minimal httpx.Response without network."""
     import json
+
     if json_data is not None:
         content_bytes = json.dumps(json_data).encode()
     else:
         # Wrap content in the expected OpenAI response format
-        response_obj = {
-            "choices": [{"message": {"content": content}}]
-        }
+        response_obj = {"choices": [{"message": {"content": content}}]}
         content_bytes = json.dumps(response_obj).encode()
     return httpx.Response(
         status_code=status_code,
@@ -114,7 +113,10 @@ class TestGEOLLMProviderCapabilities:
 class TestQueryGEOTargetMentioned:
     async def test_target_mentioned_once(self):
         llm = _llm_provider(
-            response_content="For SEO tools, I recommend OurSite as the best option. It has great features."
+            response_content=(
+                "For SEO tools, I recommend OurSite as the best option. "
+                "It has great features."
+            )
         )
         provider = _geo_provider(llm_provider=llm, target_brand_names=["oursite"])
         query = _query(query="best seo tools")
@@ -131,7 +133,10 @@ class TestQueryGEOTargetMentioned:
 
     async def test_target_mentioned_multiple_times(self):
         llm = _llm_provider(
-            response_content="OurSite is great. OurSite has many features. I highly recommend OurSite."
+            response_content=(
+                "OurSite is great. OurSite has many features. "
+                "I highly recommend OurSite."
+            )
         )
         provider = _geo_provider(llm_provider=llm, target_brand_names=["oursite"])
         query = _query(query="best seo tools")
@@ -141,9 +146,7 @@ class TestQueryGEOTargetMentioned:
         assert obs.mention_count == 3
 
     async def test_target_mentioned_case_insensitive(self):
-        llm = _llm_provider(
-            response_content="OURSITE is the best. our site is also good."
-        )
+        llm = _llm_provider(response_content="OURSITE is the best. our site is also good.")
         provider = _geo_provider(llm_provider=llm, target_brand_names=["oursite", "our site"])
         query = _query(query="best seo tools")
         obs = await provider.query_geo(query, "oursite.io", GenerativeEngineType.CHATGPT)
@@ -160,7 +163,10 @@ class TestQueryGEOTargetMentioned:
 class TestQueryGEOCompetitorMentioned:
     async def test_competitor_domain_mentioned(self):
         llm = _llm_provider(
-            response_content="Competitor.com offers a good alternative. Their pricing is competitive."
+            response_content=(
+                "Competitor.com offers a good alternative. "
+                "Their pricing is competitive."
+            )
         )
         provider = _geo_provider(llm_provider=llm, competitor_domains=["competitor.com"])
         query = _query(query="best seo tools")
@@ -169,12 +175,9 @@ class TestQueryGEOCompetitorMentioned:
         assert "competitor.com" in obs.competitor_domains
 
     async def test_multiple_competitors_mentioned(self):
-        llm = _llm_provider(
-            response_content="Competitor.com and Other.com are both good options."
-        )
+        llm = _llm_provider(response_content="Competitor.com and Other.com are both good options.")
         provider = _geo_provider(
-            llm_provider=llm,
-            competitor_domains=["competitor.com", "other.com"]
+            llm_provider=llm, competitor_domains=["competitor.com", "other.com"]
         )
         query = _query(query="best seo tools")
         obs = await provider.query_geo(query, "oursite.io", GenerativeEngineType.CHATGPT)
@@ -184,7 +187,10 @@ class TestQueryGEOCompetitorMentioned:
 
     async def test_citation_urls_extracted(self):
         llm = _llm_provider(
-            response_content="Check out https://competitor.com/tools and https://example.com/review for more info."
+            response_content=(
+                "Check out https://competitor.com/tools and "
+                "https://example.com/review for more info."
+            )
         )
         provider = _geo_provider(llm_provider=llm)
         query = _query(query="best seo tools")
@@ -203,7 +209,10 @@ class TestQueryGEOCompetitorMentioned:
 class TestQueryGEOTargetNotMentioned:
     async def test_target_not_mentioned(self):
         llm = _llm_provider(
-            response_content="There are many SEO tools available. Competitor.com is a popular choice."
+            response_content=(
+                "There are many SEO tools available. "
+                "Competitor.com is a popular choice."
+            )
         )
         provider = _geo_provider(llm_provider=llm, target_brand_names=["oursite"])
         query = _query(query="best seo tools")
@@ -221,9 +230,7 @@ class TestQueryGEOTargetNotMentioned:
 
 class TestQueryGEOEntityMentions:
     async def test_entity_mentions_include_target(self):
-        llm = _llm_provider(
-            response_content="OurSite is recommended for SEO."
-        )
+        llm = _llm_provider(response_content="OurSite is recommended for SEO.")
         provider = _geo_provider(llm_provider=llm, target_brand_names=["oursite"])
         query = _query(query="best seo tools")
         obs = await provider.query_geo(query, "oursite.io", GenerativeEngineType.CHATGPT)
@@ -234,9 +241,7 @@ class TestQueryGEOEntityMentions:
         assert target_mentions[0].domain == "oursite.io"
 
     async def test_entity_mentions_include_competitors(self):
-        llm = _llm_provider(
-            response_content="Competitor.com is a good alternative."
-        )
+        llm = _llm_provider(response_content="Competitor.com is a good alternative.")
         provider = _geo_provider(llm_provider=llm, competitor_domains=["competitor.com"])
         query = _query(query="best seo tools")
         obs = await provider.query_geo(query, "oursite.io", GenerativeEngineType.CHATGPT)
@@ -281,7 +286,7 @@ class TestQueryGEOErrors:
         provider = _geo_provider(llm_provider=llm)
         query = _query()
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(LLMProviderError):
             await provider.query_geo(query, "oursite.io", GenerativeEngineType.CHATGPT)
 
 

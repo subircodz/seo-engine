@@ -148,7 +148,11 @@ class CruxSettings(BaseModel):
 
     def __repr__(self) -> str:
         key_display = "'***'" if self.api_key else "''"
-        return f"CruxSettings(enabled={self.enabled!r}, api_key={key_display}, timeout_seconds={self.timeout_seconds!r})"
+        return (
+            f"CruxSettings(enabled={self.enabled!r}, "
+            f"api_key={key_display}, "
+            f"timeout_seconds={self.timeout_seconds!r})"
+        )
 
     def __str__(self) -> str:
         return self.__repr__()

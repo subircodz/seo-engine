@@ -216,7 +216,9 @@ class SearchOpportunityService:
         weak_rankings = self._calculate_weak_rankings(
             analytics_result, competitor_rankings, target_domain
         )
-        content_gaps = self._calculate_content_gaps(analytics_result, competitor_rankings, target_domain)
+        content_gaps = self._calculate_content_gaps(
+            analytics_result, competitor_rankings, target_domain
+        )
 
         # Aggregate all opportunities
         all_opps = list(competitor_gaps) + list(weak_rankings)

@@ -52,7 +52,9 @@ class UnifiedSearchIntelligenceService:
             for assessment in assessments
             if assessment.status == SurfaceStatus.ASSESSED and assessment.score is not None
         ]
-        aggregate = round(sum(assessed_scores) / len(assessed_scores), 2) if assessed_scores else None
+        aggregate = (
+            round(sum(assessed_scores) / len(assessed_scores), 2) if assessed_scores else None
+        )
 
         return UnifiedSearchVisibility(
             assessments=assessments,
@@ -109,7 +111,9 @@ class UnifiedSearchIntelligenceService:
                 score_basis="No AI Overview observations were collected.",
                 observation_count=0,
                 data_source="AIO observations",
-                limitations=("No AIO presence was observed, or collection did not produce observations.",),
+                limitations=(
+                    "No AIO presence was observed, or collection did not produce observations.",
+                ),
             )
 
         return SurfaceAssessment(
@@ -131,7 +135,9 @@ class UnifiedSearchIntelligenceService:
                 score_basis="No GEO observation dataset supplied.",
                 observation_count=0,
                 data_source="unavailable",
-                limitations=("GEO requires observations from a supported generative engine provider.",),
+                limitations=(
+                    "GEO requires observations from a supported generative engine provider.",
+                ),
             )
 
         metrics = geo_result.dataset_metrics
@@ -143,7 +149,9 @@ class UnifiedSearchIntelligenceService:
                 score_basis="No generative-engine observations were collected.",
                 observation_count=0,
                 data_source="GEO observations",
-                limitations=("GEO visibility cannot be assessed without generative-engine observations.",),
+                limitations=(
+                    "GEO visibility cannot be assessed without generative-engine observations.",
+                ),
             )
 
         return SurfaceAssessment(

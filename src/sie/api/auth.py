@@ -127,4 +127,5 @@ def get_api_key_dependency(settings: APISettings):
         # Return a no-op dependency for development
         async def no_auth() -> str:
             return "dev-mode"
+
         return no_auth

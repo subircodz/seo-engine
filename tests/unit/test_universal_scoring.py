@@ -8,7 +8,6 @@ from sie.domain.services.site_analysis import (
     SemanticAlignmentResult,
 )
 
-
 # ════════════════════════════════════════════════════════════════════════════
 # AnalysisMetric
 # ════════════════════════════════════════════════════════════════════════════
@@ -17,22 +16,34 @@ from sie.domain.services.site_analysis import (
 class TestAnalysisMetric:
     def test_score_contribution_calculation(self):
         m = AnalysisMetric(
-            metric_name="Test", category="content", metric_type="binary",
-            expected=100.0, normalized_score=80.0, weight=25.0,
+            metric_name="Test",
+            category="content",
+            metric_type="binary",
+            expected=100.0,
+            normalized_score=80.0,
+            weight=25.0,
         )
         assert m.score_contribution == 20.0  # 25 * 80 / 100
 
     def test_zero_weight(self):
         m = AnalysisMetric(
-            metric_name="Test", category="content", metric_type="binary",
-            expected=100.0, normalized_score=50.0, weight=0.0,
+            metric_name="Test",
+            category="content",
+            metric_type="binary",
+            expected=100.0,
+            normalized_score=50.0,
+            weight=0.0,
         )
         assert m.score_contribution == 0.0
 
     def test_all_fields_optional_have_defaults(self):
         m = AnalysisMetric(
-            metric_name="Test", category="content", metric_type="binary",
-            expected=100.0, normalized_score=50.0, weight=10.0,
+            metric_name="Test",
+            category="content",
+            metric_type="binary",
+            expected=100.0,
+            normalized_score=50.0,
+            weight=10.0,
         )
         assert m.raw_value is None
         assert m.raw_unit is None
@@ -45,8 +56,12 @@ class TestAnalysisMetric:
     def test_normalized_score_range(self):
         for score in [0, 25, 50, 75, 100]:
             m = AnalysisMetric(
-                metric_name="Test", category="content", metric_type="range",
-                expected=100.0, normalized_score=float(score), weight=10.0,
+                metric_name="Test",
+                category="content",
+                metric_type="range",
+                expected=100.0,
+                normalized_score=float(score),
+                weight=10.0,
             )
             assert 0 <= m.normalized_score <= 100
 
@@ -59,27 +74,42 @@ class TestAnalysisMetric:
 class TestCategoryScore:
     def test_assessed_score(self):
         cs = CategoryScore(
-            category_name="Test", overall_score=75.0, score_status="ASSESSED",
-            scoring_methodology="test", metrics=[], sample_size=10,
-            data_coverage=1.0, confidence="HIGH",
+            category_name="Test",
+            overall_score=75.0,
+            score_status="ASSESSED",
+            scoring_methodology="test",
+            metrics=[],
+            sample_size=10,
+            data_coverage=1.0,
+            confidence="HIGH",
         )
         assert cs.overall_score == 75.0
         assert cs.score_status == "ASSESSED"
 
     def test_not_assessed_score(self):
         cs = CategoryScore(
-            category_name="GEO", overall_score=None, score_status="NOT ASSESSED",
-            scoring_methodology="No data", metrics=[], sample_size=0,
-            data_coverage=0.0, confidence="UNABLE TO VERIFY",
+            category_name="GEO",
+            overall_score=None,
+            score_status="NOT ASSESSED",
+            scoring_methodology="No data",
+            metrics=[],
+            sample_size=0,
+            data_coverage=0.0,
+            confidence="UNABLE TO VERIFY",
         )
         assert cs.overall_score is None
         assert cs.score_status == "NOT ASSESSED"
 
     def test_insufficient_data(self):
         cs = CategoryScore(
-            category_name="AIO", overall_score=None, score_status="INSUFFICIENT DATA",
-            scoring_methodology="Coverage below threshold", metrics=[], sample_size=10,
-            data_coverage=0.3, confidence="UNABLE TO VERIFY",
+            category_name="AIO",
+            overall_score=None,
+            score_status="INSUFFICIENT DATA",
+            scoring_methodology="Coverage below threshold",
+            metrics=[],
+            sample_size=10,
+            data_coverage=0.3,
+            confidence="UNABLE TO VERIFY",
         )
         assert cs.score_status == "INSUFFICIENT DATA"
         assert cs.data_coverage == 0.3
@@ -121,6 +151,7 @@ class TestGiniCoefficient:
     def test_equal_distribution_gini_zero(self):
         """Equal values should produce Gini ~0."""
         from sie.domain.engines.link_graph import compute_gini
+
         values = (1.0, 1.0, 1.0, 1.0, 1.0)
         gini = compute_gini(values)
         assert gini == 0.0
@@ -128,18 +159,27 @@ class TestGiniCoefficient:
     def test_uneven_distribution_positive_gini(self):
         """Uneven values should produce positive Gini."""
         from sie.domain.engines.link_graph import compute_gini
+
         values = (10.0, 1.0, 1.0, 1.0, 1.0)
         gini = compute_gini(values)
         assert 0 < gini < 1
 
     def test_insufficient_data_returns_none(self):
         """Less than 3 pages should return None for Gini."""
-        from sie.domain.models.audit import SiteArchitectureReport, LinkVelocity
+        from sie.domain.models.audit import LinkVelocity, SiteArchitectureReport
+
         report = SiteArchitectureReport(
-            total_pages=2, total_internal_links=2, avg_links_per_page=1.0,
-            orphans=(), dead_ends=(), max_depth=1, avg_depth=0.5,
-            depth_distribution={0: 1, 1: 1}, pagerank_top_10=(),
-            pagerank_bottom_10=(), thin_connection_pages=(),
+            total_pages=2,
+            total_internal_links=2,
+            avg_links_per_page=1.0,
+            orphans=(),
+            dead_ends=(),
+            max_depth=1,
+            avg_depth=0.5,
+            depth_distribution={0: 1, 1: 1},
+            pagerank_top_10=(),
+            pagerank_bottom_10=(),
+            thin_connection_pages=(),
             link_velocity=LinkVelocity(1.0, {}),
         )
         assert report.pagerank_gini is None
@@ -153,17 +193,27 @@ class TestGiniCoefficient:
 class TestCoverageThresholds:
     def test_high_coverage(self):
         cs = CategoryScore(
-            category_name="Test", overall_score=80.0, score_status="ASSESSED",
-            scoring_methodology="test", metrics=[], sample_size=20,
-            data_coverage=0.9, confidence="HIGH",
+            category_name="Test",
+            overall_score=80.0,
+            score_status="ASSESSED",
+            scoring_methodology="test",
+            metrics=[],
+            sample_size=20,
+            data_coverage=0.9,
+            confidence="HIGH",
         )
         assert cs.data_coverage >= 0.8
 
     def test_low_coverage_insufficient(self):
         cs = CategoryScore(
-            category_name="AIO", overall_score=None, score_status="INSUFFICIENT DATA",
-            scoring_methodology="Low coverage", metrics=[], sample_size=5,
-            data_coverage=0.3, confidence="UNABLE TO VERIFY",
+            category_name="AIO",
+            overall_score=None,
+            score_status="INSUFFICIENT DATA",
+            scoring_methodology="Low coverage",
+            metrics=[],
+            sample_size=5,
+            data_coverage=0.3,
+            confidence="UNABLE TO VERIFY",
         )
         assert cs.data_coverage < 0.5
         assert cs.overall_score is None
@@ -179,9 +229,12 @@ class TestGEONotAssessed:
         """GEO must NOT ASSESSED with no numeric score."""
         cs = CategoryScore(
             category_name="Generative Engine Optimization (GEO)",
-            overall_score=None, score_status="NOT ASSESSED",
+            overall_score=None,
+            score_status="NOT ASSESSED",
             scoring_methodology="No live generative-engine observations were performed.",
-            metrics=[], sample_size=0, data_coverage=0.0,
+            metrics=[],
+            sample_size=0,
+            data_coverage=0.0,
             confidence="UNABLE TO VERIFY",
             limitations=["Live generative-engine observations were not available."],
         )
@@ -192,9 +245,14 @@ class TestGEONotAssessed:
     def test_geo_no_synthetic_observations(self):
         """GEO must not have any synthetic observation data."""
         cs = CategoryScore(
-            category_name="GEO", overall_score=None, score_status="NOT ASSESSED",
-            scoring_methodology="test", metrics=[], sample_size=0,
-            data_coverage=0.0, confidence="UNABLE TO VERIFY",
+            category_name="GEO",
+            overall_score=None,
+            score_status="NOT ASSESSED",
+            scoring_methodology="test",
+            metrics=[],
+            sample_size=0,
+            data_coverage=0.0,
+            confidence="UNABLE TO VERIFY",
         )
         assert cs.sample_size == 0
         assert cs.data_coverage == 0.0

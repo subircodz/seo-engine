@@ -14,7 +14,9 @@ class AIOverviewObservationRow(Base):
     __tablename__ = "aio_observations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    dataset_id: Mapped[str] = mapped_column(String(64), ForeignKey("search_datasets.id", ondelete="CASCADE"), nullable=False)
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("search_datasets.id", ondelete="CASCADE"), nullable=False
+    )
     keyword: Mapped[str] = mapped_column(String(512), nullable=False)
     ai_type: Mapped[str] = mapped_column(String(32), nullable=False)
     present: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -35,7 +37,9 @@ class GEOObservationRow(Base):
     __tablename__ = "geo_observations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    dataset_id: Mapped[str] = mapped_column(String(64), ForeignKey("search_datasets.id", ondelete="CASCADE"), nullable=False)
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("search_datasets.id", ondelete="CASCADE"), nullable=False
+    )
     keyword: Mapped[str] = mapped_column(String(512), nullable=False)
     engine_type: Mapped[str] = mapped_column(String(32), nullable=False)
     target_mentioned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -53,5 +57,9 @@ class GEOObservationRow(Base):
     methodology: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
 
-Index("ix_aio_obs_dataset_keyword", AIOverviewObservationRow.dataset_id, AIOverviewObservationRow.keyword)
+Index(
+    "ix_aio_obs_dataset_keyword",
+    AIOverviewObservationRow.dataset_id,
+    AIOverviewObservationRow.keyword,
+)
 Index("ix_geo_obs_dataset_keyword", GEOObservationRow.dataset_id, GEOObservationRow.keyword)

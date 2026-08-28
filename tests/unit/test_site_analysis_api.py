@@ -205,6 +205,7 @@ class TestSiteAnalyzeResponse:
 class TestJSONRoundtrip:
     def test_breakdown_survives_json(self):
         import json
+
         breakdown = CategoryScore(
             category_name="Content Quality",
             overall_score=65.5,

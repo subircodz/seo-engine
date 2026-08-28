@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import io
 from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from sie.api.auth import api_key_auth
 from sie.domain.renderers.pdf_renderer import PDFGenerationError, PDFRenderer
-from sie.domain.services.site_analysis import SiteAnalysisResult, create_site_analysis_service
+from sie.domain.services.site_analysis import create_site_analysis_service
 
 router = APIRouter(
     prefix="/api/site",
@@ -21,22 +22,31 @@ router = APIRouter(
 
 class SiteAnalyzeRequest(BaseModel):
     """Request to analyze a website."""
-    domain: str = Field(..., description="Domain to analyze (e.g., example.com or https://example.com)")
+
+    domain: str = Field(
+        ..., description="Domain to analyze (e.g., example.com or https://example.com)"
+    )
     max_pages: int = Field(default=100, ge=1, le=500, description="Maximum pages to crawl")
-    max_keywords: int = Field(default=50, ge=1, le=200, description="Maximum keywords to check rankings for")
+    max_keywords: int = Field(
+        default=50, ge=1, le=200, description="Maximum keywords to check rankings for"
+    )
     country: str = Field(default="us", description="Country code for search (e.g., us, gb, de)")
     target_countries: list[str] = Field(
-        default=[], max_length=10,
-        description='Additional countries to analyze (e.g., ["gb", "de", "in"])'
+        default=[],
+        max_length=10,
+        description='Additional countries to analyze (e.g., ["gb", "de", "in"])',
     )
     device: str = Field(default="desktop", description="Device type: desktop or mobile")
-    competitors: list[str] = Field(default=[], max_length=5, description="Competitor domains to track")
+    competitors: list[str] = Field(
+        default=[], max_length=5, description="Competitor domains to track"
+    )
     deep_aio: bool = Field(default=True, description="Enable AI Overview analysis")
     deep_geo: bool = Field(default=True, description="Enable Generative Engine analysis")
 
 
 class SiteAnalyzeResponse(BaseModel):
     """Response from site analysis."""
+
     domain: str
     analyzed_at: str
     crawl_run_id: str | None
@@ -90,7 +100,6 @@ class SiteAnalyzeResponse(BaseModel):
 
 def _site_analysis_service(request: Request):
     """Get site analysis service from app state."""
-    from sie.domain.services.site_analysis import create_site_analysis_service
     return create_site_analysis_service(
         crawl_service=request.app.state.crawl_service,
         audit_service=request.app.state.audit_service,
@@ -334,31 +343,37 @@ def _serialize_search_opportunities(opps) -> dict | None:
         "content_gaps": [],
     }
     for gap in opps.competitor_gaps:
-        result["competitor_gaps"].append({
-            "keyword": gap.keyword,
-            "competitor_domain": gap.competitor_domain,
-            "competitor_position": gap.competitor_position,
-            "severity": gap.severity,
-            "confidence_score": gap.confidence_score,
-            "estimated_improvement": gap.estimated_improvement,
-        })
+        result["competitor_gaps"].append(
+            {
+                "keyword": gap.keyword,
+                "competitor_domain": gap.competitor_domain,
+                "competitor_position": gap.competitor_position,
+                "severity": gap.severity,
+                "confidence_score": gap.confidence_score,
+                "estimated_improvement": gap.estimated_improvement,
+            }
+        )
     for wr in opps.weak_ranking_opportunities:
-        result["weak_rankings"].append({
-            "keyword": wr.keyword,
-            "target_position": wr.target_position,
-            "severity": wr.severity,
-            "confidence_score": wr.confidence_score,
-            "estimated_improvement": wr.estimated_improvement,
-        })
+        result["weak_rankings"].append(
+            {
+                "keyword": wr.keyword,
+                "target_position": wr.target_position,
+                "severity": wr.severity,
+                "confidence_score": wr.confidence_score,
+                "estimated_improvement": wr.estimated_improvement,
+            }
+        )
     for cg in opps.content_gaps:
-        result["content_gaps"].append({
-            "keyword": cg.keyword,
-            "competitor_domains": list(cg.competitor_domains),
-            "average_competitor_position": cg.average_competitor_position,
-            "primary_competitor": cg.primary_competitor,
-            "confidence_score": cg.confidence_score,
-            "content_description_hint": cg.content_description_hint,
-        })
+        result["content_gaps"].append(
+            {
+                "keyword": cg.keyword,
+                "competitor_domains": list(cg.competitor_domains),
+                "average_competitor_position": cg.average_competitor_position,
+                "primary_competitor": cg.primary_competitor,
+                "confidence_score": cg.confidence_score,
+                "content_description_hint": cg.content_description_hint,
+            }
+        )
     return result
 
 
@@ -473,7 +488,7 @@ async def analyze_site(
             logger.exception("Site analysis failed for %s", body.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Site analysis failed: {str(e)}",
+            detail=f"Site analysis failed: {e!s}",
         ) from e
 
     return SiteAnalyzeResponse(
@@ -495,7 +510,8 @@ async def analyze_site(
         geo=_serialize_geo(result.geo),
         country_rankings=(
             [_serialize_country_ranking(cr) for cr in result.country_rankings]
-            if result.country_rankings else None
+            if result.country_rankings
+            else None
         ),
         content_breakdown=_serialize_breakdown(result.content_breakdown),
         ranking_breakdown=_serialize_breakdown(result.ranking_breakdown),
@@ -545,29 +561,31 @@ async def analyze_site_pdf(
             logger.exception("Site analysis failed for %s", body.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Site analysis failed: {str(e)}",
+            detail=f"Site analysis failed: {e!s}",
         ) from e
 
     try:
         pdf_bytes = renderer.render(result)
     except PDFGenerationError as exc:
-        logger = request.app.state.logger if hasattr(request.app.state, 'logger') else None
+        logger = request.app.state.logger if hasattr(request.app.state, "logger") else None
         if logger:
-            logger.exception('PDF generation failed for %s', body.domain)
+            logger.exception("PDF generation failed for %s", body.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f'PDF generation failed: {exc!s}',
+            detail=f"PDF generation failed: {exc!s}",
         ) from exc
     except Exception as exc:
-        logger = request.app.state.logger if hasattr(request.app.state, 'logger') else None
+        logger = request.app.state.logger if hasattr(request.app.state, "logger") else None
         if logger:
-            logger.exception('PDF rendering failed for %s', body.domain)
+            logger.exception("PDF rendering failed for %s", body.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f'PDF rendering failed: {type(exc).__name__}: {exc!s}',
+            detail=f"PDF rendering failed: {type(exc).__name__}: {exc!s}",
         ) from exc
 
-    filename = f"site_analysis_{result.domain.replace('.', '_')}_{result.analyzed_at.strftime('%Y%m%d')}.pdf"
+    date_str = result.analyzed_at.strftime('%Y%m%d')
+    domain_str = result.domain.replace('.', '_')
+    filename = f"site_analysis_{domain_str}_{date_str}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

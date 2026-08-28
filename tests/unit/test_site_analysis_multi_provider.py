@@ -4,20 +4,18 @@ from __future__ import annotations
 
 import pytest
 
-from sie.domain.models.search import SearchDevice, SearchQuery
 from sie.domain.models.search_aio import (
     AIOverviewObservation,
     AIOverviewType,
-    CitationSource,
 )
 from sie.domain.models.search_geo import (
-    GEOObservation,
     GenerativeEngineType,
+    GEOObservation,
 )
 from sie.domain.models.search_result import SearchResult, SearchResultItem
+from sie.domain.services.site_analysis import SiteAnalysisService
 from sie.infrastructure.search.mock_provider import MockSearchProvider
 from sie.infrastructure.search.provider_registry import ProviderRegistry
-from sie.domain.services.site_analysis import SiteAnalysisService
 
 
 def _search_result_with_domain(domain: str, position: int = 1) -> SearchResult:
@@ -110,7 +108,9 @@ class TestProviderRegistryRouting:
         """Mock provider simulating GEO LLM provider."""
         return MockSearchProvider(
             geo_observations={
-                ("test keyword", GenerativeEngineType.CHATGPT): _geo_observation_mentioned("oursite.io"),
+                ("test keyword", GenerativeEngineType.CHATGPT): _geo_observation_mentioned(
+                    "oursite.io"
+                ),
             },
         )
 
@@ -157,8 +157,8 @@ class TestProviderRegistryRouting:
 
     def test_fallback_to_default_if_supports_aio(self):
         """Test fallback to default if it supports AIO."""
-        from sie.infrastructure.search.mock_provider import MockSearchProvider
         from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewType
+        from sie.infrastructure.search.mock_provider import MockSearchProvider
 
         mock = MockSearchProvider(
             aio_observations={
@@ -184,6 +184,7 @@ class TestProviderRegistryRouting:
     def test_default_without_aio_returns_none(self):
         """Test default without AIO returns None."""
         from sie.infrastructure.search.mock_provider import MockSearchProvider
+
         mock = MockSearchProvider()  # No AIO fixtures
         registry = ProviderRegistry(default=mock)
 
@@ -203,8 +204,8 @@ class TestProviderRegistryRouting:
 
     def test_fallback_to_default_if_supports_geo(self):
         """Test fallback to default if it supports GEO."""
+        from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation
         from sie.infrastructure.search.mock_provider import MockSearchProvider
-        from sie.domain.models.search_geo import GEOObservation, GenerativeEngineType
 
         mock = MockSearchProvider(
             geo_observations={
@@ -229,6 +230,7 @@ class TestProviderRegistryRouting:
     def test_default_without_geo_returns_none(self):
         """Test default without GEO returns None."""
         from sie.infrastructure.search.mock_provider import MockSearchProvider
+
         mock = MockSearchProvider()  # No GEO fixtures
         registry = ProviderRegistry(default=mock)
 
@@ -245,12 +247,14 @@ class TestProviderRegistryRouting:
         from sie.infrastructure.search.mock_provider import MockSearchProvider
 
         mock = MockSearchProvider(
-            results={"test": SearchResult(
-                keyword="test",
-                items=(SearchResultItem(
-                    position=1, title="Test", url="https://example.com/page"
-                ),),
-            )},
+            results={
+                "test": SearchResult(
+                    keyword="test",
+                    items=(
+                        SearchResultItem(position=1, title="Test", url="https://example.com/page"),
+                    ),
+                )
+            },
             aio_observations={
                 "test": AIOverviewObservation(
                     keyword="test",
@@ -279,6 +283,7 @@ class TestProviderRegistryRouting:
     def test_single_provider_without_capabilities(self):
         """Test single provider without AIO/GEO capabilities."""
         from sie.infrastructure.search.mock_provider import MockSearchProvider
+
         mock = MockSearchProvider()
         registry = ProviderRegistry(default=mock)
 
@@ -320,7 +325,7 @@ class TestProviderRegistryRouting:
 
     def test_mock_provider_with_geo_fixture(self):
         """Test mock provider with GEO fixture."""
-        from sie.domain.models.search_geo import GEOObservation, GenerativeEngineType
+        from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation
 
         geo_obs = GEOObservation(
             keyword="test",
@@ -328,7 +333,9 @@ class TestProviderRegistryRouting:
             target_mentioned=True,
             target_domain="example.com",
         )
-        mock = MockSearchProvider(geo_observations={("test", GenerativeEngineType.CHATGPT): geo_obs})
+        mock = MockSearchProvider(
+            geo_observations={("test", GenerativeEngineType.CHATGPT): geo_obs}
+        )
 
         registry = ProviderRegistry(geo=mock)
 
@@ -405,10 +412,11 @@ class TestSiteAnalysisMultiProvider:
 
         # Create service with registry
         from unittest.mock import AsyncMock, MagicMock
-        from sie.domain.services.crawl_service import CrawlService
+
+        from sie.domain.ports.persistence import CrawlRunRepository
         from sie.domain.services.audit_service import AuditService
         from sie.domain.services.content_service import ContentService
-        from sie.domain.ports.persistence import CrawlRunRepository
+        from sie.domain.services.crawl_service import CrawlService
 
         crawl_service = MagicMock(spec=CrawlService)
         audit_service = MagicMock(spec=AuditService)
@@ -501,12 +509,14 @@ class TestSiteAnalysisMultiProvider:
 
         # Single provider that supports everything
         mock = MockSearchProvider(
-            results={"test": SearchResult(
-                keyword="test",
-                items=(SearchResultItem(
-                    position=1, title="Test", url="https://example.com/page"
-                ),),
-            )},
+            results={
+                "test": SearchResult(
+                    keyword="test",
+                    items=(
+                        SearchResultItem(position=1, title="Test", url="https://example.com/page"),
+                    ),
+                )
+            },
             aio_observations={
                 "test": AIOverviewObservation(
                     keyword="test",

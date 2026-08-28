@@ -8,11 +8,10 @@ from __future__ import annotations
 import pytest
 
 from sie.domain.models.search_aio import AIOverviewObservation, AIOverviewType
-from sie.domain.models.search_geo import GEOObservation, GenerativeEngineType
-from sie.domain.models.search_result import SearchResult, SearchResultItem
-from sie.domain.ports.search_provider import SearchProvider
-from sie.infrastructure.search.provider_registry import ProviderRegistry
+from sie.domain.models.search_geo import GenerativeEngineType, GEOObservation
+from sie.domain.models.search_result import SearchResult
 from sie.infrastructure.search.mock_provider import MockSearchProvider
+from sie.infrastructure.search.provider_registry import ProviderRegistry
 
 
 class DummyAIOProvider:
@@ -248,7 +247,9 @@ class TestProviderRegistryWithMockProvider:
             target_mentioned=True,
             target_domain="example.com",
         )
-        mock = MockSearchProvider(geo_observations={("test", GenerativeEngineType.CHATGPT): geo_obs})
+        mock = MockSearchProvider(
+            geo_observations={("test", GenerativeEngineType.CHATGPT): geo_obs}
+        )
 
         registry = ProviderRegistry(geo=mock)
 

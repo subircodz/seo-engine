@@ -48,9 +48,9 @@ class PDFRenderer:
 
         self._jinja_env = Environment(autoescape=False)
         # Add custom filters
-        self._jinja_env.filters['percentage'] = lambda x: f"{x*100:.1f}%"
-        self._jinja_env.filters['number_format'] = lambda x: f"{x:,}"
-        self._jinja_env.filters['tojson'] = lambda x: __import__('json').dumps(x, default=str)
+        self._jinja_env.filters["percentage"] = lambda x: f"{x * 100:.1f}%"
+        self._jinja_env.filters["number_format"] = lambda x: f"{x:,}"
+        self._jinja_env.filters["tojson"] = lambda x: __import__("json").dumps(x, default=str)
 
     def render(self, report_data: Any) -> bytes:
         """Render a structured report to PDF bytes.
@@ -83,7 +83,7 @@ class PDFRenderer:
     def _build_html(self, data: Any) -> str:
         """Build HTML from report data using Jinja2 template."""
         # Determine template based on data type
-        if hasattr(data, 'domain') and hasattr(data, 'overall_score'):
+        if hasattr(data, "domain") and hasattr(data, "overall_score"):
             # SiteAnalysisResult
             template_path = self.TEMPLATE_DIR / "reports" / "site_analysis.html"
         else:
@@ -102,6 +102,7 @@ class PDFRenderer:
 
     def _render_template(self, template, data: Any) -> str:
         """Render a Jinja2 template with report data."""
+
         # Add helper functions to context
         def score_class(score):
             if score >= 80:
@@ -122,7 +123,18 @@ class PDFRenderer:
             return "Poor"
 
         def estimate_traffic(position):
-            ctr = {1: 0.30, 2: 0.15, 3: 0.10, 4: 0.07, 5: 0.05, 6: 0.04, 7: 0.03, 8: 0.03, 9: 0.02, 10: 0.02}
+            ctr = {
+                1: 0.30,
+                2: 0.15,
+                3: 0.10,
+                4: 0.07,
+                5: 0.05,
+                6: 0.04,
+                7: 0.03,
+                8: 0.03,
+                9: 0.02,
+                10: 0.02,
+            }
             return int(1000 * ctr.get(position, 0.01))
 
         context = {
@@ -132,31 +144,32 @@ class PDFRenderer:
         }
 
         # Add data attributes to context
-        if hasattr(data, '__dataclass_fields__'):
+        if hasattr(data, "__dataclass_fields__"):
             # dataclass (including slotted) — use fields()
             import dataclasses
+
             for f in dataclasses.fields(data):
-                if not f.name.startswith('_'):
+                if not f.name.startswith("_"):
                     context[f.name] = getattr(data, f.name)
-        elif hasattr(data, '__dict__'):
+        elif hasattr(data, "__dict__"):
             # Regular object with __dict__
             for key, value in data.__dict__.items():
-                if not key.startswith('_'):
+                if not key.startswith("_"):
                     context[key] = value
         elif isinstance(data, dict):
             context.update(data)
 
         # Ensure country is in context for PDF header
-        if 'country' not in context:
-            context['country'] = context.get('country', '')
+        if "country" not in context:
+            context["country"] = context.get("country", "")
 
         # Ensure access_status and website_type are in context
-        if 'access_status' not in context:
-            context['access_status'] = None
-        if 'website_type' not in context:
-            context['website_type'] = None
-        if 'report_metadata' not in context:
-            context['report_metadata'] = None
+        if "access_status" not in context:
+            context["access_status"] = None
+        if "website_type" not in context:
+            context["website_type"] = None
+        if "report_metadata" not in context:
+            context["report_metadata"] = None
 
         return template.render(**context)
 

@@ -25,15 +25,21 @@ class SearchProviderConfigError(Exception):
     """Raised when the search provider cannot be constructed from config."""
 
 
-def _create_mock(settings: SearchProviderSettings | SearchProviderCapabilitySettings) -> SearchProvider:
+def _create_mock(
+    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
+) -> SearchProvider:
     from sie.infrastructure.search.mock_provider import MockSearchProvider
+
     return MockSearchProvider()
 
 
-def _create_http(settings: SearchProviderSettings | SearchProviderCapabilitySettings) -> SearchProvider:
+def _create_http(
+    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
+) -> SearchProvider:
     if not settings.base_url or not settings.base_url.strip():
         raise SearchProviderConfigError("Search provider 'http' requires a base URL")
     from sie.infrastructure.search.http_provider import HttpSearchProvider
+
     return HttpSearchProvider(
         base_url=settings.base_url,
         api_key=settings.api_key,
@@ -55,6 +61,7 @@ def _create_serpapi(
     if not settings.api_key or not settings.api_key.strip():
         raise SearchProviderConfigError("Search provider 'serpapi' requires an API key")
     from sie.infrastructure.search.serpapi_provider import SerpApiProvider
+
     return SerpApiProvider(
         api_key=settings.api_key,
         timeout_seconds=settings.timeout_seconds,
@@ -67,10 +74,13 @@ def _create_serpapi(
     )
 
 
-def _create_valueserp(settings: SearchProviderSettings | SearchProviderCapabilitySettings) -> SearchProvider:
+def _create_valueserp(
+    settings: SearchProviderSettings | SearchProviderCapabilitySettings,
+) -> SearchProvider:
     if not settings.api_key or not settings.api_key.strip():
         raise SearchProviderConfigError("Search provider 'valueserp' requires an API key")
     from sie.infrastructure.search.valueserp_provider import ValueSerpProvider
+
     return ValueSerpProvider(
         api_key=settings.api_key,
         timeout_seconds=settings.timeout_seconds,
@@ -183,7 +193,9 @@ def _create_provider_from_capability_settings(
         else:
             provider = factory(settings)
     if cache_settings is not None and cache_settings.enabled:
-        cache_settings_holder = type("CacheSettingsHolder", (), {"_cache_settings": cache_settings, "enabled": True})()
+        cache_settings_holder = type(
+            "CacheSettingsHolder", (), {"_cache_settings": cache_settings, "enabled": True}
+        )()
         provider = _wrap_distributed_cache(provider, cache_settings_holder)
     return provider
 
@@ -219,22 +231,30 @@ def create_search_provider(
     else:
         provider = factory(settings)
     if cache_settings is not None and cache_settings.enabled:
-        cache_settings_holder = type("CacheSettingsHolder", (), {"_cache_settings": cache_settings, "enabled": True})()
+        cache_settings_holder = type(
+            "CacheSettingsHolder", (), {"_cache_settings": cache_settings, "enabled": True}
+        )()
         provider = _wrap_distributed_cache(provider, cache_settings_holder)
     return provider
 
 
-def create_provider_registry(settings: SearchProviderSettings, *, serpapi_settings=None, cache_settings=None) -> ProviderRegistry:
+def create_provider_registry(
+    settings: SearchProviderSettings, *, serpapi_settings=None, cache_settings=None
+) -> ProviderRegistry:
     """Construct a capability-routed provider registry from explicit settings."""
     if not settings.enabled:
         return ProviderRegistry(default=_create_mock(settings))
 
-    has_capability_settings = any(s is not None for s in (settings.rankings, settings.aio, settings.geo))
+    has_capability_settings = any(
+        s is not None for s in (settings.rankings, settings.aio, settings.geo)
+    )
     if not has_capability_settings:
         provider = create_search_provider(
             settings,
             serpapi_request_cost_usd=serpapi_settings.request_cost_usd if serpapi_settings else 0.0,
-            serpapi_monthly_request_limit=serpapi_settings.monthly_request_limit if serpapi_settings else 0,
+            serpapi_monthly_request_limit=serpapi_settings.monthly_request_limit
+            if serpapi_settings
+            else 0,
             cache_settings=cache_settings,
         )
         return ProviderRegistry(default=provider)
@@ -251,7 +271,9 @@ def create_provider_registry(settings: SearchProviderSettings, *, serpapi_settin
             cap_settings,
             llm_settings=settings.llm if cap_name == "geo" else None,
             serpapi_request_cost_usd=serpapi_settings.request_cost_usd if serpapi_settings else 0.0,
-            serpapi_monthly_request_limit=serpapi_settings.monthly_request_limit if serpapi_settings else 0,
+            serpapi_monthly_request_limit=serpapi_settings.monthly_request_limit
+            if serpapi_settings
+            else 0,
             cache_settings=cache_settings,
         )
     return ProviderRegistry(

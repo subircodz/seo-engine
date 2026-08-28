@@ -22,6 +22,7 @@ router = APIRouter(
 
 class ReportDataRequest(BaseModel):
     """Request to generate PDF from analysis data directly."""
+
     intelligence_id: str
     summary: str = ""
     findings: list[dict] = Field(default_factory=list)
@@ -119,9 +120,14 @@ async def generate_pdf_from_analysis(body: ReportDataRequest) -> Response:
     renderer = PDFRenderer()
 
     from datetime import UTC, datetime
+
     report_data = {
         "intelligence_id": body.intelligence_id,
-        "summary": body.summary or f"Search Intelligence Report - {len(body.findings)} findings, {len(body.recommendations)} recommendations",
+        "summary": body.summary
+        or (
+            f"Search Intelligence Report - {len(body.findings)} findings, "
+            f"{len(body.recommendations)} recommendations"
+        ),
         "generated_at": datetime.now(UTC).isoformat(),
         "findings": body.findings,
         "recommendations": body.recommendations,
@@ -138,5 +144,7 @@ async def generate_pdf_from_analysis(body: ReportDataRequest) -> Response:
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="report_{body.intelligence_id}.pdf"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="report_{body.intelligence_id}.pdf"'
+        },
     )

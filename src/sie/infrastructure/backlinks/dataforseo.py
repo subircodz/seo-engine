@@ -32,15 +32,30 @@ class DataForSeoBacklinkProvider:
 
     ENDPOINT = "https://api.dataforseo.com/v3/backlinks/summary/live"
 
-    def __init__(self, *, login: str, password: str, base_url: str | None = None, timeout_seconds: float = 30.0) -> None:
+    def __init__(
+        self,
+        *,
+        login: str,
+        password: str,
+        base_url: str | None = None,
+        timeout_seconds: float = 30.0,
+    ) -> None:
         if not login.strip() or not password.strip():
             raise ValueError("DataForSEO login and password are required")
         self._login = login
         self._password = password
-        self._endpoint = (base_url or "https://api.dataforseo.com").rstrip("/") + "/v3/backlinks/summary/live"
+        self._endpoint = (base_url or "https://api.dataforseo.com").rstrip(
+            "/"
+        ) + "/v3/backlinks/summary/live"
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
 
-    async def summary(self, target: str, *, include_subdomains: bool = True, exclude_internal_backlinks: bool = True) -> BacklinkSummary:
+    async def summary(
+        self,
+        target: str,
+        *,
+        include_subdomains: bool = True,
+        exclude_internal_backlinks: bool = True,
+    ) -> BacklinkSummary:
         normalized = self._normalize_target(target)
         response = await self._client.post(
             self._endpoint,
@@ -71,8 +86,12 @@ class DataForSeoBacklinkProvider:
             referring_domains=int(value.get("referring_domains", 0)),
             referring_pages=int(value.get("referring_pages", 0)),
             rank=float(value["rank"]) if value.get("rank") is not None else None,
-            spam_score=float(value["backlinks_spam_score"]) if value.get("backlinks_spam_score") is not None else None,
-            crawled_pages=int(value["crawled_pages"]) if value.get("crawled_pages") is not None else None,
+            spam_score=float(value["backlinks_spam_score"])
+            if value.get("backlinks_spam_score") is not None
+            else None,
+            crawled_pages=int(value["crawled_pages"])
+            if value.get("crawled_pages") is not None
+            else None,
         )
 
     @staticmethod

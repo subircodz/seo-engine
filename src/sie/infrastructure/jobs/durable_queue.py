@@ -7,6 +7,7 @@ jobs with leases so a process crash does not permanently strand work.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import uuid
 from collections.abc import Awaitable, Callable
@@ -171,9 +172,16 @@ class DurableJobQueue:
     async def fail(self, job_id: str, error: str, *, retry: bool = True) -> None:
         now = datetime.now(UTC)
         async with self._session_factory() as session:
-            row = (await session.execute(
-                text("SELECT attempts, max_attempts FROM background_jobs WHERE id=:id"), {"id": job_id}
-            )).mappings().first()
+            row = (
+                (
+                    await session.execute(
+                        text("SELECT attempts, max_attempts FROM background_jobs WHERE id=:id"),
+                        {"id": job_id},
+                    )
+                )
+                .mappings()
+                .first()
+            )
             if row is None:
                 raise JobNotFoundError(job_id)
             terminal = not retry or int(row["attempts"]) >= int(row["max_attempts"])
@@ -193,26 +201,34 @@ class DurableJobQueue:
             )
             await session.commit()
 
-    async def run_worker(self, worker_id: str, *, poll_interval_seconds: float = 1.0, stop_event: asyncio.Event | None = None) -> None:
+    async def run_worker(
+        self,
+        worker_id: str,
+        *,
+        poll_interval_seconds: float = 1.0,
+        stop_event: asyncio.Event | None = None,
+    ) -> None:
         """Run a durable worker loop until ``stop_event`` is set."""
         stop_event = stop_event or asyncio.Event()
         while not stop_event.is_set():
             await self.recover_expired()
             job = await self.claim(worker_id)
             if job is None:
-                try:
+                with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(stop_event.wait(), timeout=poll_interval_seconds)
-                except asyncio.TimeoutError:
-                    pass
                 continue
             handler = self._handlers.get(job["task_type"])
             if handler is None:
-                await self.fail(job["id"], f"No handler registered for task type {job['task_type']!r}", retry=False)
+                await self.fail(
+                    job["id"],
+                    f"No handler registered for task type {job['task_type']!r}",
+                    retry=False,
+                )
                 continue
             try:
                 value = handler(job["payload"])
                 if inspect.isawaitable(value):
                     value = await value
                 await self.complete(job["id"], value if isinstance(value, dict) else None)
-            except Exception as exc:  # noqa: BLE001 - worker boundary records all failures
+            except Exception as exc:
                 await self.fail(job["id"], f"{type(exc).__name__}: {exc}")

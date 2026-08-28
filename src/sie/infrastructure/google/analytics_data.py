@@ -9,7 +9,7 @@ import httpx
 
 from sie.infrastructure.google.oauth_client import GoogleOAuthClient
 
-__all__ = ["AnalyticsObservation", "AnalyticsDataProvider"]
+__all__ = ["AnalyticsDataProvider", "AnalyticsObservation"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,26 +25,47 @@ class AnalyticsDataProvider:
 
     ENDPOINT = "https://analyticsdata.googleapis.com/v1beta/properties"
 
-    def __init__(self, oauth: GoogleOAuthClient, property_id: str, *, timeout_seconds: float = 20.0) -> None:
+    def __init__(
+        self, oauth: GoogleOAuthClient, property_id: str, *, timeout_seconds: float = 20.0
+    ) -> None:
         if not property_id.strip():
             raise ValueError("GA4 property_id is required")
         self._oauth = oauth
         self._property_id = property_id.removeprefix("properties/")
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
 
-    async def run_report(self, start_date: date, end_date: date, *, dimensions: tuple[str, ...] = ("date",), metrics: tuple[str, ...] = ("sessions", "totalUsers", "screenPageViews"), limit: int = 10000) -> tuple[AnalyticsObservation, ...]:
+    async def run_report(
+        self,
+        start_date: date,
+        end_date: date,
+        *,
+        dimensions: tuple[str, ...] = ("date",),
+        metrics: tuple[str, ...] = ("sessions", "totalUsers", "screenPageViews"),
+        limit: int = 10000,
+    ) -> tuple[AnalyticsObservation, ...]:
         token = await self._oauth.access_token()
         response = await self._client.post(
             f"{self.ENDPOINT}/{self._property_id}:runReport",
             headers={"Authorization": f"Bearer {token}"},
-            json={"dateRanges": [{"startDate": start_date.isoformat(), "endDate": end_date.isoformat()}], "dimensions": [{"name": name} for name in dimensions], "metrics": [{"name": name} for name in metrics], "limit": limit},
+            json={
+                "dateRanges": [
+                    {"startDate": start_date.isoformat(), "endDate": end_date.isoformat()}
+                ],
+                "dimensions": [{"name": name} for name in dimensions],
+                "metrics": [{"name": name} for name in metrics],
+                "limit": limit,
+            },
         )
         response.raise_for_status()
         result: list[AnalyticsObservation] = []
         for row in response.json().get("rows", []):
             if not isinstance(row, dict):
                 continue
-            dimension_values = tuple(str(item.get("value", "")) for item in row.get("dimensionValues", []) if isinstance(item, dict))
+            dimension_values = tuple(
+                str(item.get("value", ""))
+                for item in row.get("dimensionValues", [])
+                if isinstance(item, dict)
+            )
             normalized: list[tuple[str, float]] = []
             for name, item in zip(metrics, row.get("metricValues", []), strict=False):
                 if not isinstance(item, dict):

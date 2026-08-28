@@ -76,8 +76,18 @@ class TestPDFRendererHelpers:
 
     def test_estimate_traffic(self):
         def estimate_traffic(position):
-            ctr = {1: 0.30, 2: 0.15, 3: 0.10, 4: 0.07, 5: 0.05,
-                   6: 0.04, 7: 0.03, 8: 0.03, 9: 0.02, 10: 0.02}
+            ctr = {
+                1: 0.30,
+                2: 0.15,
+                3: 0.10,
+                4: 0.07,
+                5: 0.05,
+                6: 0.04,
+                7: 0.03,
+                8: 0.03,
+                9: 0.02,
+                10: 0.02,
+            }
             return int(1000 * ctr.get(position, 0.01))
 
         assert estimate_traffic(1) == 300
@@ -99,10 +109,10 @@ class TestPDFRendererDefaultTemplate:
                 generated_at = getattr(data, "generated_at", "Unknown")
                 return (
                     '<!DOCTYPE html><html><head><meta charset="utf-8">'
-                    '<title>Report</title></head><body>'
-                    '<h1>Intelligence Report</h1>'
-                    f'<p>{summary}</p><p>Generated: {generated_at}</p>'
-                    '</body></html>'
+                    "<title>Report</title></head><body>"
+                    "<h1>Intelligence Report</h1>"
+                    f"<p>{summary}</p><p>Generated: {generated_at}</p>"
+                    "</body></html>"
                 )
 
         r = FakeRenderer()
@@ -122,10 +132,10 @@ class TestPDFRendererDefaultTemplate:
                 generated_at = getattr(data, "generated_at", "Unknown")
                 return (
                     '<!DOCTYPE html><html><head><meta charset="utf-8">'
-                    '<title>Report</title></head><body>'
-                    '<h1>Intelligence Report</h1>'
-                    f'<p>{summary}</p><p>Generated: {generated_at}</p>'
-                    '</body></html>'
+                    "<title>Report</title></head><body>"
+                    "<h1>Intelligence Report</h1>"
+                    f"<p>{summary}</p><p>Generated: {generated_at}</p>"
+                    "</body></html>"
                 )
 
         r = FakeRenderer()

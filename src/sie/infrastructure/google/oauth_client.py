@@ -18,7 +18,15 @@ class GoogleOAuthClient:
 
     TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-    def __init__(self, *, client_id: str, client_secret: str, refresh_token: str, timeout_seconds: float = 20.0, access_token: str = "") -> None:
+    def __init__(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        refresh_token: str,
+        timeout_seconds: float = 20.0,
+        access_token: str = "",
+    ) -> None:
         if not refresh_token and not access_token:
             raise ValueError("A refresh_token or access_token is required")
         self._client_id = client_id
@@ -30,7 +38,11 @@ class GoogleOAuthClient:
         self._client = httpx.AsyncClient(timeout=timeout_seconds)
 
     async def access_token(self) -> str:
-        if self._access_token and self._expires_at and datetime.now(UTC) < self._expires_at - timedelta(seconds=60):
+        if (
+            self._access_token
+            and self._expires_at
+            and datetime.now(UTC) < self._expires_at - timedelta(seconds=60)
+        ):
             return self._access_token
         if self._access_token and not self._refresh_token:
             return self._access_token

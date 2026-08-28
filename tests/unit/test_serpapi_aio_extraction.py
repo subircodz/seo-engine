@@ -9,7 +9,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from sie.domain.models.search import SearchDevice, SearchQuery
+from sie.domain.models.search import SearchQuery
 from sie.domain.models.search_aio import (
     AIOverviewObservation,
     AIOverviewType,
@@ -30,6 +30,7 @@ def _mock_serpapi_response(
 ) -> httpx.Response:
     """Build a minimal httpx.Response without network."""
     import json
+
     content = json.dumps(json_data).encode() if json_data is not None else text.encode()
     return httpx.Response(
         status_code=status_code,
@@ -120,15 +121,17 @@ class TestExtractAIONoOverview:
 
 class TestExtractAIOWithCitations:
     async def test_target_cited(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    {"title": "Our Site", "link": "https://oursite.io/best-seo-tools"},
-                    {"title": "Competitor", "link": "https://competitor.com/seo-tools"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        {"title": "Our Site", "link": "https://oursite.io/best-seo-tools"},
+                        {"title": "Competitor", "link": "https://competitor.com/seo-tools"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="best seo tools")
         obs = await provider.extract_aio(query, "oursite.io")
 
@@ -143,15 +146,17 @@ class TestExtractAIOWithCitations:
         assert "competitor.com" in obs.competitor_cited_domains
 
     async def test_competitor_cited_not_target(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    {"title": "Competitor 1", "link": "https://competitor1.com/seo-tools"},
-                    {"title": "Competitor 2", "link": "https://competitor2.com/seo-tools"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        {"title": "Competitor 1", "link": "https://competitor1.com/seo-tools"},
+                        {"title": "Competitor 2", "link": "https://competitor2.com/seo-tools"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="best seo tools")
         obs = await provider.extract_aio(query, "oursite.io")
 
@@ -161,15 +166,17 @@ class TestExtractAIOWithCitations:
         assert set(obs.competitor_cited_domains) == {"competitor1.com", "competitor2.com"}
 
     async def test_multiple_citations_same_domain(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    {"title": "Page 1", "link": "https://competitor.com/page1"},
-                    {"title": "Page 2", "link": "https://competitor.com/page2"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        {"title": "Page 1", "link": "https://competitor.com/page1"},
+                        {"title": "Page 2", "link": "https://competitor.com/page2"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="best seo tools")
         obs = await provider.extract_aio(query, "oursite.io")
 
@@ -177,16 +184,18 @@ class TestExtractAIOWithCitations:
         assert obs.competitor_cited_domains == ("competitor.com",)
 
     async def test_citation_position_ordered(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    {"title": "First", "link": "https://first.com"},
-                    {"title": "Second", "link": "https://second.com"},
-                    {"title": "Third", "link": "https://third.com"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        {"title": "First", "link": "https://first.com"},
+                        {"title": "Second", "link": "https://second.com"},
+                        {"title": "Third", "link": "https://third.com"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="test")
         obs = await provider.extract_aio(query, "oursite.io")
 
@@ -202,15 +211,17 @@ class TestExtractAIOWithCitations:
 
 class TestExtractAIOMalformedCitations:
     async def test_skips_citation_without_link(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    {"title": "No Link"},
-                    {"title": "With Link", "link": "https://valid.com"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        {"title": "No Link"},
+                        {"title": "With Link", "link": "https://valid.com"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="test")
         obs = await provider.extract_aio(query, "oursite.io")
 
@@ -218,15 +229,17 @@ class TestExtractAIOMalformedCitations:
         assert obs.citations[0].domain == "valid.com"
 
     async def test_skips_citation_with_invalid_url(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    {"title": "Invalid", "link": "not-a-url"},
-                    {"title": "Valid", "link": "https://valid.com"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        {"title": "Invalid", "link": "not-a-url"},
+                        {"title": "Valid", "link": "https://valid.com"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="test")
         obs = await provider.extract_aio(query, "oursite.io")
 
@@ -234,25 +247,26 @@ class TestExtractAIOMalformedCitations:
         assert obs.citations[0].domain == "valid.com"
 
     async def test_skips_non_dict_citation(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {
-                "citations": [
-                    "not a dict",
-                    {"title": "Valid", "link": "https://valid.com"},
-                ]
+        provider = _serpapi_provider(
+            json_data={
+                "organic_results": [],
+                "ai_overview": {
+                    "citations": [
+                        "not a dict",
+                        {"title": "Valid", "link": "https://valid.com"},
+                    ]
+                },
             }
-        })
+        )
         query = _query(query="test")
         obs = await provider.extract_aio(query, "oursite.io")
 
         assert obs.citation_count == 1
 
     async def test_empty_citations_list(self):
-        provider = _serpapi_provider(json_data={
-            "organic_results": [],
-            "ai_overview": {"citations": []}
-        })
+        provider = _serpapi_provider(
+            json_data={"organic_results": [], "ai_overview": {"citations": []}}
+        )
         query = _query(query="test")
         obs = await provider.extract_aio(query, "oursite.io")
 

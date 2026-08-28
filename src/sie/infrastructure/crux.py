@@ -241,9 +241,7 @@ class CruxService:
                 if total == 0:
                     return 0.0
                 good = sum(
-                    b.get("density", 0)
-                    for b in histogram
-                    if int(b.get("start", 0)) <= threshold
+                    b.get("density", 0) for b in histogram if int(b.get("start", 0)) <= threshold
                 )
                 return (good / total) * 100
 
@@ -344,15 +342,22 @@ class CruxService:
             fid_issues=fid_issues,
             cls_issues=cls_issues,
             resource_hints_missing=cwv.resource_hints_missing,
-            recommendations=cwv.recommendations + ([
-                f"CrUX: LCP p75={lcp_estimate}ms (good: {crux.lcp_good:.1f}%)",
-                f"CrUX: INP p75={crux.inp_p75}ms (good: {crux.inp_good:.1f}%)",
-                f"CrUX: CLS p75={cls_estimate:.3f} (good: {crux.cls_good:.1f}%)",
-            ] if crux else []),
+            recommendations=cwv.recommendations
+            + (
+                [
+                    f"CrUX: LCP p75={lcp_estimate}ms (good: {crux.lcp_good:.1f}%)",
+                    f"CrUX: INP p75={crux.inp_p75}ms (good: {crux.inp_good:.1f}%)",
+                    f"CrUX: CLS p75={cls_estimate:.3f} (good: {crux.cls_good:.1f}%)",
+                ]
+                if crux
+                else []
+            ),
             score=score,
         )
 
     # Convenience function for easy integration
+
+
 async def fetch_crux_data(
     url: str,
     api_key: str | None = None,
@@ -361,4 +366,3 @@ async def fetch_crux_data(
     """Fetch CrUX data for a URL."""
     async with CruxService(api_key=api_key) as service:
         return await service.query_origin(url, form_factor)
-

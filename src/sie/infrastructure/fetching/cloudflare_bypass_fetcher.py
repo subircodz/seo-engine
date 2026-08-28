@@ -9,18 +9,14 @@ When a Cloudflare challenge is detected, this fetcher:
 
 from __future__ import annotations
 
-import asyncio
-import time
+import contextlib
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
 
 from sie.domain.errors import FetchError
 from sie.domain.models.page import FetchedPage
-from sie.domain.ports.fetching import Fetcher
-from sie.domain.security.ssrf import validate_url
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 from sie.logging import get_logger
 
@@ -98,20 +94,23 @@ class CloudflareBypassFetcher:
         self._domain = parsed.netloc
 
         # Import here to avoid hard dependency
-        from seleniumbase import Driver
         from playwright.async_api import async_playwright
+        from seleniumbase import Driver
 
         last_error = None
         for attempt in range(self._max_browser_retries):
             try:
-                logger.info("Launching undetected Chrome (attempt %d/%d)",
-                           attempt + 1, self._max_browser_retries)
+                logger.info(
+                    "Launching undetected Chrome (attempt %d/%d)",
+                    attempt + 1,
+                    self._max_browser_retries,
+                )
 
                 # Launch undetected Chrome
                 driver = Driver(uc=True, headless=True)
                 driver_instance = driver
 
-                cdp_port = driver.capabilities['goog:chromeOptions']['debuggerAddress']
+                cdp_port = driver.capabilities["goog:chromeOptions"]["debuggerAddress"]
                 cdp_url = f"http://{cdp_port}"
 
                 async with async_playwright() as p:
@@ -141,13 +140,13 @@ class CloudflareBypassFetcher:
             except Exception as exc:
                 last_error = exc
                 logger.warning("Browser bypass attempt %d failed: %s", attempt + 1, exc)
-                if 'driver_instance' in locals():
-                    try:
+                if "driver_instance" in locals():
+                    with contextlib.suppress(Exception):
                         driver_instance.quit()
-                    except Exception:
-                        pass
 
-        raise FetchError(f"Cloudflare bypass failed after {self._max_browser_retries} attempts: {last_error}")
+        raise FetchError(
+            f"Cloudflare bypass failed after {self._max_browser_retries} attempts: {last_error}"
+        )
 
     async def _extract_session(self, page) -> None:
         """Extract cookies and headers from browser page."""
@@ -159,17 +158,25 @@ class CloudflareBypassFetcher:
         # Extract cookies
         cookies = await context.cookies()
         cookie_dict = {
-            c['name']: c['value']
+            c["name"]: c["value"]
             for c in cookies
-            if self._domain and self._domain in c.get('domain', '')
+            if self._domain and self._domain in c.get("domain", "")
         }
 
         # Extract headers from a real request
         captured_headers = {}
+
         async def on_request(request):
             if self._domain and self._domain in request.url:
                 for k, v in request.headers.items():
-                    if k.lower() in ('user-agent', 'accept', 'accept-language', 'accept-encoding', 'cache-control', 'referer'):
+                    if k.lower() in (
+                        "user-agent",
+                        "accept",
+                        "accept-language",
+                        "accept-encoding",
+                        "cache-control",
+                        "referer",
+                    ):
                         captured_headers[k] = v
 
         page.on("request", on_request)
@@ -177,13 +184,15 @@ class CloudflareBypassFetcher:
         await page.wait_for_timeout(3000)
 
         self._session = _SessionData(
-            cookies=cookie_dict,
-            headers=captured_headers,
-            domain=self._domain
+            cookies=cookie_dict, headers=captured_headers, domain=self._domain
         )
 
-        logger.info("Extracted %d cookies and %d headers for %s",
-                   len(cookie_dict), len(captured_headers), self._domain)
+        logger.info(
+            "Extracted %d cookies and %d headers for %s",
+            len(cookie_dict),
+            len(captured_headers),
+            self._domain,
+        )
 
     async def _fetch_with_session(self, url: str) -> FetchedPage:
         """Fetch URL using hijacked session cookies/headers."""
@@ -222,8 +231,6 @@ class CloudflareBypassFetcher:
     async def close(self) -> None:
         """Close browser and underlying clients."""
         if self._driver:
-            try:
+            with contextlib.suppress(Exception):
                 self._driver.quit()
-            except Exception:
-                pass
         await self._base_fetcher.close()

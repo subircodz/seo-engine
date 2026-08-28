@@ -284,7 +284,10 @@ class TestAIORecommendations:
 
         competitor_rec = next(r for r in aio_recs if "competitor" in r.title.lower())
         assert competitor_rec.supporting_metrics["all_cited_competitors"] == [
-            "comp1.com", "comp2.com", "comp3.com", "comp4.com"
+            "comp1.com",
+            "comp2.com",
+            "comp3.com",
+            "comp4.com",
         ]
 
     def test_aio_multiple_queries_evidence_preserved(self):
@@ -400,7 +403,7 @@ class TestGEORecommendations:
             dataset_id="geo-test",
             dataset_metrics=_geo_dm(
                 keywords_target_mentioned=0,
-                competitor_domain_counts={"comp1.com": 2, "comp2.com": 1}
+                competitor_domain_counts={"comp1.com": 2, "comp2.com": 1},
             ),
             keyword_metrics=(
                 _geo_km(
@@ -455,8 +458,7 @@ class TestCrossEngineRecommendations:
 
         result = service.analyze(dataset, (), (), aio_result=aio_result, geo_result=geo_result)
         cross_recs = [
-            r for r in result.recommendations
-            if r.category == RecommendationCategory.OPPORTUNITY
+            r for r in result.recommendations if r.category == RecommendationCategory.OPPORTUNITY
         ]
 
         cross_gap = [r for r in cross_recs if "cross-engine" in r.title.lower()]
@@ -495,8 +497,7 @@ class TestCrossEngineRecommendations:
 
         result = service.analyze(dataset, (), (), aio_result=aio_result, geo_result=geo_result)
         cross_recs = [
-            r for r in result.recommendations
-            if r.category == RecommendationCategory.OPPORTUNITY
+            r for r in result.recommendations if r.category == RecommendationCategory.OPPORTUNITY
         ]
 
         cross_gap = [r for r in cross_recs if "cross-engine" in r.title.lower()]
@@ -531,8 +532,7 @@ class TestCrossEngineRecommendations:
 
         result = service.analyze(dataset, (), (), aio_result=aio_result, geo_result=geo_result)
         cross_recs = [
-            r for r in result.recommendations
-            if r.category == RecommendationCategory.OPPORTUNITY
+            r for r in result.recommendations if r.category == RecommendationCategory.OPPORTUNITY
         ]
 
         low_vis = [r for r in cross_recs if "low visibility across both" in r.title.lower()]
@@ -565,8 +565,7 @@ class TestCrossEngineRecommendations:
 
         result = service.analyze(dataset, (), (), aio_result=aio_result, geo_result=geo_result)
         cross_recs = [
-            r for r in result.recommendations
-            if r.category == RecommendationCategory.OPPORTUNITY
+            r for r in result.recommendations if r.category == RecommendationCategory.OPPORTUNITY
         ]
 
         # Should have NO cross-engine recs (neither gap nor low rates)
@@ -624,7 +623,8 @@ class TestBackwardCompatibility:
 
         # Cannibalization rec should exist
         cannib = [
-            r for r in result.recommendations
+            r
+            for r in result.recommendations
             if r.category == RecommendationCategory.CANNIBALIZATION
         ]
         assert len(cannib) > 0
@@ -654,10 +654,14 @@ class TestSiteAnalysisIntegration:
 
         # Create mock provider with AIO and GEO fixtures
         mock_provider = MockSearchProvider(
-            results={"test keyword": SearchResult(
-                keyword="test keyword",
-                items=(SearchResultItem(position=1, title="Test", url="https://oursite.io/page"),),
-            )},
+            results={
+                "test keyword": SearchResult(
+                    keyword="test keyword",
+                    items=(
+                        SearchResultItem(position=1, title="Test", url="https://oursite.io/page"),
+                    ),
+                )
+            },
             aio_observations={
                 "test keyword": AIOverviewObservation(
                     keyword="test keyword",
@@ -700,21 +704,32 @@ class TestSiteAnalysisIntegration:
 
         audit_service.run_technical_audit = AsyncMock(
             return_value=MagicMock(
-                critical_count=0, warning_count=0, info_count=0,
-                findings=[], summary_by_rule={},
+                critical_count=0,
+                warning_count=0,
+                info_count=0,
+                findings=[],
+                summary_by_rule={},
             )
         )
         audit_service.run_link_graph = AsyncMock(
             return_value=MagicMock(
-                total_pages=0, total_internal_links=0, avg_depth=0,
-                orphans=[], max_depth=0, pagerank_gini=0.0, avg_links_per_page=0,
+                total_pages=0,
+                total_internal_links=0,
+                avg_depth=0,
+                orphans=[],
+                max_depth=0,
+                pagerank_gini=0.0,
+                avg_links_per_page=0,
             )
         )
         content_service.analyze_content = AsyncMock(return_value=[])
         content_service.generate_quality_report = AsyncMock(
             return_value=MagicMock(
-                analyzed_pages=0, avg_quality_score=0.0,
-                thin_content_pages=0, duplicate_groups=0, top_issues=[],
+                analyzed_pages=0,
+                avg_quality_score=0.0,
+                thin_content_pages=0,
+                duplicate_groups=0,
+                top_issues=[],
             )
         )
         repository.get_search_dataset = AsyncMock(return_value=None)
@@ -742,7 +757,7 @@ class TestSiteAnalysisIntegration:
         # Verify the analysis ran without errors
         assert result.domain == "oursite.io"
         # Unified recommendations should exist
-        assert hasattr(result, 'recommendations')
+        assert hasattr(result, "recommendations")
         assert isinstance(result.recommendations, tuple)
 
 

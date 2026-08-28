@@ -8,16 +8,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sie.domain.models.crawl import CrawlPolicy, CrawlTarget
-from sie.domain.models.page import FetchedPage
 from sie.domain.ports.fetching import Fetcher
 from sie.infrastructure.crawling.engine import HttpxCrawlerEngine
 from sie.infrastructure.fetching.cloudflare_bypass_fetcher import CloudflareBypassFetcher
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 
 if TYPE_CHECKING:
-    from sie.domain.models.crawl import CrawlPolicy, CrawlTarget
-    from sie.domain.models.page import FetchedPage
+    pass
 
 
 class CloudflareBypassCrawlerEngine:
@@ -46,11 +43,8 @@ class CloudflareBypassCrawlerEngine:
         max_browser_retries: int = 2,
     ) -> None:
         # Create base fetcher (will be wrapped)
-        if isinstance(fetcher, HttpxFetcher):
-            base_fetcher = fetcher
-        else:
+        if not isinstance(fetcher, HttpxFetcher):
             # Create default fetcher if not HttpxFetcher
-            from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
             fetcher = HttpxFetcher(
                 user_agent=user_agent,
                 timeout_seconds=30.0,

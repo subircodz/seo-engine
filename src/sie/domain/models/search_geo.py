@@ -72,7 +72,9 @@ class GEOObservation:
             raise ValueError("keyword must be a non-empty string")
         object.__setattr__(self, "keyword", " ".join(self.keyword.split()).casefold())
         if self.target_domain:
-            object.__setattr__(self, "target_domain", self.target_domain.casefold().removeprefix("www.").strip())
+            object.__setattr__(
+                self, "target_domain", self.target_domain.casefold().removeprefix("www.").strip()
+            )
         if self.mention_count < 0 or self.answer_length < 0:
             raise ValueError("mention_count and answer_length cannot be negative")
         if self.provenance is None:

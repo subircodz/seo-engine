@@ -32,7 +32,9 @@ class SiteAnalysisJobRequest(BaseModel):
 
 
 @router.post("/site-analysis", status_code=status.HTTP_202_ACCEPTED)
-async def enqueue_site_analysis(payload: SiteAnalysisJobRequest, request: Request) -> dict[str, Any]:
+async def enqueue_site_analysis(
+    payload: SiteAnalysisJobRequest, request: Request
+) -> dict[str, Any]:
     """Queue a site analysis without blocking the HTTP request."""
     queue = request.app.state.job_queue
     job_id = await queue.enqueue("site-analysis", payload.model_dump())

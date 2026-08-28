@@ -33,7 +33,9 @@ def upgrade() -> None:
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.create_index("ix_background_jobs_status_available", "background_jobs", ["status", "available_at"])
+    op.create_index(
+        "ix_background_jobs_status_available", "background_jobs", ["status", "available_at"]
+    )
     op.create_index("ix_background_jobs_task_type", "background_jobs", ["task_type"])
 
 

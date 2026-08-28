@@ -10,7 +10,14 @@ __all__ = ["ProviderRegistry"]
 class ProviderRegistry:
     """Registry holding multiple search providers with capability-based routing."""
 
-    def __init__(self, *, default: SearchProvider | None = None, rankings: SearchProvider | None = None, aio: SearchProvider | None = None, geo: SearchProvider | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        default: SearchProvider | None = None,
+        rankings: SearchProvider | None = None,
+        aio: SearchProvider | None = None,
+        geo: SearchProvider | None = None,
+    ) -> None:
         self._default = default
         self._rankings = rankings
         self._aio = aio
@@ -57,7 +64,11 @@ class ProviderRegistry:
         providers: list[SearchProvider] = []
         seen: set[int] = set()
         for provider in (self._aio, self._default, *self._all_providers):
-            if provider is not None and getattr(provider, "supports_aio", False) and id(provider) not in seen:
+            if (
+                provider is not None
+                and getattr(provider, "supports_aio", False)
+                and id(provider) not in seen
+            ):
                 seen.add(id(provider))
                 providers.append(provider)
         return providers

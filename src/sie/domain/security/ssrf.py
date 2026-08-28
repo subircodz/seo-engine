@@ -14,39 +14,39 @@ logger = logging.getLogger(__name__)
 
 # Private IP ranges that should never be accessed via outbound requests
 _PRIVATE_IPV4_NETWORKS = [
-    ipaddress.IPv4Network("127.0.0.0/8"),      # Loopback
-    ipaddress.IPv4Network("0.0.0.0/8"),        # Current network
-    ipaddress.IPv4Network("10.0.0.0/8"),       # RFC1918 private
-    ipaddress.IPv4Network("172.16.0.0/12"),    # RFC1918 private
-    ipaddress.IPv4Network("192.168.0.0/16"),   # RFC1918 private
-    ipaddress.IPv4Network("169.254.0.0/16"),   # Link-local
-    ipaddress.IPv4Network("100.64.0.0/10"),    # CGNAT
-    ipaddress.IPv4Network("192.0.0.0/24"),     # IETF protocol assignments
-    ipaddress.IPv4Network("192.0.2.0/24"),     # TEST-NET-1
+    ipaddress.IPv4Network("127.0.0.0/8"),  # Loopback
+    ipaddress.IPv4Network("0.0.0.0/8"),  # Current network
+    ipaddress.IPv4Network("10.0.0.0/8"),  # RFC1918 private
+    ipaddress.IPv4Network("172.16.0.0/12"),  # RFC1918 private
+    ipaddress.IPv4Network("192.168.0.0/16"),  # RFC1918 private
+    ipaddress.IPv4Network("169.254.0.0/16"),  # Link-local
+    ipaddress.IPv4Network("100.64.0.0/10"),  # CGNAT
+    ipaddress.IPv4Network("192.0.0.0/24"),  # IETF protocol assignments
+    ipaddress.IPv4Network("192.0.2.0/24"),  # TEST-NET-1
     ipaddress.IPv4Network("198.51.100.0/24"),  # TEST-NET-2
-    ipaddress.IPv4Network("203.0.113.0/24"),   # TEST-NET-3
-    ipaddress.IPv4Network("224.0.0.0/4"),      # Multicast
-    ipaddress.IPv4Network("240.0.0.0/4"),      # Reserved
-    ipaddress.IPv4Network("255.255.255.255/32"), # Broadcast
+    ipaddress.IPv4Network("203.0.113.0/24"),  # TEST-NET-3
+    ipaddress.IPv4Network("224.0.0.0/4"),  # Multicast
+    ipaddress.IPv4Network("240.0.0.0/4"),  # Reserved
+    ipaddress.IPv4Network("255.255.255.255/32"),  # Broadcast
 ]
 
 _PRIVATE_IPV6_NETWORKS = [
-    ipaddress.IPv6Network("::1/128"),           # Loopback
-    ipaddress.IPv6Network("::/128"),            # Unspecified
-    ipaddress.IPv6Network("::ffff:0:0/96"),     # IPv4-mapped
-    ipaddress.IPv6Network("64:ff9b::/96"),      # IPv4-IPv6 translation
-    ipaddress.IPv6Network("fe80::/10"),         # Link-local
-    ipaddress.IPv6Network("fc00::/7"),          # Unique local (ULA)
-    ipaddress.IPv6Network("ff00::/8"),          # Multicast
-    ipaddress.IPv6Network("2001:db8::/32"),     # Documentation
-    ipaddress.IPv6Network("2001:10::/28"),      # ORCHID
-    ipaddress.IPv6Network("2001:20::/28"),      # ORCHIDv2
+    ipaddress.IPv6Network("::1/128"),  # Loopback
+    ipaddress.IPv6Network("::/128"),  # Unspecified
+    ipaddress.IPv6Network("::ffff:0:0/96"),  # IPv4-mapped
+    ipaddress.IPv6Network("64:ff9b::/96"),  # IPv4-IPv6 translation
+    ipaddress.IPv6Network("fe80::/10"),  # Link-local
+    ipaddress.IPv6Network("fc00::/7"),  # Unique local (ULA)
+    ipaddress.IPv6Network("ff00::/8"),  # Multicast
+    ipaddress.IPv6Network("2001:db8::/32"),  # Documentation
+    ipaddress.IPv6Network("2001:10::/28"),  # ORCHID
+    ipaddress.IPv6Network("2001:20::/28"),  # ORCHIDv2
 ]
 
 # Cloud metadata endpoints that should be blocked
 _CLOUD_METADATA_IPS = [
-    ipaddress.IPv4Address("169.254.169.254"),   # AWS, GCE, Azure, DigitalOcean
-    ipaddress.IPv6Address("fd00:ec2::254"),     # AWS IPv6
+    ipaddress.IPv4Address("169.254.169.254"),  # AWS, GCE, Azure, DigitalOcean
+    ipaddress.IPv6Address("fd00:ec2::254"),  # AWS IPv6
 ]
 
 

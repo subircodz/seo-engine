@@ -68,7 +68,9 @@ class AIOverviewObservation:
             raise ValueError("keyword must be a non-empty string")
         object.__setattr__(self, "keyword", " ".join(self.keyword.split()).casefold())
         if self.target_domain:
-            object.__setattr__(self, "target_domain", self.target_domain.casefold().removeprefix("www.").strip())
+            object.__setattr__(
+                self, "target_domain", self.target_domain.casefold().removeprefix("www.").strip()
+            )
         if self.citation_count < 0:
             raise ValueError("citation_count cannot be negative")
         if self.provenance is None:
