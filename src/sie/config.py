@@ -169,8 +169,10 @@ class CacheSettings(BaseModel):
 
     enabled: bool = False
     redis_url: str = "redis://127.0.0.1:6379/0"
+    key_prefix: str = "sie:"
     response_ttl_seconds: int = Field(default=86400, ge=1)
     max_memory_entries: int = Field(default=10000, ge=100)
+    connect_timeout_seconds: float = Field(default=2.0, gt=0)
 
 
 class SerpAPISettings(BaseModel):
@@ -183,6 +185,53 @@ class SerpAPISettings(BaseModel):
     request_cost_usd: float = Field(default=0.0, ge=0)
     monthly_request_limit: int = Field(default=0, ge=0)
     quota_key: str = "serpapi"
+
+
+class SearchConsoleSettings(BaseModel):
+    """Google Search Console OAuth configuration."""
+
+    enabled: bool = False
+    property_url: str = ""
+    client_id: str = ""
+    client_secret: str = ""
+    refresh_token: str = ""
+    access_token: str = ""
+    timeout_seconds: float = Field(default=20.0, gt=0)
+
+
+class AnalyticsSettings(BaseModel):
+    """Google Analytics Data API configuration."""
+
+    enabled: bool = False
+    property_id: str = ""
+    client_id: str = ""
+    client_secret: str = ""
+    refresh_token: str = ""
+    access_token: str = ""
+    timeout_seconds: float = Field(default=20.0, gt=0)
+
+
+class BacklinkSettings(BaseModel):
+    """Backlink provider configuration."""
+
+    enabled: bool = False
+    provider_name: str = "dataforseo"
+    base_url: str = "https://api.dataforseo.com"
+    login: str = ""
+    password: str = ""
+    timeout_seconds: float = Field(default=30.0, gt=0)
+    include_subdomains: bool = True
+    exclude_internal_backlinks: bool = True
+
+
+class JobSettings(BaseModel):
+    """Durable background-job worker configuration."""
+
+    enabled: bool = True
+    poll_interval_seconds: float = Field(default=1.0, gt=0)
+    lease_seconds: int = Field(default=300, ge=30)
+    max_attempts: int = Field(default=3, ge=1)
+    concurrency: int = Field(default=2, ge=1)
 
 
 class APISettings(BaseModel):
@@ -234,6 +283,10 @@ class Settings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     cache: CacheSettings = Field(default_factory=CacheSettings)
     serpapi: SerpAPISettings = Field(default_factory=SerpAPISettings)
+    search_console: SearchConsoleSettings = Field(default_factory=SearchConsoleSettings)
+    analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
+    backlinks: BacklinkSettings = Field(default_factory=BacklinkSettings)
+    jobs: JobSettings = Field(default_factory=JobSettings)
     api: APISettings = Field(default_factory=APISettings)
     limits: LimitSettings = Field(default_factory=LimitSettings)
 
