@@ -71,9 +71,7 @@ def _log_event_factory():
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     setup_logging(settings.log_level)
-    logger.info(
-        "configuring %s v%s (%s)", settings.app_name, settings.version, settings.environment
-    )
+    logger.info("configuring %s v%s (%s)", settings.app_name, settings.version, settings.environment)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -86,8 +84,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             pool_timeout=db_cfg.pool_timeout,
             pool_recycle=db_cfg.pool_recycle,
         )
-        logger.info("database driver: %s", settings.database_url.split("://")[0])
-
         if settings.auto_migrate:
             run_migrations(settings.database_url)
 
@@ -178,8 +174,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             timeout_seconds=settings.crux.timeout_seconds,
             form_factor=settings.crux.form_factor,
         )
-
-        # Create one site-analysis service for both synchronous and durable paths.
         app.state.site_analysis_service = create_site_analysis_service(
             crawl_service=app.state.crawl_service,
             audit_service=app.state.audit_service,
@@ -189,8 +183,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             crux_service=app.state.crux_service,
         )
 
-        # Durable worker infrastructure. Jobs contain JSON payloads only and are
-        # leased from the database, so a worker crash does not silently lose work.
         app.state.job_queue = DurableJobQueue(
             app.state.database.session_factory,
             lease_seconds=settings.jobs.lease_seconds,
@@ -231,6 +223,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await fetcher.close()
         if llm_provider is not None:
             await llm_provider.close()
+        close_provider = getattr(app.state.search_provider, "close", None)
+        if close_provider is not None:
+            await close_provider()
         await app.state.database.dispose()
         logger.info("shutdown complete")
 
