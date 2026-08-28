@@ -1,4 +1,4 @@
-"""SEO Intelligence Engine -- zero-paid-API website intelligence platform."""
+"""Search Intelligence Engine -- unified SEO, AIO, and GEO intelligence platform."""
 
 import importlib.metadata
 
