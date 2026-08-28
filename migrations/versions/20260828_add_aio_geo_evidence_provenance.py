@@ -1,14 +1,14 @@
 """Add explicit provenance fields to AIO/GEO observations.
 
 Revision ID: 20260828_aio_geo_provenance
-Revises: e5f6a7b8c9d0
+Revises: 20260828_jobs
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20260828_aio_geo_provenance"
-down_revision = "e5f6a7b8c9d0"
+down_revision = "20260828_jobs"
 branch_labels = None
 depends_on = None
 
