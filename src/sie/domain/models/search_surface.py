@@ -1,29 +1,24 @@
-"""Common search-surface models for SEO, AIO, and GEO intelligence.
+"""Common search-surface and evidence-provenance models.
 
-The product treats traditional search visibility, AI Overview visibility, and
-Generative Engine visibility as three first-class surfaces over one shared
-intelligence foundation.  These models make availability/freshness explicit
-so an unavailable surface can never be mistaken for a measured zero.
+SEO, AIO, and GEO are first-class visibility surfaces.  Evidence provenance is
+kept separate from the surface/engine identity so an LLM simulation can never
+be mistaken for a live observation from the engine it imitates.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 
 
 class SearchSurface(StrEnum):
-    """First-class visibility surfaces supported by the engine."""
-
     SEO = "seo"
     AIO = "aio"
     GEO = "geo"
 
 
 class SurfaceStatus(StrEnum):
-    """Evidence state of a search-surface assessment."""
-
     ASSESSED = "assessed"
     NOT_ASSESSED = "not_assessed"
     INSUFFICIENT_DATA = "insufficient_data"
@@ -31,14 +26,43 @@ class SurfaceStatus(StrEnum):
     STALE = "stale"
 
 
+class ObservationKind(StrEnum):
+    """How an observation was obtained.
+
+    ``LIVE_PROVIDER`` means the named provider actually queried the named
+    search/generative surface. ``LLM_SIMULATION`` means a model was asked to
+    emulate/analyse an engine and is therefore not evidence of that engine's
+    live result.
+    """
+
+    LIVE_PROVIDER = "live_provider"
+    LLM_SIMULATION = "llm_simulation"
+    IMPORTED = "imported"
+    MANUAL = "manual"
+    DERIVED = "derived"
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceProvenance:
+    """Immutable provenance attached to externally observed evidence."""
+
+    provider_name: str
+    observation_kind: ObservationKind
+    provider_request_id: str | None = None
+    retrieved_at: datetime | None = None
+    source_url: str | None = None
+    methodology: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.provider_name.strip():
+            raise ValueError("provider_name must be non-empty")
+        if self.source_url is not None and not self.source_url.strip():
+            raise ValueError("source_url cannot be empty when supplied")
+
+
 @dataclass(frozen=True, slots=True)
 class SurfaceAssessment:
-    """Evidence-backed summary for one search visibility surface.
-
-    ``score`` is ``None`` whenever the surface has not been meaningfully
-    assessed.  A genuine measured zero therefore remains distinguishable from
-    an unavailable surface.
-    """
+    """Evidence-backed summary for one search visibility surface."""
 
     surface: SearchSurface
     status: SurfaceStatus
@@ -63,12 +87,7 @@ class SurfaceAssessment:
 
 @dataclass(frozen=True, slots=True)
 class UnifiedSearchVisibility:
-    """Unified SEO/AIO/GEO visibility envelope.
-
-    The aggregate score is intentionally optional.  When present, it is the
-    normalized mean of *assessed* surfaces only; unavailable surfaces are not
-    treated as zero and do not dilute the result.
-    """
+    """Unified SEO/AIO/GEO visibility envelope."""
 
     assessments: tuple[SurfaceAssessment, ...]
     aggregate_score: float | None
@@ -92,6 +111,8 @@ class UnifiedSearchVisibility:
 
 
 __all__ = [
+    "EvidenceProvenance",
+    "ObservationKind",
     "SearchSurface",
     "SurfaceAssessment",
     "SurfaceStatus",
