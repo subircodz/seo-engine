@@ -29,13 +29,24 @@ python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
 
 If the PostgreSQL password contains URL-reserved characters, URL-encode it in `SIE_DATABASE_URL`.
 
-## 3. Start PostgreSQL and the application
+## 3. Apply migrations and start the application
+
+The production application does **not** run schema migrations automatically. Apply migrations as an explicit deployment step:
 
 ```bash
+docker compose -f docker-compose.production.yml run --rm app alembic upgrade head
 docker compose -f docker-compose.production.yml up -d --build
 ```
 
-The application container waits for PostgreSQL, applies `alembic upgrade head`, and then starts Uvicorn. Automatic migrations are disabled in application configuration; migrations happen explicitly at deployment startup.
+The application container waits for PostgreSQL and then starts exactly one Uvicorn process. Keeping migrations separate makes schema changes an explicit, observable deployment action rather than an implicit application-startup side effect.
+
+For a brand-new deployment, the database service must be healthy before the migration command can succeed. If necessary, start only PostgreSQL first:
+
+```bash
+docker compose -f docker-compose.production.yml up -d db
+docker compose -f docker-compose.production.yml run --rm app alembic upgrade head
+docker compose -f docker-compose.production.yml up -d app
+```
 
 ## 4. Verify health
 
@@ -66,18 +77,20 @@ Do not expose port 8000 directly to the public internet. Put nginx, Caddy, a clo
 The proxy should:
 
 - redirect HTTP to HTTPS
-- forward `X-Request-ID` or allow the application to generate it
+- forward `X-Request-ID` or allow the application to generate one
 - enforce an additional request/body limit appropriate to your deployment
 - restrict administrative access if applicable
 - preserve Web/API response status codes
 
-## 6. Deployment sequence
+## 6. Deployment sequence for updates
 
-For an update:
+For an update, first pull the desired release, then apply migrations before routing traffic to the new application version:
 
 ```bash
 git pull --ff-only
-docker compose -f docker-compose.production.yml up -d --build
+docker compose -f docker-compose.production.yml up -d db
+docker compose -f docker-compose.production.yml run --rm app alembic upgrade head
+docker compose -f docker-compose.production.yml up -d --build app
 ```
 
 Then verify:
