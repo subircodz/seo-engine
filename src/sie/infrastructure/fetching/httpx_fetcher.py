@@ -32,6 +32,7 @@ class HttpxFetcher:
         client: httpx.AsyncClient | None = None,
         allow_localhost: bool = False,
         max_redirects: int = 10,
+        max_response_bytes: int = 10 * 1024 * 1024,
     ) -> None:
         # ``client`` is injectable so tests can supply an httpx.MockTransport.
         # Keep the legacy timeout argument for API compatibility; granular
@@ -51,7 +52,10 @@ class HttpxFetcher:
         self._allow_localhost = allow_localhost
         if max_redirects < 0:
             raise ValueError("max_redirects must be non-negative")
+        if max_response_bytes <= 0:
+            raise ValueError("max_response_bytes must be positive")
         self._max_redirects = max_redirects
+        self._max_response_bytes = max_response_bytes
 
     async def fetch(self, url: str) -> FetchedPage:
         # SSRF protection: validate syntax and DNS resolution before every
@@ -65,29 +69,56 @@ class HttpxFetcher:
         started = time.perf_counter()
         current_url = url
         response: httpx.Response | None = None
+        content = b""
         try:
             for redirect_count in range(self._max_redirects + 1):
-                response = await self._client.get(current_url, follow_redirects=False)
-                if response.status_code not in {301, 302, 303, 307, 308}:
-                    break
+                async with self._client.stream(
+                    "GET", current_url, follow_redirects=False
+                ) as streamed_response:
+                    if streamed_response.status_code in {301, 302, 303, 307, 308}:
+                        location = streamed_response.headers.get("location")
+                        if not location:
+                            response = streamed_response
+                            content = b""
+                            break
+                        if redirect_count >= self._max_redirects:
+                            raise FetchError(
+                                f"maximum redirects exceeded while fetching {url}"
+                            )
 
-                location = response.headers.get("location")
-                if not location:
-                    break
-                if redirect_count >= self._max_redirects:
-                    raise FetchError(
-                        f"maximum redirects exceeded while fetching {url}"
-                    )
+                        redirect_url = urljoin(current_url, location)
+                        safe, error = await resolve_and_validate(
+                            redirect_url, allow_localhost=self._allow_localhost
+                        )
+                        if not safe:
+                            raise FetchError(
+                                f"SSRF protection blocked redirect to {redirect_url}: {error}"
+                            )
+                        current_url = redirect_url
+                        continue
 
-                redirect_url = urljoin(current_url, location)
-                safe, error = await resolve_and_validate(
-                    redirect_url, allow_localhost=self._allow_localhost
-                )
-                if not safe:
-                    raise FetchError(
-                        f"SSRF protection blocked redirect to {redirect_url}: {error}"
-                    )
-                current_url = redirect_url
+                    content_length = streamed_response.headers.get("content-length")
+                    if content_length and content_length.isdigit():
+                        if int(content_length) > self._max_response_bytes:
+                            raise FetchError(
+                                f"response body exceeds maximum size of "
+                                f"{self._max_response_bytes} bytes"
+                            )
+
+                    chunks: list[bytes] = []
+                    total_bytes = 0
+                    async for chunk in streamed_response.aiter_bytes():
+                        total_bytes += len(chunk)
+                        if total_bytes > self._max_response_bytes:
+                            raise FetchError(
+                                f"response body exceeds maximum size of "
+                                f"{self._max_response_bytes} bytes"
+                            )
+                        chunks.append(chunk)
+
+                    response = streamed_response
+                    content = b"".join(chunks)
+                    break
         except httpx.HTTPError as exc:
             raise FetchError(f"failed to fetch {current_url}: {exc!r}") from exc
 
@@ -100,7 +131,7 @@ class HttpxFetcher:
             final_url=str(response.url),
             status_code=response.status_code,
             headers=response.headers,
-            content=response.content,
+            content=content,
             content_type=response.headers.get("content-type"),
             encoding=response.encoding,
             duration_ms=duration_ms,
