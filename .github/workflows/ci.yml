@@ -84,4 +84,14 @@ jobs:
         env:
           SIE_ENVIRONMENT: test
           SIE_DATABASE_URL: sqlite+aiosqlite:///./ci_migrations.db
-        run: alembic check
+        run: |
+          set -o pipefail
+          alembic check 2>&1 | tee alembic-check.log
+
+      - name: Upload Alembic diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: alembic-diagnostics-${{ matrix.python-version }}
+          path: alembic-check.log
+          if-no-files-found: ignore
