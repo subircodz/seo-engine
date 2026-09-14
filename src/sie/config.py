@@ -16,7 +16,35 @@ from sie import __version__
 EnvironmentName = Literal["development", "test", "production"]
 
 
-class CrawlerSettings(BaseModel):
+class SecretSafeModel(BaseModel):
+    """Base model that redacts credential-like fields from string representations."""
+
+    _SECRET_FIELDS = frozenset(
+        {
+            "api_key",
+            "api_keys",
+            "access_token",
+            "client_secret",
+            "refresh_token",
+            "password",
+            "redis_url",
+        }
+    )
+
+    def __repr_args__(self):
+        for name, value in super().__repr_args__():
+            if name in self._SECRET_FIELDS:
+                if isinstance(value, list):
+                    yield name, ["***"] * len(value) if value else []
+                elif value:
+                    yield name, "***"
+                else:
+                    yield name, ""
+            else:
+                yield name, value
+
+
+class CrawlerSettings(SecretSafeModel):
     """Politeness and scope defaults consumed by the Crawler Engine."""
 
     user_agent: str = "Mozilla/5.0 (compatible; SEOIntelligenceEngine/0.1)"
@@ -39,7 +67,7 @@ class CrawlerSettings(BaseModel):
     max_response_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
 
-class CloudflareBypassSettings(BaseModel):
+class CloudflareBypassSettings(SecretSafeModel):
     """Cloudflare bypass settings for crawler engine."""
 
     enabled: bool = False
@@ -49,7 +77,7 @@ class CloudflareBypassSettings(BaseModel):
     max_browser_retries: int = Field(default=2, ge=1)
 
 
-class AuditSettings(BaseModel):
+class AuditSettings(SecretSafeModel):
     """Technical SEO + link-graph engine tuning."""
 
     enable_p0_rules: bool = True
@@ -62,7 +90,7 @@ class AuditSettings(BaseModel):
     threshold_thin_page: int = 2
 
 
-class ContentSettings(BaseModel):
+class ContentSettings(SecretSafeModel):
     """Content Intelligence engine tuning."""
 
     min_word_count: int = Field(default=300, ge=0)
@@ -77,7 +105,7 @@ class ContentSettings(BaseModel):
     stopwords_language: str = "en"
 
 
-class LLMSettings(BaseModel):
+class LLMSettings(SecretSafeModel):
     """LLM provider configuration."""
 
     enabled: bool = False
@@ -93,7 +121,7 @@ class LLMSettings(BaseModel):
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
 
 
-class SearchProviderCapabilitySettings(BaseModel):
+class SearchProviderCapabilitySettings(SecretSafeModel):
     """Settings for a single capability-specific search provider."""
 
     provider_name: str = "mock"
@@ -107,7 +135,7 @@ class SearchProviderCapabilitySettings(BaseModel):
     allow_localhost: bool = False
 
 
-class SearchProviderSettings(BaseModel):
+class SearchProviderSettings(SecretSafeModel):
     """Search provider configuration with capability-specific providers."""
 
     enabled: bool = False
@@ -125,22 +153,8 @@ class SearchProviderSettings(BaseModel):
     geo: SearchProviderCapabilitySettings | None = None
     llm: LLMSettings | None = None
 
-    def _masked_key(self) -> str:
-        return "'***'" if self.api_key else "''"
 
-    def __repr__(self) -> str:
-        return (
-            f"SearchProviderSettings(enabled={self.enabled!r}, "
-            f"provider_name={self.provider_name!r}, base_url={self.base_url!r}, "
-            f"api_key={self._masked_key()}, timeout_seconds={self.timeout_seconds!r}, "
-            f"rankings={self.rankings!r}, aio={self.aio!r}, geo={self.geo!r}, llm={self.llm!r})"
-        )
-
-    def __str__(self) -> str:
-        return self.__repr__()
-
-
-class CruxSettings(BaseModel):
+class CruxSettings(SecretSafeModel):
     """Chrome User Experience Report (CrUX) API configuration."""
 
     enabled: bool = False
@@ -148,19 +162,8 @@ class CruxSettings(BaseModel):
     timeout_seconds: float = Field(default=10.0, gt=0)
     form_factor: str = "PHONE"
 
-    def __repr__(self) -> str:
-        key_display = "'***'" if self.api_key else "''"
-        return (
-            f"CruxSettings(enabled={self.enabled!r}, "
-            f"api_key={key_display}, "
-            f"timeout_seconds={self.timeout_seconds!r})"
-        )
 
-    def __str__(self) -> str:
-        return self.__repr__()
-
-
-class DatabaseSettings(BaseModel):
+class DatabaseSettings(SecretSafeModel):
     """Database connection pool configuration."""
 
     pool_size: int = Field(default=5, ge=1, le=100)
@@ -170,7 +173,7 @@ class DatabaseSettings(BaseModel):
     auto_migrate: bool = True
 
 
-class CacheSettings(BaseModel):
+class CacheSettings(SecretSafeModel):
     """Distributed cache configuration."""
 
     enabled: bool = False
@@ -181,19 +184,15 @@ class CacheSettings(BaseModel):
     connect_timeout_seconds: float = Field(default=2.0, gt=0)
 
 
-class SerpAPISettings(BaseModel):
-    """SerpAPI cost/quota policy.
-
-    Pricing and quota are configuration-driven. A zero monthly limit means
-    no local request-count enforcement; it does not imply unlimited provider quota.
-    """
+class SerpAPISettings(SecretSafeModel):
+    """SerpAPI cost/quota policy."""
 
     request_cost_usd: float = Field(default=0.0, ge=0)
     monthly_request_limit: int = Field(default=0, ge=0)
     quota_key: str = "serpapi"
 
 
-class SearchConsoleSettings(BaseModel):
+class SearchConsoleSettings(SecretSafeModel):
     """Google Search Console OAuth configuration."""
 
     enabled: bool = False
@@ -205,7 +204,7 @@ class SearchConsoleSettings(BaseModel):
     timeout_seconds: float = Field(default=20.0, gt=0)
 
 
-class AnalyticsSettings(BaseModel):
+class AnalyticsSettings(SecretSafeModel):
     """Google Analytics Data API configuration."""
 
     enabled: bool = False
@@ -217,7 +216,7 @@ class AnalyticsSettings(BaseModel):
     timeout_seconds: float = Field(default=20.0, gt=0)
 
 
-class BacklinkSettings(BaseModel):
+class BacklinkSettings(SecretSafeModel):
     """Backlink provider configuration."""
 
     enabled: bool = False
@@ -230,7 +229,7 @@ class BacklinkSettings(BaseModel):
     exclude_internal_backlinks: bool = True
 
 
-class JobSettings(BaseModel):
+class JobSettings(SecretSafeModel):
     """Durable background-job worker configuration."""
 
     enabled: bool = True
@@ -240,7 +239,7 @@ class JobSettings(BaseModel):
     concurrency: int = Field(default=2, ge=1)
 
 
-class APISettings(BaseModel):
+class APISettings(SecretSafeModel):
     """API authentication configuration."""
 
     enabled: bool = False
@@ -248,7 +247,7 @@ class APISettings(BaseModel):
     header_name: str = "X-API-Key"
 
 
-class LimitSettings(BaseModel):
+class LimitSettings(SecretSafeModel):
     """Request/response size limits for API endpoints."""
 
     max_import_records: int = Field(default=10000, ge=1)
