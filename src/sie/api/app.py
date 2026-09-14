@@ -1,6 +1,7 @@
 """FastAPI application factory and production composition root."""
 
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -103,6 +104,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 write_timeout_seconds=cs.write_timeout_seconds,
                 pool_timeout_seconds=cs.pool_timeout_seconds,
                 allow_localhost=cs.allow_localhost,
+                max_redirects=cs.max_redirects,
+                max_response_bytes=cs.max_response_bytes,
             ),
             max_retries=cs.max_retries,
             base_delay_seconds=cs.retry_backoff_seconds,
@@ -254,13 +257,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.add_middleware(RequestIdMiddleware)
-    import os
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    # All site-analysis API calls use the single production service instance,
-    # including the legacy synchronous endpoint.
     app.dependency_overrides[site_analysis._site_analysis_service] = lambda request: (
         request.app.state.site_analysis_service
     )
