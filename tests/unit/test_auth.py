@@ -9,13 +9,9 @@ from sie.config import APISettings
 
 
 def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Request:
-    header_pairs = [
-        (key.lower().encode(), value.encode())
-        for key, value in (headers or {}).items()
-    ]
     scope = {
         "type": "http",
-        "headers": header_pairs,
+        "headers": [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()],
         "app": SimpleNamespace(state=SimpleNamespace(settings=SimpleNamespace(api=settings))),
     }
     return Request(scope)
