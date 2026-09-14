@@ -60,9 +60,7 @@ def upgrade() -> None:
         sa.Column("crux_inp", sa.Float(), nullable=True),
         sa.Column("crux_ttfb", sa.Float(), nullable=True),
         sa.Column("crux_last_updated", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["crawl_run_id"], ["crawl_runs.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["crawl_run_id"], ["crawl_runs.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -84,7 +82,10 @@ def upgrade() -> None:
         unique=False,
     )
 
-    op.drop_index("ix_industry_intelligence_dataset_id", table_name="industry_intelligence")
+    op.drop_index(
+        "ix_industry_intelligence_dataset_id",
+        table_name="industry_intelligence",
+    )
     op.create_index(
         "ix_industry_intelligence_dataset_id",
         "industry_intelligence",
@@ -94,14 +95,26 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_industry_intelligence_dataset_id", table_name="industry_intelligence")
+    op.drop_index(
+        "ix_industry_intelligence_dataset_id",
+        table_name="industry_intelligence",
+    )
     op.create_index(
         "ix_industry_intelligence_dataset_id",
         "industry_intelligence",
         ["dataset_id"],
         unique=False,
     )
-    op.drop_index("ix_site_analysis_results_domain", table_name="site_analysis_results")
-    op.drop_index("ix_site_analysis_results_crawl_run_id", table_name="site_analysis_results")
-    op.drop_index("ix_site_analysis_results_analyzed_at", table_name="site_analysis_results")
+    op.drop_index(
+        "ix_site_analysis_results_domain",
+        table_name="site_analysis_results",
+    )
+    op.drop_index(
+        "ix_site_analysis_results_crawl_run_id",
+        table_name="site_analysis_results",
+    )
+    op.drop_index(
+        "ix_site_analysis_results_analyzed_at",
+        table_name="site_analysis_results",
+    )
     op.drop_table("site_analysis_results")
