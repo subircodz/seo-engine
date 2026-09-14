@@ -14,7 +14,7 @@ import httpx
 
 from sie.domain.errors import FetchError
 from sie.domain.models.page import FetchedPage
-from sie.domain.security.ssrf import validate_url
+from sie.domain.security.ssrf import resolve_and_validate
 
 
 class HttpxFetcher:
@@ -54,8 +54,11 @@ class HttpxFetcher:
         self._max_redirects = max_redirects
 
     async def fetch(self, url: str) -> FetchedPage:
-        # SSRF protection: validate URL before making request.
-        safe, error = validate_url(url, allow_localhost=self._allow_localhost)
+        # SSRF protection: validate syntax and DNS resolution before every
+        # outbound request, including every manually followed redirect.
+        safe, error = await resolve_and_validate(
+            url, allow_localhost=self._allow_localhost
+        )
         if not safe:
             raise FetchError(f"SSRF protection blocked request to {url}: {error}")
 
@@ -77,7 +80,7 @@ class HttpxFetcher:
                     )
 
                 redirect_url = urljoin(current_url, location)
-                safe, error = validate_url(
+                safe, error = await resolve_and_validate(
                     redirect_url, allow_localhost=self._allow_localhost
                 )
                 if not safe:
