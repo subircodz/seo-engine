@@ -53,7 +53,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
     """Middleware to generate and track request IDs for correlation."""
 
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))[:128]
         set_request_id(request_id)
         request.state.request_id = request_id
         try:
@@ -62,6 +62,25 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             set_request_id(None)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add browser-side security headers without imposing a CSP on the UI."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault(
+            "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+        )
+        response.headers.pop("Server", None)
+        if request.app.state.settings.is_production:
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+        return response
 
 
 def _log_event_factory():
@@ -253,14 +272,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
     import os
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    # All site-analysis API calls use the single production service instance,
-    # including the legacy synchronous endpoint.
     app.dependency_overrides[site_analysis._site_analysis_service] = lambda request: (
         request.app.state.site_analysis_service
     )
