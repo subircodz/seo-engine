@@ -13,6 +13,17 @@ def _fetcher(handler) -> HttpxFetcher:
     return HttpxFetcher(user_agent="test-agent", client=httpx.AsyncClient(transport=transport))
 
 
+@pytest.fixture(autouse=True)
+def mock_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep MockTransport tests independent of the machine's DNS configuration."""
+    def getaddrinfo(hostname, *args, **kwargs):
+        if hostname == "example.com":
+            return [(2, 1, 6, "", ("93.184.216.34", 0))]
+        raise AssertionError(f"unexpected DNS lookup in MockTransport test: {hostname}")
+
+    monkeypatch.setattr("sie.domain.security.ssrf.socket.getaddrinfo", getaddrinfo)
+
+
 async def test_fetch_returns_page_data() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -68,6 +79,28 @@ async def test_redirect_to_private_ip_is_blocked_before_request() -> None:
     assert requested == ["https://example.com/start"]
 
 
+async def test_dns_resolution_to_private_ip_is_blocked_before_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requested: list[str] = []
+
+    def getaddrinfo(hostname, *args, **kwargs):
+        return [(2, 1, 6, "", ("10.0.0.5", 0))]
+
+    monkeypatch.setattr("sie.domain.security.ssrf.socket.getaddrinfo", getaddrinfo)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        return httpx.Response(200, text="must not be requested", request=request)
+
+    fetcher = _fetcher(handler)
+    with pytest.raises(FetchError, match="private/internal IP"):
+        await fetcher.fetch("https://attacker.example/")
+    await fetcher.close()
+
+    assert requested == []
+
+
 async def test_safe_relative_redirect_is_followed() -> None:
     requested: list[str] = []
 
@@ -89,12 +122,9 @@ async def test_redirect_limit_is_enforced() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(302, headers={"location": "/loop"}, request=request)
 
-    fetcher = _fetcher(handler)
-    limited = HttpxFetcher(
-        user_agent="test-agent",
-        client=fetcher._client,
-        max_redirects=2,
-    )
+    transport = httpx.MockTransport(handler)
+    client = httpx.AsyncClient(transport=transport)
+    limited = HttpxFetcher(user_agent="test-agent", client=client, max_redirects=2)
     with pytest.raises(FetchError, match="maximum redirects"):
         await limited.fetch("https://example.com/start")
     await limited.close()
