@@ -69,7 +69,9 @@ class DurableJobQueue:
         job_id = str(uuid.uuid4())
         now = datetime.now(UTC)
         available = available_at or now
-        effective_max_attempts = self._max_attempts if max_attempts is None else max_attempts
+        effective_max_attempts = (
+            self._max_attempts if max_attempts is None else max_attempts
+        )
         async with self._session_factory() as session:
             await session.execute(
                 text(
@@ -108,11 +110,16 @@ class DurableJobQueue:
             result = await session.execute(
                 text(
                     """UPDATE background_jobs
-                       SET status=CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
+                       SET status=CASE WHEN attempts >= max_attempts
+                           THEN 'failed' ELSE 'queued' END,
                            worker_id=NULL, leased_until=NULL,
-                           completed_at=CASE WHEN attempts >= max_attempts THEN :completed_at ELSE NULL END,
+                           completed_at=CASE WHEN attempts >= max_attempts
+                               THEN :completed_at ELSE NULL END,
                            last_error=CASE
-                               WHEN attempts >= max_attempts THEN COALESCE(last_error, 'worker lease expired')
+                               WHEN attempts >= max_attempts
+                                   THEN COALESCE(
+                                       last_error, 'worker lease expired'
+                                   )
                                ELSE last_error
                            END
                      WHERE status='running' AND leased_until IS NOT NULL
@@ -270,7 +277,9 @@ class DurableJobQueue:
             )
             await session.commit()
 
-    async def _lease_heartbeat(self, job_id: str, worker_id: str, stop_event: asyncio.Event) -> None:
+    async def _lease_heartbeat(
+        self, job_id: str, worker_id: str, stop_event: asyncio.Event
+    ) -> None:
         """Renew a worker's lease until the handler finishes."""
         interval = max(1.0, self._lease_seconds / 3)
         while not stop_event.is_set():
