@@ -35,6 +35,8 @@ class CrawlerSettings(BaseModel):
     max_retries: int = Field(default=2, ge=0)
     retry_backoff_seconds: float = Field(default=0.5, gt=0)
     allow_localhost: bool = False
+    max_redirects: int = Field(default=10, ge=0)
+    max_response_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
 
 class CloudflareBypassSettings(BaseModel):
