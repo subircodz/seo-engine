@@ -16,6 +16,22 @@ def test_defaults_are_safe() -> None:
     assert settings.is_production is False
 
 
+def test_production_forces_safe_runtime_defaults() -> None:
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        debug=True,
+        database={"auto_migrate": True},
+        crawler={"allow_localhost": True},
+        search_provider={"allow_localhost": True},
+    )
+
+    assert settings.debug is False
+    assert settings.database.auto_migrate is False
+    assert settings.crawler.allow_localhost is False
+    assert settings.search_provider.allow_localhost is False
+
+
 def test_environment_variables_override_defaults(monkeypatch) -> None:
     monkeypatch.setenv("SIE_LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("SIE_PORT", "9999")
@@ -36,11 +52,6 @@ def test_crawler_politeness_defaults_are_sane() -> None:
     assert crawler.respect_robots_txt is True
     assert crawler.follow_cross_origin is False
     assert crawler.max_retries >= 0
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# SearchProviderSettings
-# ════════════════════════════════════════════════════════════════════════════
 
 
 class TestSearchProviderSettings:
