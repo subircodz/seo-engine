@@ -28,6 +28,15 @@ def test_environment_variables_override_defaults(monkeypatch) -> None:
     assert settings.crawler.max_pages == 42
 
 
+def test_database_auto_migrate_uses_nested_environment_variable(monkeypatch) -> None:
+    monkeypatch.setenv("SIE_DATABASE__AUTO_MIGRATE", "false")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.database.auto_migrate is False
+    assert settings.auto_migrate is False
+
+
 def test_crawler_politeness_defaults_are_sane() -> None:
     crawler = CrawlerSettings()
 
