@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sie}
+      POSTGRES_USER: ${POSTGRES_USER:-sie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - sie-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - sie
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      SIE_HOST: 0.0.0.0
+      SIE_PORT: 8000
+      SIE_ENVIRONMENT: production
+      SIE_DEBUG: "false"
+      SIE_DATABASE__AUTO_MIGRATE: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    networks:
+      - sie
+    command: ["sh", "-c", "alembic upgrade head && exec uvicorn sie.api.app:create_app --factory --host 0.0.0.0 --port 8000 --workers 1 --timeout-graceful-shutdown 30"]
+
+volumes:
+  sie-postgres:
+
+networks:
+  sie:
