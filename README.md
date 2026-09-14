@@ -136,7 +136,9 @@ cp .env.production.example .env.production
 chmod 600 .env.production
 # Replace every CHANGE_ME value and keep SIE_DATABASE_URL in sync with the
 # PostgreSQL credentials. URL-encode special characters in its password.
-docker compose -f docker-compose.production.yml up -d --build
+docker compose -f docker-compose.production.yml up -d db
+docker compose -f docker-compose.production.yml run --rm app alembic upgrade head
+docker compose -f docker-compose.production.yml up -d app
 ```
 
 Verify:
