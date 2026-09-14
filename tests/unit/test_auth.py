@@ -8,6 +8,7 @@ from sie.api.auth import api_key_auth, optional_api_key_auth, verify_api_key
 from sie.config import APISettings
 
 
+# fmt: skip
 def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Request:
     encoded_headers = [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()]  # noqa: E501
     scope = {
