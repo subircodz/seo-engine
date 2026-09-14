@@ -244,15 +244,19 @@ class DurableJobQueue:
         now = datetime.now(UTC)
         async with self._session_factory() as session:
             row = (
-                await session.execute(
-                    text(
-                        "SELECT attempts, max_attempts FROM background_jobs "
-                        "WHERE id=:id AND status='running' AND worker_id=:worker_id "
-                        "AND leased_until IS NOT NULL AND leased_until >= :now"
-                    ),
-                    {"id": job_id, "worker_id": worker_id, "now": now},
+                (
+                    await session.execute(
+                        text(
+                            "SELECT attempts, max_attempts FROM background_jobs "
+                            "WHERE id=:id AND status='running' AND worker_id=:worker_id "
+                            "AND leased_until IS NOT NULL AND leased_until >= :now"
+                        ),
+                        {"id": job_id, "worker_id": worker_id, "now": now},
+                    )
                 )
-            ).mappings().first()
+                .mappings()
+                .first()
+            )
             if row is None:
                 return
             terminal = not retry or int(row["attempts"]) >= int(row["max_attempts"])
