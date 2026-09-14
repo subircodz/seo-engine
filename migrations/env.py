@@ -44,9 +44,7 @@ def _include_object(object_, name, type_, reflected, compare_to):
     Any intentional destructive schema change should be represented explicitly
     by a migration instead.
     """
-    if type_ == "table" and reflected and compare_to is None:
-        return False
-    return True
+    return not (type_ == "table" and reflected and compare_to is None)
 
 
 def _configure(connection) -> None:
