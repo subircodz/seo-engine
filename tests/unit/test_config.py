@@ -129,3 +129,13 @@ class TestSearchProviderApiKeyNotExposed:
         sp = SearchProviderSettings(api_key="super-secret-key-12345")
         s = str(sp)
         assert "super-secret-key-12345" not in s
+
+
+def test_nested_database_auto_migrate_env_override(monkeypatch) -> None:
+    """The documented nested environment variable must control migration policy."""
+    monkeypatch.setenv("SIE_DATABASE__AUTO_MIGRATE", "false")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.database.auto_migrate is False
+    assert settings.auto_migrate is False
