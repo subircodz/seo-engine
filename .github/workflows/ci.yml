@@ -95,3 +95,15 @@ jobs:
           name: alembic-diagnostics-${{ matrix.python-version }}
           path: alembic-check.log
           if-no-files-found: ignore
+
+  container:
+    name: Production container
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Build production image
+        run: docker build --pull -t seo-intelligence-engine:ci .
