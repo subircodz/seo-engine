@@ -49,6 +49,57 @@ async def test_follows_redirects() -> None:
     assert page.ok is True
 
 
+async def test_redirect_to_private_ip_is_blocked_before_request() -> None:
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        return httpx.Response(
+            302,
+            headers={"location": "http://127.0.0.1/internal"},
+            request=request,
+        )
+
+    fetcher = _fetcher(handler)
+    with pytest.raises(FetchError, match="blocked redirect"):
+        await fetcher.fetch("https://example.com/start")
+    await fetcher.close()
+
+    assert requested == ["https://example.com/start"]
+
+
+async def test_safe_relative_redirect_is_followed() -> None:
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"location": "/final"}, request=request)
+        return httpx.Response(200, text="final page", request=request)
+
+    fetcher = _fetcher(handler)
+    page = await fetcher.fetch("https://example.com/start")
+    await fetcher.close()
+
+    assert requested == ["https://example.com/start", "https://example.com/final"]
+    assert page.final_url == "https://example.com/final"
+
+
+async def test_redirect_limit_is_enforced() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(302, headers={"location": "/loop"}, request=request)
+
+    fetcher = _fetcher(handler)
+    limited = HttpxFetcher(
+        user_agent="test-agent",
+        client=fetcher._client,
+        max_redirects=2,
+    )
+    with pytest.raises(FetchError, match="maximum redirects"):
+        await limited.fetch("https://example.com/start")
+    await limited.close()
+
+
 async def test_http_error_status_is_returned_not_raised() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text="oops")
