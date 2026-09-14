@@ -98,12 +98,15 @@ class HttpxFetcher:
                         continue
 
                     content_length = streamed_response.headers.get("content-length")
-                    if content_length and content_length.isdigit():
-                        if int(content_length) > self._max_response_bytes:
-                            raise FetchError(
-                                f"response body exceeds maximum size of "
-                                f"{self._max_response_bytes} bytes"
-                            )
+                    if (
+                        content_length
+                        and content_length.isdigit()
+                        and int(content_length) > self._max_response_bytes
+                    ):
+                        raise FetchError(
+                            f"response body exceeds maximum size of "
+                            f"{self._max_response_bytes} bytes"
+                        )
 
                     chunks: list[bytes] = []
                     total_bytes = 0
