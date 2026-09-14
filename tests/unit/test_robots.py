@@ -14,6 +14,18 @@ def _fetcher(handler) -> HttpxFetcher:
     )
 
 
+@pytest.fixture(autouse=True)
+def mock_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep MockTransport robots tests independent of external DNS."""
+
+    def getaddrinfo(hostname, *args, **kwargs):
+        if hostname.endswith(".example") or hostname == "example.com":
+            return [(2, 1, 6, "", ("93.184.216.34", 0))]
+        raise AssertionError(f"unexpected DNS lookup in robots test: {hostname}")
+
+    monkeypatch.setattr("sie.domain.security.ssrf.socket.getaddrinfo", getaddrinfo)
+
+
 ROBOTS_DISALLOW_PRIVATE = """\
 User-agent: *
 Disallow: /private/
