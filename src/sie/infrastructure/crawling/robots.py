@@ -77,9 +77,7 @@ class RobotsGate:
         if cached is not None and cached.expires_at > now:
             self._entries.move_to_end(cache_key)
             return cached
-        entry = await self._fetch_entry(
-            urlunsplit((scheme, netloc, "/robots.txt", "", ""))
-        )
+        entry = await self._fetch_entry(urlunsplit((scheme, netloc, "/robots.txt", "", "")))
         self._entries[cache_key] = entry
         self._entries.move_to_end(cache_key)
         while len(self._entries) > self._max_cache_entries:
