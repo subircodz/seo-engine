@@ -64,7 +64,15 @@ jobs:
           fi
 
       - name: Run test suite
-        run: pytest -v --tb=short
+        run: pytest -v --tb=short --junitxml=pytest-results.xml
+
+      - name: Upload pytest results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pytest-results-${{ matrix.python-version }}
+          path: pytest-results.xml
+          if-no-files-found: ignore
 
       - name: Validate Alembic migrations
         env:
