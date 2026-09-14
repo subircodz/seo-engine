@@ -8,7 +8,8 @@ from sie.api.auth import api_key_auth, optional_api_key_auth, verify_api_key
 from sie.config import APISettings
 
 
-def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Request:  # fmt: skip
+# fmt: off
+def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Request:
     encoded_headers = [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()]  # noqa: E501
     scope = {
         "type": "http",
@@ -16,6 +17,7 @@ def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Re
         "app": SimpleNamespace(state=SimpleNamespace(settings=SimpleNamespace(api=settings))),
     }
     return Request(scope)
+# fmt: on
 
 
 def test_verify_api_key_uses_constant_time_comparison():
