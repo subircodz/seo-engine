@@ -19,7 +19,10 @@ async def readiness(request: Request) -> JSONResponse:
 
     database_ok = await request.app.state.database.healthcheck()
     if not database_ok:
-        return JSONResponse(status_code=503, content={"status": "not_ready", "database": "unreachable"})
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "unreachable"},
+        )
     return JSONResponse(status_code=200, content={"status": "ready", "database": "ok"})
 
 
