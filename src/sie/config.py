@@ -8,7 +8,7 @@ All runtime configuration comes from the environment (optionally via a local
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from sie import __version__
@@ -293,6 +293,22 @@ class Settings(BaseSettings):
     jobs: JobSettings = Field(default_factory=JobSettings)
     api: APISettings = Field(default_factory=APISettings)
     limits: LimitSettings = Field(default_factory=LimitSettings)
+
+    @model_validator(mode="after")
+    def enforce_production_safety(self) -> "Settings":
+        """Prevent unsafe development defaults from silently reaching production."""
+        if self.environment == "production":
+            self.debug = False
+            self.database.auto_migrate = False
+            self.crawler.allow_localhost = False
+            self.search_provider.allow_localhost = False
+            if self.search_provider.rankings is not None:
+                self.search_provider.rankings.allow_localhost = False
+            if self.search_provider.aio is not None:
+                self.search_provider.aio.allow_localhost = False
+            if self.search_provider.geo is not None:
+                self.search_provider.geo.allow_localhost = False
+        return self
 
     @property
     def is_production(self) -> bool:
