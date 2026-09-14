@@ -105,5 +105,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Validate production Compose configuration
+        run: docker compose --env-file .env.production.example -f docker-compose.production.yml config --quiet
+
       - name: Build production image
         run: docker build --pull -t seo-intelligence-engine:ci .
