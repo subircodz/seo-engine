@@ -5,8 +5,22 @@ from fastapi import APIRouter, Request
 router = APIRouter(tags=["system"])
 
 
+@router.get("/health/live")
+async def liveness() -> dict[str, str]:
+    """Cheap process-level liveness probe; no dependency checks."""
+    return {"status": "ok"}
+
+
+@router.get("/health/ready")
+async def readiness(request: Request) -> dict[str, str]:
+    """Readiness probe that verifies the database is reachable."""
+    database_ok = await request.app.state.database.healthcheck()
+    return {"status": "ok" if database_ok else "degraded"}
+
+
 @router.get("/health")
 async def health(request: Request) -> dict[str, object]:
+    """Human-readable diagnostics endpoint."""
     settings = request.app.state.settings
     database_ok = await request.app.state.database.healthcheck()
     sp = settings.search_provider
