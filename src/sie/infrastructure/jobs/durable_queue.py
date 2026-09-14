@@ -31,7 +31,13 @@ class JobNotFoundError(KeyError):
 class DurableJobQueue:
     """Durable queue using the application's existing SQL database."""
 
-    def __init__(self, session_factory: async_sessionmaker, *, lease_seconds: int = 300, max_attempts: int = 3) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker,
+        *,
+        lease_seconds: int = 300,
+        max_attempts: int = 3,
+    ) -> None:
         if lease_seconds < 30:
             raise ValueError("lease_seconds must be at least 30 seconds")
         if max_attempts < 1:
@@ -66,11 +72,13 @@ class DurableJobQueue:
         effective_max_attempts = self._max_attempts if max_attempts is None else max_attempts
         async with self._session_factory() as session:
             await session.execute(
-                text("""INSERT INTO background_jobs
+                text(
+                    """INSERT INTO background_jobs
                     (id, task_type, payload, status, attempts, max_attempts,
                      available_at, created_at)
                     VALUES (:id, :task_type, :payload, 'queued', 0, :max_attempts,
-                            :available_at, :created_at)"""),
+                            :available_at, :created_at)"""
+                ),
                 {
                     "id": job_id,
                     "task_type": task_type,
@@ -85,7 +93,9 @@ class DurableJobQueue:
 
     async def get(self, job_id: str) -> dict[str, Any]:
         async with self._session_factory() as session:
-            result = await session.execute(text("SELECT * FROM background_jobs WHERE id = :id"), {"id": job_id})
+            result = await session.execute(
+                text("SELECT * FROM background_jobs WHERE id = :id"), {"id": job_id}
+            )
             row = result.mappings().first()
         if row is None:
             raise JobNotFoundError(job_id)
@@ -96,7 +106,8 @@ class DurableJobQueue:
         now = datetime.now(UTC)
         async with self._session_factory() as session:
             result = await session.execute(
-                text("""UPDATE background_jobs
+                text(
+                    """UPDATE background_jobs
                        SET status=CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
                            worker_id=NULL, leased_until=NULL,
                            completed_at=CASE WHEN attempts >= max_attempts THEN :completed_at ELSE NULL END,
@@ -105,7 +116,8 @@ class DurableJobQueue:
                                ELSE last_error
                            END
                      WHERE status='running' AND leased_until IS NOT NULL
-                       AND leased_until < :now"""),
+                       AND leased_until < :now"""
+                ),
                 {"now": now, "completed_at": now},
             )
             await session.commit()
@@ -120,16 +132,20 @@ class DurableJobQueue:
         async with self._session_factory() as session:
             dialect = session.bind.dialect.name if session.bind is not None else ""
             if dialect == "postgresql":
-                query = text("""SELECT id FROM background_jobs
+                query = text(
+                    """SELECT id FROM background_jobs
                        WHERE (status='queued' OR (status='running' AND leased_until < :now))
                          AND available_at <= :now AND attempts < max_attempts
                        ORDER BY available_at, created_at
-                       FOR UPDATE SKIP LOCKED LIMIT 1""")
+                       FOR UPDATE SKIP LOCKED LIMIT 1"""
+                )
             else:
-                query = text("""SELECT id FROM background_jobs
+                query = text(
+                    """SELECT id FROM background_jobs
                        WHERE (status='queued' OR (status='running' AND leased_until < :now))
                          AND available_at <= :now AND attempts < max_attempts
-                       ORDER BY available_at, created_at LIMIT 1""")
+                       ORDER BY available_at, created_at LIMIT 1"""
+                )
             result = await session.execute(query, {"now": now})
             row = result.mappings().first()
             if row is None:
@@ -137,12 +153,14 @@ class DurableJobQueue:
                 return None
             job_id = row["id"]
             updated = await session.execute(
-                text("""UPDATE background_jobs
+                text(
+                    """UPDATE background_jobs
                        SET status='running', attempts=attempts+1,
                            worker_id=:worker_id, leased_until=:leased_until,
                            started_at=COALESCE(started_at, :started_at), last_error=NULL
                      WHERE id=:id AND (status='queued' OR leased_until < :now)
-                       AND attempts < max_attempts"""),
+                       AND attempts < max_attempts"""
+                ),
                 {
                     "id": job_id,
                     "worker_id": worker_id,
@@ -165,33 +183,56 @@ class DurableJobQueue:
         lease = now + timedelta(seconds=self._lease_seconds)
         async with self._session_factory() as session:
             updated = await session.execute(
-                text("""UPDATE background_jobs
+                text(
+                    """UPDATE background_jobs
                        SET leased_until=:leased_until
                      WHERE id=:id AND status='running' AND worker_id=:worker_id
-                       AND leased_until IS NOT NULL AND leased_until >= :now"""),
+                       AND leased_until IS NOT NULL AND leased_until >= :now"""
+                ),
                 {"id": job_id, "worker_id": worker_id, "leased_until": lease, "now": now},
             )
             await session.commit()
             return updated.rowcount == 1
 
-    async def complete(self, job_id: str, result: dict[str, Any] | None = None, *, worker_id: str) -> bool:
+    async def complete(
+        self,
+        job_id: str,
+        result: dict[str, Any] | None = None,
+        *,
+        worker_id: str,
+    ) -> bool:
         """Complete a job only if this worker still owns its active lease."""
         if not worker_id.strip():
             raise ValueError("worker_id must not be empty")
         now = datetime.now(UTC)
         async with self._session_factory() as session:
             updated = await session.execute(
-                text("""UPDATE background_jobs
+                text(
+                    """UPDATE background_jobs
                        SET status='completed', result=:result, completed_at=:completed_at,
                            leased_until=NULL, worker_id=NULL
                      WHERE id=:id AND status='running' AND worker_id=:worker_id
-                       AND leased_until IS NOT NULL AND leased_until >= :now"""),
-                {"id": job_id, "worker_id": worker_id, "result": result, "completed_at": now, "now": now},
+                       AND leased_until IS NOT NULL AND leased_until >= :now"""
+                ),
+                {
+                    "id": job_id,
+                    "worker_id": worker_id,
+                    "result": result,
+                    "completed_at": now,
+                    "now": now,
+                },
             )
             await session.commit()
             return updated.rowcount == 1
 
-    async def fail(self, job_id: str, error: str, *, retry: bool = True, worker_id: str) -> None:
+    async def fail(
+        self,
+        job_id: str,
+        error: str,
+        *,
+        retry: bool = True,
+        worker_id: str,
+    ) -> None:
         """Fail or requeue a job only if this worker still owns its active lease."""
         if not worker_id.strip():
             raise ValueError("worker_id must not be empty")
@@ -199,7 +240,11 @@ class DurableJobQueue:
         async with self._session_factory() as session:
             row = (
                 await session.execute(
-                    text("SELECT attempts, max_attempts FROM background_jobs WHERE id=:id AND status='running' AND worker_id=:worker_id AND leased_until IS NOT NULL AND leased_until >= :now"),
+                    text(
+                        "SELECT attempts, max_attempts FROM background_jobs "
+                        "WHERE id=:id AND status='running' AND worker_id=:worker_id "
+                        "AND leased_until IS NOT NULL AND leased_until >= :now"
+                    ),
                     {"id": job_id, "worker_id": worker_id, "now": now},
                 )
             ).mappings().first()
@@ -207,11 +252,13 @@ class DurableJobQueue:
                 return
             terminal = not retry or int(row["attempts"]) >= int(row["max_attempts"])
             await session.execute(
-                text("""UPDATE background_jobs
+                text(
+                    """UPDATE background_jobs
                        SET status=:status, last_error=:error, leased_until=NULL, worker_id=NULL,
                            completed_at=:completed_at
                      WHERE id=:id AND status='running' AND worker_id=:worker_id
-                       AND leased_until IS NOT NULL AND leased_until >= :now"""),
+                       AND leased_until IS NOT NULL AND leased_until >= :now"""
+                ),
                 {
                     "id": job_id,
                     "worker_id": worker_id,
@@ -260,14 +307,18 @@ class DurableJobQueue:
                 )
                 continue
             heartbeat_stop = asyncio.Event()
-            heartbeat_task = asyncio.create_task(self._lease_heartbeat(job["id"], worker_id, heartbeat_stop))
+            heartbeat_task = asyncio.create_task(
+                self._lease_heartbeat(job["id"], worker_id, heartbeat_stop)
+            )
             try:
                 value = handler(job["payload"])
                 if inspect.isawaitable(value):
                     value = await value
                 heartbeat_stop.set()
                 await heartbeat_task
-                await self.complete(job["id"], value if isinstance(value, dict) else None, worker_id=worker_id)
+                await self.complete(
+                    job["id"], value if isinstance(value, dict) else None, worker_id=worker_id
+                )
             except Exception as exc:
                 heartbeat_stop.set()
                 with contextlib.suppress(Exception):
