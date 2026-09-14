@@ -210,11 +210,16 @@ class HttpxCrawlerEngine:
 
     @staticmethod
     def _enqueue(state: _RunState, candidates: Sequence[tuple[str, int, str | None]]) -> None:
+        """Deduplicate and enqueue at most the remaining page budget."""
         assert state.visited is not None
+        remaining = max(0, state.policy.max_pages - state.discovered)
         for url, depth, parent_url in candidates:
+            if remaining == 0:
+                break
             if state.visited.add(url):
                 state.frontier.append((url, depth, parent_url))
                 state.discovered += 1
+                remaining -= 1
         state.wake.set()
 
     @staticmethod
