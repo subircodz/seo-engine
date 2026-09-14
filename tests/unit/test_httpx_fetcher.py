@@ -8,14 +8,19 @@ from sie.domain.ports.fetching import Fetcher
 from sie.infrastructure.fetching.httpx_fetcher import HttpxFetcher
 
 
-def _fetcher(handler) -> HttpxFetcher:
+def _fetcher(handler, **kwargs) -> HttpxFetcher:
     transport = httpx.MockTransport(handler)
-    return HttpxFetcher(user_agent="test-agent", client=httpx.AsyncClient(transport=transport))
+    return HttpxFetcher(
+        user_agent="test-agent",
+        client=httpx.AsyncClient(transport=transport),
+        **kwargs,
+    )
 
 
 @pytest.fixture(autouse=True)
 def mock_dns(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep MockTransport tests independent of the machine's DNS configuration."""
+
     def getaddrinfo(hostname, *args, **kwargs):
         if hostname == "example.com":
             return [(2, 1, 6, "", ("93.184.216.34", 0))]
@@ -122,12 +127,10 @@ async def test_redirect_limit_is_enforced() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(302, headers={"location": "/loop"}, request=request)
 
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    limited = HttpxFetcher(user_agent="test-agent", client=client, max_redirects=2)
+    fetcher = _fetcher(handler, max_redirects=2)
     with pytest.raises(FetchError, match="maximum redirects"):
-        await limited.fetch("https://example.com/start")
-    await limited.close()
+        await fetcher.fetch("https://example.com/start")
+    await fetcher.close()
 
 
 async def test_http_error_status_is_returned_not_raised() -> None:
@@ -140,6 +143,36 @@ async def test_http_error_status_is_returned_not_raised() -> None:
 
     assert page.status_code == 500
     assert page.ok is False
+
+
+async def test_response_body_size_is_enforced_for_streamed_body() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"0123456789", request=request)
+
+    fetcher = _fetcher(handler, max_response_bytes=5)
+    with pytest.raises(FetchError, match="response body exceeds maximum size"):
+        await fetcher.fetch("https://example.com/")
+    await fetcher.close()
+
+
+async def test_response_body_size_is_rejected_from_content_length() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"0123456789",
+            headers={"Content-Length": "10"},
+            request=request,
+        )
+
+    fetcher = _fetcher(handler, max_response_bytes=5)
+    with pytest.raises(FetchError, match="response body exceeds maximum size"):
+        await fetcher.fetch("https://example.com/")
+    await fetcher.close()
+
+
+async def test_invalid_response_size_limit_is_rejected() -> None:
+    with pytest.raises(ValueError, match="max_response_bytes must be positive"):
+        _fetcher(lambda request: httpx.Response(200), max_response_bytes=0)
 
 
 async def test_transport_failure_raises_fetch_error_with_cause() -> None:
