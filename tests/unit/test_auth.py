@@ -9,9 +9,10 @@ from sie.config import APISettings
 
 
 def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Request:
+    encoded_headers = [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()]  # noqa: E501
     scope = {
         "type": "http",
-        "headers": [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()],  # noqa: E501
+        "headers": encoded_headers,
         "app": SimpleNamespace(state=SimpleNamespace(settings=SimpleNamespace(api=settings))),
     }
     return Request(scope)
