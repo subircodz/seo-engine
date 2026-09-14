@@ -76,7 +76,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
         )
         response.headers.pop("Server", None)
-        if request.app.state.settings.is_production:
+        settings = getattr(request.app.state, "settings", None)
+        if settings is not None and settings.is_production:
             response.headers.setdefault(
                 "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
             )
