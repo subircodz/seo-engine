@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import Header, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 
 from sie.config import APISettings
 
@@ -32,100 +32,62 @@ def verify_api_key(
     if not valid_keys:
         return False
 
-    # Constant-time comparison against each valid key
     return any(secrets.compare_digest(api_key, valid_key) for valid_key in valid_keys)
 
 
-async def api_key_auth(
-    request: Request,
-    api_key_header: str | None = Header(None, alias="X-API-Key"),
-) -> str:
-    """FastAPI dependency for API key authentication.
+def _get_api_key(request: Request, settings: APISettings) -> str | None:
+    """Read the configured API-key header without exposing its value in logs."""
+    return request.headers.get(settings.header_name)
 
-    Validates the API key from the X-API-Key header.
-    Raises 401 if authentication is enabled but key is missing or invalid.
 
-    Args:
-        request: The FastAPI request object.
-        api_key_header: The API key from the X-API-Key header.
-
-    Returns:
-        The validated API key.
-
-    Raises:
-        HTTPException: 401 if authentication fails or is missing.
-    """
+async def api_key_auth(request: Request) -> str:
+    """FastAPI dependency for required API key authentication."""
     settings: APISettings = request.app.state.settings.api
 
-    # If auth is disabled, allow all requests
     if not settings.enabled:
         return "dev-mode"
 
-    # Check for API key in header
-    if not api_key_header:
+    api_key = _get_api_key(request, settings)
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key required. Provide X-API-Key header.",
+            detail=f"API key required. Provide {settings.header_name} header.",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    # Validate the API key
-    if not verify_api_key(api_key_header, settings.api_keys):
+    if not verify_api_key(api_key, settings.api_keys):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    return api_key_header
+    return api_key
 
 
-async def optional_api_key_auth(
-    request: Request,
-    api_key_header: str | None = Header(None, alias="X-API-Key"),
-) -> str | None:
-    """Optional API key authentication dependency.
-
-    Validates the API key if provided, but doesn't require it.
-    Useful for endpoints that work with or without authentication.
-
-    Args:
-        request: The FastAPI request object.
-        api_key_header: The API key from the X-API-Key header.
-
-    Returns:
-        The validated API key, or None if not provided/invalid.
-    """
+async def optional_api_key_auth(request: Request) -> str | None:
+    """Validate an API key when supplied, without requiring authentication."""
     settings: APISettings = request.app.state.settings.api
 
-    # If auth is disabled or no header provided, return None
-    if not settings.enabled or not api_key_header:
+    if not settings.enabled:
         return None
 
-    # Validate the API key
-    if verify_api_key(api_key_header, settings.api_keys):
-        return api_key_header
+    api_key = _get_api_key(request, settings)
+    if not api_key:
+        return None
+
+    if verify_api_key(api_key, settings.api_keys):
+        return api_key
 
     return None
 
 
 def get_api_key_dependency(settings: APISettings):
-    """Factory function to create the appropriate auth dependency.
-
-    Returns the required auth dependency if enabled, otherwise returns
-    a no-op dependency that always succeeds.
-
-    Args:
-        settings: The API authentication settings.
-
-    Returns:
-        A FastAPI dependency callable.
-    """
+    """Return the required auth dependency when enabled, otherwise a no-op."""
     if settings.enabled:
         return api_key_auth
-    else:
-        # Return a no-op dependency for development
-        async def no_auth() -> str:
-            return "dev-mode"
 
-        return no_auth
+    async def no_auth() -> str:
+        return "dev-mode"
+
+    return no_auth
