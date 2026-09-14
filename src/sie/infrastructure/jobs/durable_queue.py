@@ -1,7 +1,9 @@
 """Database-backed durable background job queue.
 
 The queue stores only JSON-serializable task type/payload data. Workers claim
-jobs with leases so a process crash does not permanently strand work.
+jobs with leases so a process crash does not permanently strand work. Active
+workers periodically renew their leases while handlers are running so a
+legitimate long-running task is not reclaimed by another worker.
 """
 
 from __future__ import annotations
@@ -155,6 +157,23 @@ class DurableJobQueue:
             await session.commit()
         return await self.get(job_id)
 
+    async def renew_lease(self, job_id: str, *, worker_id: str) -> bool:
+        """Extend an active lease only for its current owning worker."""
+        if not worker_id.strip():
+            raise ValueError("worker_id must not be empty")
+        now = datetime.now(UTC)
+        lease = now + timedelta(seconds=self._lease_seconds)
+        async with self._session_factory() as session:
+            updated = await session.execute(
+                text("""UPDATE background_jobs
+                       SET leased_until=:leased_until
+                     WHERE id=:id AND status='running' AND worker_id=:worker_id
+                       AND leased_until IS NOT NULL AND leased_until >= :now"""),
+                {"id": job_id, "worker_id": worker_id, "leased_until": lease, "now": now},
+            )
+            await session.commit()
+            return updated.rowcount == 1
+
     async def complete(self, job_id: str, result: dict[str, Any] | None = None, *, worker_id: str) -> bool:
         """Complete a job only if this worker still owns its active lease."""
         if not worker_id.strip():
@@ -180,8 +199,8 @@ class DurableJobQueue:
         async with self._session_factory() as session:
             row = (
                 await session.execute(
-                    text("SELECT attempts, max_attempts FROM background_jobs WHERE id=:id AND status='running' AND worker_id=:worker_id"),
-                    {"id": job_id, "worker_id": worker_id},
+                    text("SELECT attempts, max_attempts FROM background_jobs WHERE id=:id AND status='running' AND worker_id=:worker_id AND leased_until IS NOT NULL AND leased_until >= :now"),
+                    {"id": job_id, "worker_id": worker_id, "now": now},
                 )
             ).mappings().first()
             if row is None:
@@ -191,16 +210,29 @@ class DurableJobQueue:
                 text("""UPDATE background_jobs
                        SET status=:status, last_error=:error, leased_until=NULL, worker_id=NULL,
                            completed_at=:completed_at
-                     WHERE id=:id AND status='running' AND worker_id=:worker_id"""),
+                     WHERE id=:id AND status='running' AND worker_id=:worker_id
+                       AND leased_until IS NOT NULL AND leased_until >= :now"""),
                 {
                     "id": job_id,
                     "worker_id": worker_id,
                     "status": "failed" if terminal else "queued",
                     "error": error[:8000],
                     "completed_at": now if terminal else None,
+                    "now": now,
                 },
             )
             await session.commit()
+
+    async def _lease_heartbeat(self, job_id: str, worker_id: str, stop_event: asyncio.Event) -> None:
+        """Renew a worker's lease until the handler finishes."""
+        interval = max(1.0, self._lease_seconds / 3)
+        while not stop_event.is_set():
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(stop_event.wait(), timeout=interval)
+            if stop_event.is_set():
+                return
+            if not await self.renew_lease(job_id, worker_id=worker_id):
+                return
 
     async def run_worker(
         self,
@@ -227,10 +259,23 @@ class DurableJobQueue:
                     worker_id=worker_id,
                 )
                 continue
+            heartbeat_stop = asyncio.Event()
+            heartbeat_task = asyncio.create_task(self._lease_heartbeat(job["id"], worker_id, heartbeat_stop))
             try:
                 value = handler(job["payload"])
                 if inspect.isawaitable(value):
                     value = await value
+                heartbeat_stop.set()
+                await heartbeat_task
                 await self.complete(job["id"], value if isinstance(value, dict) else None, worker_id=worker_id)
             except Exception as exc:
+                heartbeat_stop.set()
+                with contextlib.suppress(Exception):
+                    await heartbeat_task
                 await self.fail(job["id"], f"{type(exc).__name__}: {exc}", worker_id=worker_id)
+            finally:
+                heartbeat_stop.set()
+                if not heartbeat_task.done():
+                    heartbeat_task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await heartbeat_task
