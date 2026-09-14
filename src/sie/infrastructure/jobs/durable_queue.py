@@ -69,9 +69,7 @@ class DurableJobQueue:
         job_id = str(uuid.uuid4())
         now = datetime.now(UTC)
         available = available_at or now
-        effective_max_attempts = (
-            self._max_attempts if max_attempts is None else max_attempts
-        )
+        effective_max_attempts = self._max_attempts if max_attempts is None else max_attempts
         async with self._session_factory() as session:
             await session.execute(
                 text(
