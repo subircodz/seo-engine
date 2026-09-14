@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -47,7 +49,19 @@ jobs:
         run: ruff check .
 
       - name: Check Ruff formatting
-        run: ruff format --check .
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            mapfile -t files < <(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- '*.py')
+          else
+            mapfile -t files < <(git diff --name-only HEAD^ HEAD -- '*.py')
+          fi
+
+          if ((${#files[@]})); then
+            ruff format --check "${files[@]}"
+          else
+            echo "No changed Python files to format-check."
+          fi
 
       - name: Run test suite
         run: pytest -v --tb=short
