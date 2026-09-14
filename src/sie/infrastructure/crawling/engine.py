@@ -91,7 +91,15 @@ class HttpxCrawlerEngine:
         self._limiter = PerHostRateLimiter(rate_limit_per_host)
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._max_workers = max_concurrency
-        self._robots = RobotsGate(fetcher, user_agent=user_agent) if respect_robots_txt else None
+        self._robots = (
+            RobotsGate(
+                fetcher,
+                user_agent=user_agent,
+                max_cache_entries=visited_cache_size,
+            )
+            if respect_robots_txt
+            else None
+        )
         self._follow_cross_origin = follow_cross_origin
         self._visited_cache_size = visited_cache_size
         self._state: _RunState | None = None
