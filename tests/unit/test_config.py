@@ -154,3 +154,57 @@ def test_nested_database_auto_migrate_env_override(monkeypatch) -> None:
 
     assert settings.database.auto_migrate is False
     assert settings.auto_migrate is False
+
+
+def test_production_rejects_debug() -> None:
+    with pytest.raises(ValidationError, match="SIE_DEBUG must be false"):
+        Settings(_env_file=None, environment="production", debug=True, host="0.0.0.0")
+
+
+def test_production_rejects_auto_migrate() -> None:
+    with pytest.raises(ValidationError, match="SIE_DATABASE__AUTO_MIGRATE"):
+        Settings(_env_file=None, environment="production", debug=False, host="0.0.0.0")
+
+
+def test_production_rejects_loopback_host() -> None:
+    with pytest.raises(ValidationError, match="SIE_HOST"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            debug=False,
+            host="127.0.0.1",
+            database={"auto_migrate": False},
+        )
+
+
+def test_production_requires_api_key_when_auth_enabled() -> None:
+    with pytest.raises(ValidationError, match="SIE_API__API_KEYS"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            debug=False,
+            host="0.0.0.0",
+            database={"auto_migrate": False},
+            api={"enabled": True},
+        )
+
+
+def test_production_configuration_is_accepted() -> None:
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        debug=False,
+        host="0.0.0.0",
+        database={"auto_migrate": False},
+        api={"enabled": True, "api_keys": ["test-key"]},
+    )
+
+    assert settings.is_production is True
+    assert settings.auto_migrate is False
+
+
+def test_database_url_not_in_root_repr() -> None:
+    settings = Settings(_env_file=None, database_url="postgresql+asyncpg://user:secret@db/sie")
+
+    assert "secret" not in repr(settings)
+    assert "postgresql+asyncpg://user:secret@db/sie" not in repr(settings)
