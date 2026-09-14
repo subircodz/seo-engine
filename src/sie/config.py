@@ -306,9 +306,13 @@ class Settings(BaseSettings):
         if self.database.auto_migrate:
             raise ValueError("SIE_DATABASE__AUTO_MIGRATE must be false in production")
         if self.host in {"127.0.0.1", "localhost", "::1"}:
-            raise ValueError("SIE_HOST must bind an externally reachable interface in production")
+            raise ValueError(
+                "SIE_HOST must bind an externally reachable interface in production"
+            )
         if self.api.enabled and not self.api.api_keys:
-            raise ValueError("SIE_API__API_KEYS must contain at least one key when API auth is enabled")
+            raise ValueError(
+                "SIE_API__API_KEYS must contain at least one key when API auth is enabled"
+            )
         return self
 
     @property
