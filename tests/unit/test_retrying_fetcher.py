@@ -42,7 +42,9 @@ def _page(status: int, headers: dict | None = None) -> FetchedPage:
 
 
 def _transport_exc() -> FetchError:
-    return FetchError("boom") from httpx.ConnectError("connection failed")
+    exc = FetchError("boom")
+    exc.__cause__ = httpx.ConnectError("connection failed")
+    return exc
 
 
 def make_retrier(inner, **kwargs):
@@ -104,7 +106,7 @@ class TestRetryingFetcher:
 class TestRetryingFetcherTransportRetry:
     def test_transport_error_retried_up_to_max(self):
         inner = FakeInner(exception=_transport_exc())
-        retrier = make_retrier(inner, max_retries=2)
+        retrier = make_retrier(inner, max_retries=2, jitter=False)
         with pytest.raises(FetchError):
             asyncio.run(retrier.fetch("https://example.com"))
         assert inner._idx == 0
