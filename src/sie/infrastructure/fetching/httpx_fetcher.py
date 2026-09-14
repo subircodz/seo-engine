@@ -60,9 +60,7 @@ class HttpxFetcher:
     async def fetch(self, url: str) -> FetchedPage:
         # SSRF protection: validate syntax and DNS resolution before every
         # outbound request, including every manually followed redirect.
-        safe, error = await resolve_and_validate(
-            url, allow_localhost=self._allow_localhost
-        )
+        safe, error = await resolve_and_validate(url, allow_localhost=self._allow_localhost)
         if not safe:
             raise FetchError(f"SSRF protection blocked request to {url}: {error}")
 
@@ -82,9 +80,7 @@ class HttpxFetcher:
                             content = b""
                             break
                         if redirect_count >= self._max_redirects:
-                            raise FetchError(
-                                f"maximum redirects exceeded while fetching {url}"
-                            )
+                            raise FetchError(f"maximum redirects exceeded while fetching {url}")
 
                         redirect_url = urljoin(current_url, location)
                         safe, error = await resolve_and_validate(
