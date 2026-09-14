@@ -8,7 +8,7 @@ All runtime configuration comes from the environment (optionally via a local
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from sie import __version__
@@ -276,7 +276,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     host: str = "127.0.0.1"
     port: int = 8000
-    database_url: str = "sqlite+aiosqlite:///./sie.db"
+    database_url: str = Field(default="sqlite+aiosqlite:///./sie.db", repr=False)
 
     crawler: CrawlerSettings = Field(default_factory=CrawlerSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
@@ -294,6 +294,22 @@ class Settings(BaseSettings):
     jobs: JobSettings = Field(default_factory=JobSettings)
     api: APISettings = Field(default_factory=APISettings)
     limits: LimitSettings = Field(default_factory=LimitSettings)
+
+    @model_validator(mode="after")
+    def validate_production_safety(self) -> "Settings":
+        """Fail fast when production is configured with unsafe local defaults."""
+
+        if self.environment != "production":
+            return self
+        if self.debug:
+            raise ValueError("SIE_DEBUG must be false in production")
+        if self.database.auto_migrate:
+            raise ValueError("SIE_DATABASE__AUTO_MIGRATE must be false in production")
+        if self.host in {"127.0.0.1", "localhost", "::1"}:
+            raise ValueError("SIE_HOST must bind an externally reachable interface in production")
+        if self.api.enabled and not self.api.api_keys:
+            raise ValueError("SIE_API__API_KEYS must contain at least one key when API auth is enabled")
+        return self
 
     @property
     def is_production(self) -> bool:
