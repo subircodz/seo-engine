@@ -11,7 +11,7 @@ import secrets
 
 from fastapi import HTTPException, Request, status
 
-from sie.config import APISettings
+from sie.config import APISettings, get_settings
 
 
 def verify_api_key(
@@ -35,6 +35,14 @@ def verify_api_key(
     return any(secrets.compare_digest(api_key, valid_key) for valid_key in valid_keys)
 
 
+def _api_settings(request: Request) -> APISettings:
+    """Resolve API settings from app state, with a safe config fallback for tests."""
+    app_settings = getattr(request.app.state, "settings", None)
+    if app_settings is not None:
+        return app_settings.api
+    return get_settings().api
+
+
 def _get_api_key(request: Request, settings: APISettings) -> str | None:
     """Read the configured API-key header without exposing its value in logs."""
     return request.headers.get(settings.header_name)
@@ -42,7 +50,7 @@ def _get_api_key(request: Request, settings: APISettings) -> str | None:
 
 async def api_key_auth(request: Request) -> str:
     """FastAPI dependency for required API key authentication."""
-    settings: APISettings = request.app.state.settings.api
+    settings = _api_settings(request)
 
     if not settings.enabled:
         return "dev-mode"
@@ -67,7 +75,7 @@ async def api_key_auth(request: Request) -> str:
 
 async def optional_api_key_auth(request: Request) -> str | None:
     """Validate an API key when supplied, without requiring authentication."""
-    settings: APISettings = request.app.state.settings.api
+    settings = _api_settings(request)
 
     if not settings.enabled:
         return None
