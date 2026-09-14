@@ -15,7 +15,9 @@ def _request(settings: APISettings, headers: dict[str, str] | None = None) -> Re
             (key.lower().encode(), value.encode())
             for key, value in (headers or {}).items()
         ],
-        "app": SimpleNamespace(state=SimpleNamespace(settings=SimpleNamespace(api=settings))),
+        "app": SimpleNamespace(
+            state=SimpleNamespace(settings=SimpleNamespace(api=settings))
+        ),
     }
     return Request(scope)
 
