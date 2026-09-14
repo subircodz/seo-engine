@@ -53,6 +53,18 @@ def handler_factory(counts: dict[str, int]):
     return handler
 
 
+@pytest.fixture(autouse=True)
+def mock_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep fixture-site tests independent of the machine's DNS configuration."""
+
+    def getaddrinfo(hostname, *args, **kwargs):
+        if hostname in {"example.test", "other.test"}:
+            return [(2, 1, 6, "", ("93.184.216.34", 0))]
+        raise AssertionError(f"unexpected DNS lookup in crawler fixture: {hostname}")
+
+    monkeypatch.setattr("sie.domain.security.ssrf.socket.getaddrinfo", getaddrinfo)
+
+
 @pytest.fixture
 async def run_crawl():
     """Factory returning (pages, stats, request_counts) for a given policy."""
@@ -101,12 +113,11 @@ async def test_bfs_dedup_robots_and_error_pages(run_crawl):
     assert by_url["https://example.test/a"].depth == 1
     assert by_url["https://example.test/a"].parent_url == "https://example.test/"
 
-    assert counts.get("/a") == 1  # deduped: linked twice, fetched once
-    assert counts.get("/private/hidden") is None  # robots-blocked, never requested
+    assert counts.get("/a") == 1
+    assert counts.get("/private/hidden") is None
 
 
 async def test_depth_limit_enforced(run_crawl):
-    # depth_limit=2 fetches depths 0..2; links on depth-2 pages are not followed.
     pages, _, _ = await run_crawl(CrawlPolicy(max_pages=50, depth_limit=2))
     urls = {p.url for p in pages}
     assert "https://example.test/deep1" in urls
@@ -116,7 +127,7 @@ async def test_depth_limit_enforced(run_crawl):
 async def test_cross_origin_blocked_by_default(run_crawl):
     pages, _, counts = await run_crawl(CrawlPolicy(max_pages=50, depth_limit=1))
     assert all("other.test" not in p.url for p in pages)
-    assert counts.get("/x", 0) == 0  # never even requested
+    assert counts.get("/x", 0) == 0
 
 
 async def test_max_pages_cap_stops_stream(run_crawl):
