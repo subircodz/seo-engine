@@ -1,8 +1,5 @@
 """Search Intelligence Engine -- unified SEO, AIO, and GEO intelligence platform."""
 
-import importlib.metadata
+from sie._version import __version__
 
-try:
-    __version__ = importlib.metadata.version("seo-intelligence-engine")
-except importlib.metadata.PackageNotFoundError:  # running from source, not installed
-    __version__ = "0.0.0.dev0"
+__all__ = ["__version__"]
