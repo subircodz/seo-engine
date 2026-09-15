@@ -52,6 +52,13 @@ from sie.domain.engines.search_performance import (
 from sie.domain.engines.search_report import generate_intelligence_report
 from sie.domain.engines.technical_seo import run_technical_audit
 
+# Backward-compatible name used by the site-analysis orchestration layer.
+# Keep the canonical implementation named ``extract_entities_from_content``.
+from sie.domain.engines import search_entity as _search_entity
+
+if not hasattr(_search_entity, "extract_entities"):
+    _search_entity.extract_entities = extract_entities_from_content
+
 __all__ = [
     "analyze_casino_content",
     "analyze_content",
