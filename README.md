@@ -2,394 +2,233 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-[![Status: Production Ready](https://img.shields.io/badge/Status-Production_Ready-green.svg)]()
+[![Status: Validated](https://img.shields.io/badge/Status-Validated-green.svg)]()
 
 ---
 
-## 🌟 What Is This?
+## What Is This?
 
-**SEO Intelligence Engine** is a powerful, self-hosted platform that helps you understand how websites rank in search engines — and more importantly, *why* they rank the way they do.
+**SEO Intelligence Engine** is a self-hosted application for technical SEO, search-ranking intelligence, AI Overview (AIO), and Generative Engine Optimization (GEO) analysis.
 
-Think of it as your personal SEO analyst that works 24/7. It:
-- **Collects real search rankings** from Google, Bing, and other engines
-- **Analyzes the data** to find problems and opportunities
-- **Generates professional PDF reports** you can share with clients or your team
-- **Runs completely on your own server** — your data never leaves your infrastructure
+It collects site and search data, stores evidence, runs analysis engines, and presents findings through a web UI, API, and PDF reports. LLM-based analysis is optional for the core SEO workflow; AIO/GEO provider-backed analysis requires the corresponding provider configuration.
 
-### Why Does It Exist?
+### Current capabilities
 
-Most SEO tools are either:
-- **Too expensive** (hundreds of dollars per month)
-- **Locked in the cloud** (your data belongs to someone else)
-- **Black boxes** (you get scores but no explanation)
+- Site crawling with request, redirect, response-size, robots, and SSRF guardrails
+- Technical SEO analysis
+- Content-quality analysis
+- Site-architecture and link analysis
+- Keyword and search-ranking collection through configurable providers
+- Search-intelligence analysis including cannibalization, volatility, opportunities, and SERP features
+- Entity analysis
+- Country-wise ranking analysis
+- Competitor ranking comparison
+- Industry-specific intelligence
+- AIO visibility analysis when a compatible provider is configured
+- GEO visibility analysis when a compatible LLM/provider is configured
+- Evidence-backed findings and prioritized recommendations
+- Web UI, HTTP API, and PDF reporting
+- SQLite for development and PostgreSQL for production
+- Durable database-backed background jobs with at-least-once execution semantics
 
-This engine gives you **full control**, **complete transparency**, and **zero recurring costs**. It's built for agencies, in-house teams, and consultants who want enterprise-grade intelligence without the enterprise price tag.
-
-### Who Is This For?
-
-| If you are... | This helps you... |
-|---------------|-------------------|
-| An SEO agency | Deliver deeper insights to clients, automate reporting |
-| An in-house SEO | Track competitors, find content gaps, prioritize fixes |
-| A consultant | Run audits faster, back recommendations with data |
-| A developer | Build custom SEO tools on a solid foundation |
-
----
-
-## ✨ What It Can Do
-
-### 🔍 **Live Search & Ranking Collection**
-Type a keyword and a domain — the engine fetches real-time rankings from search engines and shows exactly where that domain appears.
-
-### 📊 **Search Analytics (The "What")**
-- Position tracking over time
-- Visibility scores (how much of the SERP you own)
-- Keyword-level metrics: best/worst/average position
-- Top 3, Top 10, Top 20 breakdowns
-
-### 🧠 **Search Intelligence (The "Why" & "What Next")**
-| Analysis | What It Finds |
-|----------|---------------|
-| **Cannibalization** | Multiple pages fighting for the same keyword |
-| **Volatility** | Keywords where rankings jump around unpredictably |
-| **Opportunities** | Competitor gaps, weak rankings you can improve, missing content |
-| **SERP Features** | Featured snippets, local packs, "People Also Ask" you could own |
-| **AI Overview (AIO)** | Whether AI-generated answers cite your site |
-| **Generative Engine (GEO)** | How you appear in ChatGPT, Perplexity, and other AI search |
-
-### 🏢 **Industry-Specific Intelligence**
-Pre-built analysis for:
-- **Casino & Gambling** — compliance, trust signals, bonus structures
-- **Crypto & Web3** — technical trust, regulatory signals, community
-- **Crypto-Casino** — intersection of both verticals
-- **General** — any other industry
-
-### 📄 **Professional PDF Reports**
-One-click generation of polished reports with:
-- Executive summary
-- Severity-coded findings (🔴 High / 🟡 Medium / 🟢 Low)
-- Prioritized recommendations with confidence scores
-- Evidence trail for every claim
-- Page headers, footers, and numbering
-
-### 🎨 **Beautiful Web Interface**
-- **Dark mode by default** (easy on the eyes)
-- **Light mode toggle** (persists your preference)
-- **Glassmorphism design** — modern, clean, responsive
-- **SVG circular score rings** — animated progress indicators for all health scores
-- **Loading skeletons** — professional shimmer animations during analysis
-- **Toast notifications** — non-blocking success/error messages
-- **Micro-interactions** — card hover lifts, button glow effects, fade-in animations
-- **7 pages**: Dashboard, Live Search, Datasets, Intelligence, Industry, Reports, API Docs
-
-### 🔍 **Site Analysis (One-Click Full Audit)**
-Enter any domain and get a comprehensive intelligence report:
-- **Technical SEO audit** — crawl health, critical issues, Core Web Vitals, SSL, robots.txt
-- **Content quality analysis** — thin content, duplicates, readability, keyword stuffing
-- **Site architecture** — internal linking, orphan pages, crawl depth
-- **Ranking discovery** — intelligent keyword extraction from content, position tracking
-- **AI Overview (AIO) analysis** — which queries trigger AI answers, citation opportunities
-- **Generative Engine (GEO) analysis** — visibility in ChatGPT, Perplexity, and other AI search
-- **Prioritized recommendations** — sorted by impact with confidence scores
-- **PDF export** — professional reports with scores, findings, and action items
-- **Competitor comparison** — optional side-by-side ranking analysis
-
-### 🌍 **Country-Wise Ranking Analysis**
-Analyze visibility across multiple markets simultaneously:
-- **Multi-country SERP analysis** — check rankings in US, UK, India, Germany, etc.
-- **Per-country SEO/AIO/GEO scores** — understand how you perform in each market
-- **Country-specific recommendations** — tailored action items for each market (e.g., "Build backlinks from US-based authoritative sites")
-- **Market gap analysis** — identify which countries have the best growth opportunities
-
-### 📄 **Executive-Grade PDF Reports**
-PDF reports redesigned for professional client delivery:
-- **Cover page** — dark gradient with domain name and all 7 score bars
-- **Executive summary** — verdict box with key findings and priority actions (P0-P3)
-- **Score breakdown** — table explaining what each metric measures
-- **Detailed findings** — each issue includes: *Observed → Evidence → Confidence → Priority → Impact → Recommended Action*
-- **Country-wise section** — per-country analysis with specific action items
-- **Prioritized recommendations** — categorized as Critical (P0), High (P1), Medium (P2), Low (P3)
-- **Confidence levels** — HIGH = evidence-based, MEDIUM = derived data, LOW = inference
-- **Professional formatting** — proper typography, color-coded badges, page numbers, headers/footers
+The application is designed to produce analysis from real site/search inputs. Provider-dependent features require valid provider configuration and suitable input data; this repository does not claim universal coverage of every search engine, AI answer surface, or external data source.
 
 ---
 
-## 🏗️ How It Works (Simple Version)
+## Architecture
 
-```
-┌────────────────────────────────────────────────────────────┐
-│  YOU TYPE A KEYWORD + DOMAIN                                │
-└──────────────────────────┬─────────────────────────────────┘
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  ENGINE QUERIES SEARCH API (SerpAPI, DataForSEO, etc.)     │
-│  Gets back: position, URL, title for top 10-100 results    │
-└──────────────────────────┬─────────────────────────────────┘
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  DATA SAVED TO YOUR DATABASE (SQLite or PostgreSQL)        │
-└──────────────────────────┬─────────────────────────────────┘
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  ANALYSIS ENGINES RUN (100% deterministic, no AI needed)   │
-│  • Math & algorithms find patterns                          │
-│   Zero hallucination, zero API costs                        │
-└──────────────────────────┬─────────────────────────────────┘
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  RESULTS → WEB UI OR PDF REPORT                             │
-└────────────────────────────────────────────────────────────┘
+```text
+                         ┌─────────────────────┐
+                         │      Web / API      │
+                         └──────────┬──────────┘
+                                    │
+                ┌───────────────────┼───────────────────┐
+                ▼                   ▼                   ▼
+          Search Providers      Site Crawler       Analysis Engines
+                │                   │                   │
+                └───────────────────┼───────────────────┘
+                                    ▼
+                              PostgreSQL / SQLite
+                                    │
+                                    ▼
+                           Reports / Web UI / API
 ```
 
-### The "Secret Sauce": Deterministic Intelligence
-Unlike tools that just call GPT and hope for the best, this engine uses **pure math and algorithms** for all core analysis:
-- No AI required for rankings, cannibalization, volatility, opportunities
-- **LLMs are optional** — only used for enhanced reasoning if *you* enable them
-- Results are **reproducible, auditable, and free to run**
+### Design principles
+
+1. **Domain-first** — business logic is separated from infrastructure.
+2. **Protocol-based** — external providers can be replaced without rewriting the domain layer.
+3. **Deterministic where applicable** — core site and SEO analysis does not require an LLM.
+4. **Evidence-backed** — findings retain supporting data used by the analysis workflow.
+5. **Fail closed in production** — unsafe production configuration is rejected at startup.
 
 ---
 
-## 🚀 Quick Start (5 Minutes)
+## Quick Start
 
 ### Prerequisites
-- **Python 3.12+** (check with `python3 --version`)
-- A **search API key** (free tiers available from [SerpAPI](https://serpapi.com), [DataForSEO](https://dataforseo.com), or [ValueSERP](https://valueserp.com))
 
-### Installation
+- Python 3.12+
+- A search-provider API key when real search data is required
+- WeasyPrint system dependencies if PDF generation is required
+
+### Install
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/seo-intelligence-engine.git
-cd seo-intelligence-engine
-
-# 2. Create a virtual environment (keeps things isolated)
+git clone https://github.com/subircodz/seo-engine.git
+cd seo-engine
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# 3. Install the engine
-pip install -e '.[dev]'
-
-# 4. Install PDF generation (optional but recommended)
-pip install weasyprint
-
-# 5. Copy the example config and edit it
+source .venv/bin/activate
+pip install -e '.[dev,weasyprint]'
 cp .env.example .env
-# Edit .env with your favorite editor (nano, vim, VS Code, etc.)
 ```
 
-### Configure Your Search API (Required for Real Data)
-
-Open `.env` and find these lines:
+Configure the required providers in `.env`, then run:
 
 ```bash
-# Change false → true
-SIE_SEARCH_PROVIDER__ENABLED=true
-
-# Use SerpAPI (recommended for beginners)
-SIE_SEARCH_PROVIDER__PROVIDER_NAME=serpapi
-
-# Paste your API key here
-SIE_SEARCH_PROVIDER__API_KEY=your-actual-api-key-here
-```
-
-> **Don't have an API key?** Get a free one from [SerpAPI](https://serpapi.com) (100 searches/month free). The engine also supports DataForSEO, ValueSERP, and custom HTTP providers.
-
-### Run It
-
-```bash
-# Start the server
 python -m sie
 ```
 
-Open your browser to **http://127.0.0.1:8000** — you should see the dashboard!
+Open `http://127.0.0.1:8000`.
 
 ---
 
-## 📖 First-Time Walkthrough
+## Configuration
 
-### 1. **Dashboard** — Your Command Center
-See dataset count, keyword count, search provider status, and recent activity at a glance.
+All runtime configuration uses the `SIE_` prefix. Nested settings use `__`.
 
-### 2. **Live Search** — Get Real Data
-- Enter a keyword (e.g., "best running shoes")
-- Enter a domain (e.g., "nike.com" or "https://nike.com")
-- Pick a country (US, UK, DE, etc.)
-- Click **Search** → watch it collect real rankings
+Examples:
 
-### 3. **Datasets** — Your Data Library
-All searches are saved as datasets. Browse, delete, or dive deeper.
-
-### 4. **Dataset Detail** — The Full Picture
-Click any dataset to see:
-- Every keyword and its ranking position
-- Competitor rankings side-by-side
-- Historical trends (as data accumulates)
-
-### 5. **Intelligence** — The Magic Happens
-- Pick a dataset from the dropdown
-- Enter the target domain
-- Click **Analyze** → get prioritized recommendations in seconds
-
-### 6. **Reports** — Share the Insights
-- Click **Download PDF** on any analyzed dataset
-- Get a professional report ready for clients or stakeholders
-
----
-
-## ⚙️ Configuration Guide (Plain English)
-
-All settings live in the `.env` file. Here's what matters:
-
-| Setting | What It Does | Example |
-|---------|--------------|---------|
-| `SIE_ENVIRONMENT` | `development` (verbose logs) or `production` (quiet) | `development` |
-| `SIE_DATABASE_URL` | Where data lives. SQLite for dev, PostgreSQL for prod | `sqlite+aiosqlite:///./sie.db` |
-| `SIE_SEARCH_PROVIDER__ENABLED` | **Must be `true` for real search data** | `true` |
-| `SIE_SEARCH_PROVIDER__PROVIDER_NAME` | Which search API: `serpapi`, `http`, or `mock` | `serpapi` |
-| `SIE_SEARCH_PROVIDER__API_KEY` | Your search API key | `abc123...` |
-| `SIE_LLM__ENABLED` | Enable AI-enhanced analysis (optional) | `false` |
-| `SIE_LLM__API_KEY` | OpenAI-compatible API key (if LLM enabled) | `sk-...` |
-
-> **Tip:** The `.env.example` file has every possible setting with comments. Never commit your real `.env` to git!
-
----
-
-## 🔧 For Developers
-
-### Project Structure
-```
-src/sie/
-├── api/           # FastAPI app, routes, templates
-├── domain/        # Pure business logic (no external deps)
-│   ├── models/    # Data structures
-│   ├── engines/   # Analysis algorithms (pure functions)
-│   ├── services/  # Orchestration layer
-│   └── ports/     # Interfaces (protocols)
-├── infrastructure/# Database, HTTP, search adapters
-└── templates/     # HTML (Jinja2 + HTMX-ready)
-```
-
-### Key Design Principles
-1. **Domain-first** — Business logic never imports infrastructure
-2. **Protocol-based** — Swap databases, search providers, LLMs without touching domain code
-3. **Deterministic by default** — Core intelligence uses 0 LLM calls
-4. **Evidence-backed** — Every finding traces back to source data
-
-### Running Tests
 ```bash
-# All tests
-pytest
-
-# With coverage
-pytest --cov=src/sie
-
-# Linting
-ruff check .
-ruff format .
+SIE_ENVIRONMENT=development
+SIE_DATABASE_URL=sqlite+aiosqlite:///./sie.db
+SIE_SEARCH_PROVIDER__ENABLED=true
+SIE_SEARCH_PROVIDER__PROVIDER_NAME=serpapi
+SIE_SEARCH_PROVIDER__API_KEY=your-key
 ```
 
-### Adding a New Search Provider
-1. Implement `SearchProvider` protocol in `infrastructure/search/`
-2. Register it in `provider_factory.py`
-3. Add config to `SearchProviderSettings` in `config.py`
-4. Done — zero changes to domain or application code
+Production configuration uses `.env.production`. Never commit real credentials.
+
+Production enforces these guardrails:
+
+- `SIE_DEBUG=false`
+- `SIE_DATABASE__AUTO_MIGRATE=false`
+- `SIE_HOST` cannot be localhost-only
+- enabled API authentication requires at least one API key
 
 ---
 
-## 📦 Dependencies
+## Production Deployment
 
-### Required
-```
-fastapi, uvicorn, jinja2, httpx, beautifulsoup4, lxml,
-pydantic, pydantic-settings, python-multipart,
-sqlalchemy[asyncio], aiosqlite, alembic, rich
-```
+The repository includes a production Dockerfile and Compose deployment configuration.
 
-### Optional
-```
-weasyprint>=62    # PDF reports (needs system libs: pango, cairo, gdk-pixbuf)
-```
+A deployment is **not** provided as a hosted service by this repository. Operators are responsible for hosting, secrets, HTTPS termination, backups, monitoring, and database operations.
 
-### System Requirements for WeasyPrint (PDF)
-| OS | Command |
-|----|---------|
-| Ubuntu/Debian | `apt-get install libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0` |
-| macOS | `brew install pango cairo gdk-pixbuf` |
-| Windows | Use conda or WSL |
+### Production checklist
 
----
-
-## 🐳 Production Deployment
-
-### Quick Checklist
+- [ ] PostgreSQL credentials configured
+- [ ] `SIE_DATABASE_URL` points to the PostgreSQL service and uses the URL-encoded password
 - [ ] `SIE_ENVIRONMENT=production`
 - [ ] `SIE_DEBUG=false`
-- [ ] `SIE_DATABASE_URL=postgresql+asyncpg://...`
-- [ ] `SIE_AUTO_MIGRATE=false` (run `alembic upgrade head` separately)
-- [ ] Real search API credentials configured
-- [ ] WeasyPrint installed for PDFs
-- [ ] Reverse proxy (nginx/Caddy) with HTTPS
-- [ ] Process manager (systemd, supervisor, or Docker)
+- [ ] `SIE_DATABASE__AUTO_MIGRATE=false`
+- [ ] Real provider credentials configured
+- [ ] Long random API key configured when direct API authentication is enabled
+- [ ] HTTPS reverse proxy/load balancer configured
+- [ ] Database backups configured and restore-tested
+- [ ] Port 8000 is not publicly exposed
 
-### Docker (Recommended)
-```dockerfile
-# Dockerfile included in repo
-docker build -t sie .
-docker run -d -p 8000:8000 --env-file .env sie
+### Docker Compose
+
+```bash
+cp .env.production.example .env.production
+chmod 600 .env.production
+# Replace every CHANGE_ME value and keep SIE_DATABASE_URL in sync with the
+# PostgreSQL credentials. URL-encode special characters in its password.
+docker compose -f docker-compose.production.yml up -d db
+docker compose -f docker-compose.production.yml run --rm app alembic upgrade head
+docker compose -f docker-compose.production.yml up -d app
 ```
 
----
+Verify:
 
-## 📜 License
+```bash
+curl -fsS http://127.0.0.1:8000/health/live
+curl -fsS http://127.0.0.1:8000/health/ready
+```
 
-**Apache License 2.0** — See [LICENSE](LICENSE) for full text.
+For the complete deployment procedure, backups, HTTPS requirements, update procedure, and scaling constraint, see [`docs/PRODUCTION.md`](docs/PRODUCTION.md).
 
-**TL;DR:** You can use, modify, distribute, and sell this software commercially. You must keep the license notice and NOTICE file. No warranty provided.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/amazing-thing`)
-3. Make your changes with tests
-4. Run `ruff check . && ruff format . && pytest`
-5. Submit a PR
+**Important:** the current durable job worker runs inside the application process. Keep one Uvicorn worker until job execution is separated into a dedicated worker service.
 
 ---
 
-## 🙋 Support & Community
+## Development
 
-- **Issues:** [GitHub Issues](https://github.com/your-org/seo-intelligence-engine/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/your-org/seo-intelligence-engine/discussions)
-- **Security:** Email security@your-org.com (please don't file public issues for vulnerabilities)
+### Project structure
 
----
+```text
+src/sie/
+├── api/             # FastAPI app, routes, templates
+├── domain/          # Business logic and domain models
+├── infrastructure/ # Database, HTTP, and provider adapters
+└── templates/       # Web templates
+```
 
-## 🙏 Acknowledgments
+### Tests and quality checks
 
-Built with:
-- [FastAPI](https://fastapi.tiangolo.com/) — Modern, fast web framework
-- [SQLAlchemy](https://www.sqlalchemy.org/) — Python SQL toolkit
-- [SerpAPI](https://serpapi.com/) — Search API (example provider)
-- [WeasyPrint](https://weasyprint.org/) — HTML to PDF
-- [Rich](https://rich.readthedocs.io/) — Beautiful terminal output
+```bash
+pytest
+ruff check .
+ruff format .
+alembic upgrade head
+alembic check
+```
 
----
-
-## 📊 Status
-
-| Component | Status |
-|-----------|--------|
-| Core Intelligence | ✅ Production |
-| Web UI | ✅ Production |
-| PDF Reports | ✅ Production |
-| SerpAPI Provider | ✅ Production |
-| Industry Intelligence | ✅ Production |
-| AIO/GEO Analysis | ✅ Production |
+CI validates Python 3.12 and 3.13, compilation, Ruff, the test suite, Alembic migrations, production Compose configuration, and the production container build.
 
 ---
 
-**Made with ❤️ for the SEO community**
+## Security
 
-*Star this repo if it helps you — it motivates continued development!*
+The crawler applies SSRF and redirect protections, robots-policy handling, request limits, and a hard response-size ceiling. Production configuration also fails fast on unsafe local defaults.
+
+DNS validation is performed before outbound requests, but the current HTTP client architecture does **not** claim complete DNS-rebinding/TOCTOU protection.
+
+Durable job leases prevent stale workers from overwriting active ownership, but a process crash can still result in duplicate execution after lease expiry. The queue therefore provides **at-least-once**, not exactly-once, execution semantics.
+
+Please see [`SECURITY.md`](SECURITY.md) for private vulnerability reporting instructions. Security vulnerabilities should **not** be reported through public issues, discussions, or pull requests.
+
+---
+
+## Contributing
+
+Contributions are welcome, especially feature development, bug fixes, tests, documentation, and engineering improvements.
+
+- Use GitHub issues and discussions for feature ideas, questions, design discussions, and general development conversations.
+- Pull requests are welcome for normal feature and development work.
+- **Do not submit security vulnerabilities as public issues, discussions, or pull requests.** Follow [`SECURITY.md`](SECURITY.md) and email `subirthecoder35@gmail.com` instead.
+- For feature development or other project discussions, opening an issue or discussion before substantial work is encouraged so the direction can be agreed on early.
+
+---
+
+## Dependencies
+
+Core runtime dependencies include FastAPI, Uvicorn, HTTPX, BeautifulSoup, lxml, Pydantic, SQLAlchemy, Alembic, Redis support, and Rich. WeasyPrint is optional for PDF generation.
+
+---
+
+## License
+
+**Apache License 2.0**. See [`LICENSE`](LICENSE) for the complete license text.
+
+---
+
+## Project status
+
+The application and its production-oriented CI checks are validated on Python 3.12 and 3.13. The repository is suitable for further development and self-hosted deployment, subject to the operator completing the production checklist and configuring the required external providers.
+
+The project is actively open to feature development, engineering discussion, and contributions.
+
+---
+
+**Made with ❤️ for the SEO community.**

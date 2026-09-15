@@ -14,6 +14,18 @@ def _fetcher(handler) -> HttpxFetcher:
     )
 
 
+@pytest.fixture(autouse=True)
+def mock_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep MockTransport robots tests independent of external DNS."""
+
+    def getaddrinfo(hostname, *args, **kwargs):
+        if hostname.endswith(".example") or hostname == "example.com":
+            return [(2, 1, 6, "", ("93.184.216.34", 0))]
+        raise AssertionError(f"unexpected DNS lookup in robots test: {hostname}")
+
+    monkeypatch.setattr("sie.domain.security.ssrf.socket.getaddrinfo", getaddrinfo)
+
+
 ROBOTS_DISALLOW_PRIVATE = """\
 User-agent: *
 Disallow: /private/
@@ -59,3 +71,35 @@ async def test_crawl_delay_parsed():
     gate = RobotsGate(_fetcher(handler), user_agent="test-bot")
     delay = await gate.crawl_delay_seconds("https://example.com/something")
     assert delay == pytest.approx(3.0)
+
+
+async def test_robots_cache_is_bounded():
+    def handler(request):
+        return httpx.Response(404)
+
+    gate = RobotsGate(_fetcher(handler), user_agent="test-bot", max_cache_entries=2)
+    assert await gate.allowed("https://one.example/") is True
+    assert await gate.allowed("https://two.example/") is True
+    assert await gate.allowed("https://three.example/") is True
+
+    assert len(gate._entries) == 2
+    assert "https://one.example" not in gate._entries
+    assert "https://two.example" in gate._entries
+    assert "https://three.example" in gate._entries
+
+
+async def test_robots_cache_preserves_port_as_part_of_origin():
+    requests: list[str] = []
+
+    def handler(request):
+        requests.append(str(request.url))
+        return httpx.Response(404)
+
+    gate = RobotsGate(_fetcher(handler), user_agent="test-bot")
+    assert await gate.allowed("https://example.com:8443/page") is True
+    assert await gate.allowed("https://example.com:9443/page") is True
+
+    assert requests == [
+        "https://example.com:8443/robots.txt",
+        "https://example.com:9443/robots.txt",
+    ]

@@ -1,6 +1,8 @@
 """FastAPI application factory and production composition root."""
 
 import asyncio
+import os
+import re
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -47,13 +49,18 @@ from sie.infrastructure.persistence.repositories import SqlAlchemyCrawlRunReposi
 from sie.logging import get_logger, set_request_id, setup_logging
 
 logger = get_logger(__name__)
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Middleware to generate and track request IDs for correlation."""
+    """Generate and track bounded, log-safe request IDs for correlation."""
 
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        candidate = request.headers.get("X-Request-ID")
+        if candidate and _REQUEST_ID_PATTERN.fullmatch(candidate):
+            request_id = candidate
+        else:
+            request_id = str(uuid.uuid4())
         set_request_id(request_id)
         request.state.request_id = request_id
         try:
@@ -62,6 +69,22 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             set_request_id(None)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Apply security headers at the application boundary."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if "server" in response.headers:
+            del response.headers["server"]
+        if request.app.state.settings.is_production:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
 
 
 def _log_event_factory():
@@ -103,6 +126,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 write_timeout_seconds=cs.write_timeout_seconds,
                 pool_timeout_seconds=cs.pool_timeout_seconds,
                 allow_localhost=cs.allow_localhost,
+                max_redirects=cs.max_redirects,
+                max_response_bytes=cs.max_response_bytes,
             ),
             max_retries=cs.max_retries,
             base_delay_seconds=cs.retry_backoff_seconds,
@@ -253,14 +278,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
+    app.state.settings = settings
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
-    import os
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    # All site-analysis API calls use the single production service instance,
-    # including the legacy synchronous endpoint.
     app.dependency_overrides[site_analysis._site_analysis_service] = lambda request: (
         request.app.state.site_analysis_service
     )

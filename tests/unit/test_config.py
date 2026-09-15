@@ -13,6 +13,8 @@ def test_defaults_are_safe() -> None:
     assert settings.database_url.startswith("sqlite+aiosqlite://")
     assert settings.crawler.respect_robots_txt is True
     assert settings.crawler.max_concurrent_requests >= 1
+    assert settings.crawler.max_redirects >= 0
+    assert settings.crawler.max_response_bytes > 0
     assert settings.is_production is False
 
 
@@ -20,12 +22,16 @@ def test_environment_variables_override_defaults(monkeypatch) -> None:
     monkeypatch.setenv("SIE_LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("SIE_PORT", "9999")
     monkeypatch.setenv("SIE_CRAWLER__MAX_PAGES", "42")
+    monkeypatch.setenv("SIE_CRAWLER__MAX_REDIRECTS", "3")
+    monkeypatch.setenv("SIE_CRAWLER__MAX_RESPONSE_BYTES", "2048")
 
     settings = Settings(_env_file=None)
 
     assert settings.log_level == "DEBUG"
     assert settings.port == 9999
     assert settings.crawler.max_pages == 42
+    assert settings.crawler.max_redirects == 3
+    assert settings.crawler.max_response_bytes == 2048
 
 
 def test_crawler_politeness_defaults_are_sane() -> None:
@@ -36,6 +42,15 @@ def test_crawler_politeness_defaults_are_sane() -> None:
     assert crawler.respect_robots_txt is True
     assert crawler.follow_cross_origin is False
     assert crawler.max_retries >= 0
+    assert crawler.max_redirects >= 0
+    assert crawler.max_response_bytes > 0
+
+
+def test_crawler_limits_reject_invalid_values() -> None:
+    with pytest.raises(ValidationError):
+        CrawlerSettings(max_redirects=-1)
+    with pytest.raises(ValidationError):
+        CrawlerSettings(max_response_bytes=0)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -129,3 +144,67 @@ class TestSearchProviderApiKeyNotExposed:
         sp = SearchProviderSettings(api_key="super-secret-key-12345")
         s = str(sp)
         assert "super-secret-key-12345" not in s
+
+
+def test_nested_database_auto_migrate_env_override(monkeypatch) -> None:
+    """The documented nested environment variable must control migration policy."""
+    monkeypatch.setenv("SIE_DATABASE__AUTO_MIGRATE", "false")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.database.auto_migrate is False
+    assert settings.auto_migrate is False
+
+
+def test_production_rejects_debug() -> None:
+    with pytest.raises(ValidationError, match="SIE_DEBUG must be false"):
+        Settings(_env_file=None, environment="production", debug=True, host="0.0.0.0")
+
+
+def test_production_rejects_auto_migrate() -> None:
+    with pytest.raises(ValidationError, match="SIE_DATABASE__AUTO_MIGRATE"):
+        Settings(_env_file=None, environment="production", debug=False, host="0.0.0.0")
+
+
+def test_production_rejects_loopback_host() -> None:
+    with pytest.raises(ValidationError, match="SIE_HOST"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            debug=False,
+            host="127.0.0.1",
+            database={"auto_migrate": False},
+        )
+
+
+def test_production_requires_api_key_when_auth_enabled() -> None:
+    with pytest.raises(ValidationError, match="SIE_API__API_KEYS"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            debug=False,
+            host="0.0.0.0",
+            database={"auto_migrate": False},
+            api={"enabled": True},
+        )
+
+
+def test_production_configuration_is_accepted() -> None:
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        debug=False,
+        host="0.0.0.0",
+        database={"auto_migrate": False},
+        api={"enabled": True, "api_keys": ["test-key"]},
+    )
+
+    assert settings.is_production is True
+    assert settings.auto_migrate is False
+
+
+def test_database_url_not_in_root_repr() -> None:
+    database_url = "postgresql+asyncpg://user:secret@db/sie"
+    settings = Settings(_env_file=None, database_url=database_url)
+
+    assert database_url not in repr(settings)

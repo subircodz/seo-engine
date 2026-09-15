@@ -2,6 +2,7 @@
 
 import asyncio
 
+import httpx
 import pytest
 
 from sie.domain.errors import FetchError
@@ -41,7 +42,9 @@ def _page(status: int, headers: dict | None = None) -> FetchedPage:
 
 
 def _transport_exc() -> FetchError:
-    return FetchError("boom")  # real cause would be httpx.ConnectError but isinstance check
+    exc = FetchError("boom")
+    exc.__cause__ = httpx.ConnectError("connection failed")
+    return exc
 
 
 def make_retrier(inner, **kwargs):
@@ -86,10 +89,24 @@ class TestRetryingFetcher:
         assert page.status_code == 200
         assert sleeps == [pytest.approx(10.0)]
 
+    def test_caps_excessive_retry_after_header(self):
+        sleeps: list[float] = []
+
+        async def fake_sleep(seconds):
+            sleeps.append(seconds)
+
+        inner = FakeInner(pages=[_page(429, {"Retry-After": "86400"}), _page(200)])
+        retrier = RetryingFetcher(inner, max_retries=1, jitter=False, sleep=fake_sleep)
+        page = asyncio.run(retrier.fetch("https://example.com"))
+
+        assert page.status_code == 200
+        assert sleeps == [pytest.approx(30.0)]
+
 
 class TestRetryingFetcherTransportRetry:
     def test_transport_error_retried_up_to_max(self):
         inner = FakeInner(exception=_transport_exc())
-        retrier = make_retrier(inner, max_retries=2)
+        retrier = make_retrier(inner, max_retries=2, jitter=False)
         with pytest.raises(FetchError):
             asyncio.run(retrier.fetch("https://example.com"))
+        assert inner._idx == 0
