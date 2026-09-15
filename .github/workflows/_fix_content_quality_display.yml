@@ -1,0 +1,81 @@
+name: Temporary content quality fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor == 'subircodz'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Apply content quality scale fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "src/sie/domain/services/site_analysis.py": [
+                  ("score = health.avg_quality_score * 100", "score = health.avg_quality_score"),
+              ],
+              "src/sie/templates/site_analysis.html": [
+                  ("Math.round(ct.avg_quality_score*100)+'%'", "Math.round(ct.avg_quality_score)+'%'")
+              ],
+              "src/sie/templates/reports/site_analysis.html": [
+                  ("content.avg_quality_score >= 0.7", "content.avg_quality_score >= 70"),
+                  ("content.avg_quality_score >= 0.4", "content.avg_quality_score >= 40"),
+                  ("content.avg_quality_score * 100", "content.avg_quality_score"),
+              ],
+          }
+
+          for filename, pairs in replacements.items():
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count == 0:
+                      raise SystemExit(f"Expected text not found in {filename}: {old}")
+                  text = text.replace(old, new)
+              path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Add regression test
+        run: |
+          cat > tests/unit/test_content_quality_display_contract.py <<'PY'
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[2]
+
+          def test_content_quality_uses_0_to_100_scale_across_consumers():
+              service = (ROOT / "src/sie/domain/services/site_analysis.py").read_text(encoding="utf-8")
+              web = (ROOT / "src/sie/templates/site_analysis.html").read_text(encoding="utf-8")
+              pdf = (ROOT / "src/sie/templates/reports/site_analysis.html").read_text(encoding="utf-8")
+
+              assert "health.avg_quality_score * 100" not in service
+              assert "ct.avg_quality_score*100" not in web
+              assert "content.avg_quality_score * 100" not in pdf
+              assert "content.avg_quality_score >= 70" in pdf
+              assert "content.avg_quality_score >= 40" in pdf
+          PY
+
+      - name: Validate fix
+        run: |
+          python -m compileall -q src tests
+          python -m pytest -q tests/unit/test_content_quality_display_contract.py
+
+      - name: Commit fix and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/workflows/_fix_content_quality_display.yml
+          git add src/sie/domain/services/site_analysis.py src/sie/templates/site_analysis.html src/sie/templates/reports/site_analysis.html tests/unit/test_content_quality_display_contract.py .github/workflows/_fix_content_quality_display.yml
+          git commit -m "fix: correct content quality percentage scale"
+          git push
