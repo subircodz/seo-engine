@@ -5,11 +5,32 @@ build-backend = "hatchling.build"
 [project]
 name = "seo-intelligence-engine"
 version = "0.1.0"
-description = "Unified search intelligence platform for traditional SEO, Google AI Overview visibility, and Generative Engine Optimization (GEO)."
+description = "Evidence-backed SEO, AI Overview (AIO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Subir Sutradhar" }]
 license = { text = "Apache-2.0" }
+keywords = [
+    "seo",
+    "technical seo",
+    "seo audit",
+    "seo crawler",
+    "search visibility",
+    "search intelligence",
+    "serp analysis",
+    "ai overview",
+    "google ai overviews",
+    "aio",
+    "generative engine optimization",
+    "geo",
+    "ai search visibility",
+    "llm visibility",
+    "competitor analysis",
+    "entity seo",
+    "site architecture",
+    "python",
+    "fastapi",
+]
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
