@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "seo-intelligence-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "Evidence-backed SEO, AI Overview (AIO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis."
 readme = "README.md"
 requires-python = ">=3.12"
