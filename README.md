@@ -5,6 +5,7 @@
 [![Status: Validated](https://img.shields.io/badge/Status-Validated-green.svg)]()
 
 ---
+<img width="996" height="209" alt="image" src="https://github.com/user-attachments/assets/08eb05ab-d208-41c2-b7e0-3430a9a83bd6" />
 
 ## What Is This?
 
