@@ -5,7 +5,26 @@ from sie.domain.models.search_result import SearchResult, SearchResultItem
 from sie.domain.services.evidence_aware_site_analysis import EvidenceAwareSiteAnalysisService
 from sie.domain.services.site_analysis import create_site_analysis_service
 from sie.infrastructure.search.mock_provider import MockSearchProvider
-from tests.fakes import FakeCrawler
+
+
+class _FakeCrawler:
+    """Deterministic crawler seam for the application-level acceptance test."""
+
+    def __init__(self, pages):
+        self._pages = list(pages)
+
+    def crawl(self, target, policy):
+        return self._stream()
+
+    async def _stream(self):
+        for page in self._pages:
+            yield page
+
+    def add_targets(self, targets):
+        pass
+
+    def get_crawl_stats(self):
+        return None
 
 
 SITE_HOME = b"""
@@ -82,7 +101,7 @@ def _inject_crawler(harness):
             parent_url="https://example.com/",
         ),
     ]
-    harness.app.state.crawl_service._crawler = FakeCrawler(pages)
+    harness.app.state.crawl_service._crawler = _FakeCrawler(pages)
 
 
 async def test_site_analysis_black_box_http_workflow(harness):
