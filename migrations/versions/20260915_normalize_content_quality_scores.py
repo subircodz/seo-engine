@@ -4,10 +4,10 @@ Revision ID: 20260915_content_quality_scale
 Revises: 20260914_site_analysis
 Create Date: 2026-09-15
 
-ContentMetrics.quality_score is stored on a 0–100 scale, while
-ContentQualityReport.avg_quality_score is a normalized 0–1 value used by
+ContentMetrics.quality_score is stored on a 0-100 scale, while
+ContentQualityReport.avg_quality_score is a normalized 0-1 value used by
 site-analysis scoring and report rendering. Older persisted reports were
-written directly from the 0–100 metric average.
+written directly from the 0-100 metric average.
 """
 
 from collections.abc import Sequence
