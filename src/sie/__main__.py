@@ -3,7 +3,7 @@
 import uvicorn
 
 from sie.config import get_settings
-from sie.logging import setup_logging
+from sie.log_config import setup_logging
 
 
 def main() -> None:
