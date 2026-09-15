@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sie.domain.models.search import RankingObservation, SearchQuery
+from sie.domain.models.search import RankingObservation, SearchDataset, SearchQuery
 from sie.domain.models.search_result import SearchCollectionResult, SearchResult
 from sie.domain.ports.persistence import CrawlRunRepository
 from sie.domain.ports.search_provider import SearchProvider
@@ -107,7 +107,22 @@ class SearchCollectionService:
 
         stored = await self._repository.get_search_dataset(dataset_id)
         if stored is None:
-            raise LookupError(f"Dataset '{dataset_id}' not found")
+            # Site analysis owns its short-lived ranking dataset and must
+            # initialize it before the collection service can persist rows.
+            # Other callers retain the strict missing-dataset contract.
+            if self._source == "site-analysis":
+                await self._repository.save_search_dataset(
+                    SearchDataset(
+                        dataset_id=dataset_id,
+                        name=f"Site Analysis: {dataset_id.removeprefix('site-')}",
+                        source="site-analysis",
+                        created_at=datetime.now(UTC),
+                        total_keywords=len(queries),
+                        total_observations=0,
+                    )
+                )
+            else:
+                raise LookupError(f"Dataset '{dataset_id}' not found")
 
         items: list[CollectionItem] = []
         errors: list[str] = []
