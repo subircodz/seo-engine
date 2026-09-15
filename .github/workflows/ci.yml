@@ -43,6 +43,9 @@ jobs:
       - name: Install project and development dependencies
         run: python -m pip install -e ".[dev,weasyprint]"
 
+      - name: Audit Python dependencies
+        run: pip-audit
+
       - name: Check Python compilation
         run: python -m compileall -q src tests migrations
 
