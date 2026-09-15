@@ -12,6 +12,7 @@ from sie.domain.models.search_result import SearchResult, SearchResultItem
 from sie.domain.services.evidence_aware_site_analysis import EvidenceAwareSiteAnalysisService
 from sie.domain.services.site_analysis import create_site_analysis_service
 from sie.infrastructure.search.mock_provider import MockSearchProvider
+from sie.infrastructure.search.provider_registry import ProviderRegistry
 
 
 class _FakeCrawler:
@@ -73,12 +74,19 @@ SITE_REPORTS = b"""
 
 
 def _inject_site_analysis_service(harness, search_provider):
-    """Rebuild only the application service so the real HTTP path uses test providers."""
+    """Rebuild the real service with the test capability registry."""
+    registry = ProviderRegistry(
+        default=search_provider,
+        rankings=search_provider,
+        aio=search_provider,
+        geo=search_provider,
+    )
+    harness.app.state.search_provider = registry
     raw = create_site_analysis_service(
         crawl_service=harness.app.state.crawl_service,
         audit_service=harness.app.state.audit_service,
         content_service=harness.app.state.content_service,
-        search_provider=search_provider,
+        search_provider=registry,
         repository=harness.app.state.repository,
         crux_service=harness.app.state.crux_service,
     )
@@ -167,20 +175,18 @@ async def test_site_analysis_black_box_http_workflow(harness):
     _inject_crawler(harness)
     _inject_site_analysis_service(harness, search_provider)
 
-    response = await harness.client.post(
-        "/api/site/analyze",
-        json={
-            "domain": "https://example.com",
-            "max_pages": 5,
-            "max_keywords": 1,
-            "country": "us",
-            "target_countries": [],
-            "device": "desktop",
-            "competitors": [],
-            "deep_aio": True,
-            "deep_geo": True,
-        },
-    )
+    request_payload = {
+        "domain": "https://example.com",
+        "max_pages": 5,
+        "max_keywords": 1,
+        "country": "us",
+        "target_countries": [],
+        "device": "desktop",
+        "competitors": [],
+        "deep_aio": True,
+        "deep_geo": True,
+    }
+    response = await harness.client.post("/api/site/analyze", json=request_payload)
 
     assert response.status_code == 200, response.text
     body = response.json()
@@ -228,20 +234,7 @@ async def test_site_analysis_black_box_http_workflow(harness):
     assert persisted.json()["status"] == "completed"
     assert persisted.json()["pages_stored"] == 2
 
-    pdf_response = await harness.client.post(
-        "/api/site/analyze/pdf",
-        json={
-            "domain": "https://example.com",
-            "max_pages": 5,
-            "max_keywords": 1,
-            "country": "us",
-            "target_countries": [],
-            "device": "desktop",
-            "competitors": [],
-            "deep_aio": True,
-            "deep_geo": True,
-        },
-    )
+    pdf_response = await harness.client.post("/api/site/analyze/pdf", json=request_payload)
     assert pdf_response.status_code == 200, pdf_response.text
     assert pdf_response.headers["content-type"].startswith("application/pdf")
     assert pdf_response.content.startswith(b"%PDF-")
