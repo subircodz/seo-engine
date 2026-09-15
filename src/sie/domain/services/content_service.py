@@ -192,8 +192,8 @@ class ContentService:
             run_id=run_id,
             total_pages=total,
             analyzed_pages=total,
-            # ContentMetrics.quality_score is 0–100; the aggregated report
-            # contract is normalized to 0–1 for downstream scoring/rendering.
+            # ContentMetrics.quality_score is 0-100; the aggregated report
+            # contract is normalized to 0-1 for downstream scoring/rendering.
             avg_quality_score=round(avg_score / 100, 4),
             quality_distribution=distribution,
             thin_content_pages=tuple(thin_pages),
