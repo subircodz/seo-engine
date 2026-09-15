@@ -1,0 +1,68 @@
+# SEO Intelligence Engine
+
+> Self-hosted, evidence-backed SEO, AI Overview (AIO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis.
+
+## Project identity
+
+- Repository: https://github.com/subircodz/seo-engine
+- Package name: seo-intelligence-engine
+- Primary language: Python
+- Runtime: Python 3.12+
+- Web framework: FastAPI
+- License: Apache License 2.0
+- Deployment model: self-hosted
+
+## What it does
+
+SEO Intelligence Engine collects site and search data, stores evidence, runs analysis engines, and exposes findings through a web UI, HTTP API, and PDF reports.
+
+### SEO capabilities
+
+- Technical SEO analysis
+- Website crawling
+- Content-quality analysis
+- Site architecture and internal-link analysis
+- Keyword and search-ranking collection through configurable providers
+- SERP and search-intelligence analysis
+- Cannibalization analysis
+- Ranking volatility analysis
+- Search opportunity analysis
+- SERP feature analysis
+- Entity analysis
+- Country-wise ranking analysis
+- Competitor ranking comparison
+- Performance signals
+- Evidence-backed recommendations
+
+### AIO capabilities
+
+AIO means AI Overview / AI answer visibility. The application supports provider-backed AIO visibility analysis when a compatible provider is configured and suitable input data is available.
+
+### GEO capabilities
+
+GEO means Generative Engine Optimization. The application supports provider/LLM-backed analysis of visibility or representation in generative AI and LLM-backed search experiences when compatible configuration and input data are available.
+
+## Important scope limits
+
+- Core SEO analysis does not require an LLM.
+- AIO and GEO analysis are provider-dependent.
+- The project does not claim universal coverage of every search engine, AI answer surface, or external data source.
+- The repository is not a hosted SaaS service.
+
+## Architecture
+
+Web/API -> site crawler and search providers -> domain analysis engines -> SQLite/PostgreSQL -> web/API/PDF reporting.
+
+The system emphasizes domain separation, replaceable provider protocols, deterministic analysis where applicable, evidence-backed findings, and production fail-closed configuration.
+
+## Intended use
+
+Useful for technical SEO audits, SEO crawler workflows, search-ranking intelligence, competitor SEO research, AI Overview visibility research, Generative Engine Optimization research, entity SEO analysis, site architecture analysis, and evidence-backed optimization recommendations.
+
+## Key documentation
+
+- README: https://github.com/subircodz/seo-engine/blob/main/README.md
+- Production deployment: https://github.com/subircodz/seo-engine/blob/main/docs/PRODUCTION.md
+- Security policy: https://github.com/subircodz/seo-engine/blob/main/SECURITY.md
+- Contributing: https://github.com/subircodz/seo-engine/blob/main/CONTRIBUTING.md
+- Roadmap: https://github.com/subircodz/seo-engine/blob/main/ROADMAP.md
