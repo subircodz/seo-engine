@@ -13,12 +13,14 @@ SITE_HOME = b"""
 <html>
 <head>
   <title>Acme Analytics Platform</title>
-  <meta name="description" content="Acme provides analytics dashboards and reporting software for growing teams.">
+  <meta name="description"
+        content="Acme provides analytics dashboards and reporting software for growing teams.">
 </head>
 <body>
   <h1>Analytics Platform</h1>
   <p>Acme Analytics Platform helps growing teams build analytics dashboards, reporting workflows,
-  data monitoring, business intelligence views, and operational reports from reliable business data.</p>
+  data monitoring, business intelligence views, and operational reports from reliable business
+  data.</p>
   <p>Our reporting software connects business data to practical dashboards for teams that need
   analytics, reporting, monitoring, and clear operational visibility every day.</p>
   <a href="/reports">Reporting</a>
@@ -31,7 +33,8 @@ SITE_REPORTS = b"""
 <html>
 <head>
   <title>Acme Reporting Software</title>
-  <meta name="description" content="Reporting software and dashboards from Acme Analytics Platform.">
+  <meta name="description"
+        content="Reporting software and dashboards from Acme Analytics Platform.">
 </head>
 <body>
   <h1>Reporting Software</h1>
