@@ -1,38 +1,76 @@
-# SEO - AIO - GEO Intelligence Engine
+# SEO Intelligence Engine — SEO, AIO & GEO
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Status: Validated](https://img.shields.io/badge/Status-Validated-green.svg)]()
 
+**SEO Intelligence Engine** is a self-hosted, evidence-backed **SEO, AI Overview (AIO), and Generative Engine Optimization (GEO)** analysis platform. It combines technical SEO auditing, site crawling, search-ranking intelligence, SERP analysis, entity analysis, competitor comparison, AI-search visibility analysis, and prioritized optimization recommendations in one application.
+
+It is designed for teams and engineers who want to investigate **search visibility across traditional search and AI answer surfaces** using collected site/search evidence rather than a purely LLM-generated audit.
+
+> **Scope note:** Core SEO analysis is designed to work without an LLM. AIO/GEO analysis depends on compatible external providers and suitable input data. The project does not claim universal coverage of every search engine, AI answer surface, or external data source.
+
 ---
 <img width="996" height="209" alt="image" src="https://github.com/user-attachments/assets/08eb05ab-d208-41c2-b7e0-3430a9a83bd6" />
 
-## What Is This?
+## What Does It Analyze?
 
-**SEO Intelligence Engine** is a self-hosted application for technical SEO, search-ranking intelligence, AI Overview (AIO), and Generative Engine Optimization (GEO) analysis.
+| Area | What the application provides |
+|---|---|
+| **Technical SEO** | Crawl-based technical checks, response/redirect signals, robots handling, and site-level findings |
+| **On-page / Content SEO** | Content-quality and page-level analysis |
+| **Site architecture** | Internal-link and architecture analysis |
+| **Search intelligence** | Keyword/ranking collection, cannibalization, volatility, opportunities, and SERP features |
+| **Competitor SEO** | Country-wise ranking analysis and competitor ranking comparison |
+| **Entity SEO** | Entity extraction and entity-related analysis |
+| **AI Overview (AIO)** | Provider-backed visibility analysis when a compatible provider is configured |
+| **Generative Engine Optimization (GEO)** | Provider/LLM-backed visibility analysis when compatible configuration and input data are available |
+| **Performance** | Page/resource performance signals used by the analysis workflow |
+| **Recommendations** | Evidence-backed findings and prioritized optimization recommendations |
+| **Reporting** | Web UI, HTTP API, and PDF reports |
 
-It collects site and search data, stores evidence, runs analysis engines, and presents findings through a web UI, API, and PDF reports. LLM-based analysis is optional for the core SEO workflow; AIO/GEO provider-backed analysis requires the corresponding provider configuration.
+### Common use cases
 
-### Current capabilities
+- Technical SEO audits and site health investigations
+- SEO crawler and website analysis workflows
+- Search-ranking and SERP intelligence
+- Keyword opportunity and cannibalization analysis
+- Competitor SEO research
+- AI Overview / Google AI Overview visibility research
+- Generative Engine Optimization (GEO) and AI-search visibility research
+- Entity and site-architecture analysis
+- Evidence-backed SEO recommendations and reporting
 
-- Site crawling with request, redirect, response-size, robots, and SSRF guardrails
-- Technical SEO analysis
-- Content-quality analysis
-- Site-architecture and link analysis
-- Keyword and search-ranking collection through configurable providers
-- Search-intelligence analysis including cannibalization, volatility, opportunities, and SERP features
-- Entity analysis
-- Country-wise ranking analysis
-- Competitor ranking comparison
-- Industry-specific intelligence
-- AIO visibility analysis when a compatible provider is configured
-- GEO visibility analysis when a compatible LLM/provider is configured
-- Evidence-backed findings and prioritized recommendations
-- Web UI, HTTP API, and PDF reporting
-- SQLite for development and PostgreSQL for production
-- Durable database-backed background jobs with at-least-once execution semantics
+---
 
-The application is designed to produce analysis from real site/search inputs. Provider-dependent features require valid provider configuration and suitable input data; this repository does not claim universal coverage of every search engine, AI answer surface, or external data source.
+## Why This Project?
+
+Traditional SEO tools focus heavily on rankings and crawl data. Modern search visibility also includes **AI-generated answers, citations, entities, and generative search experiences**.
+
+SEO Intelligence Engine brings these related signals into one analysis workflow:
+
+```text
+                         Site + Search Inputs
+                                  │
+              ┌───────────────────┼───────────────────┐
+              ▼                   ▼                   ▼
+        Technical SEO       Search / SERP       AIO / GEO Signals
+        Content / Links      Rankings            Provider-backed
+              │                   │                   │
+              └───────────────────┼───────────────────┘
+                                  ▼
+                         Evidence + Analysis
+                                  │
+                 ┌────────────────┼────────────────┐
+                 ▼                ▼                ▼
+             Findings       Opportunities     Recommendations
+                 │                │                │
+                 └────────────────┼────────────────┘
+                                  ▼
+                          Web / API / PDF
+```
+
+The core design goal is **evidence-backed search visibility analysis**, not an opaque “ask an LLM to audit my website” workflow.
 
 ---
 
@@ -116,6 +154,18 @@ Production enforces these guardrails:
 - `SIE_DATABASE__AUTO_MIGRATE=false`
 - `SIE_HOST` cannot be localhost-only
 - enabled API authentication requires at least one API key
+
+---
+
+## SEO, AIO and GEO Data Model
+
+The project treats SEO, AIO, and GEO as related but distinct analysis areas:
+
+- **SEO (Search Engine Optimization):** technical health, content, links, rankings, SERP features, entities, and site architecture.
+- **AIO (AI Overview):** visibility in provider-backed AI Overview / AI answer observations, including evidence available from the configured provider.
+- **GEO (Generative Engine Optimization):** analysis of visibility and representation in generative/LLM-backed search experiences using compatible providers and collected evidence.
+
+This separation matters because **ranking in a traditional SERP does not automatically mean visibility in an AI-generated answer**. The application therefore keeps provider-backed AIO/GEO signals distinct from conventional SEO signals.
 
 ---
 
@@ -215,6 +265,34 @@ Contributions are welcome, especially feature development, bug fixes, tests, doc
 ## Dependencies
 
 Core runtime dependencies include FastAPI, Uvicorn, HTTPX, BeautifulSoup, lxml, Pydantic, SQLAlchemy, Alembic, Redis support, and Rich. WeasyPrint is optional for PDF generation.
+
+---
+
+## Frequently Asked Questions
+
+### What is an SEO Intelligence Engine?
+
+It is a self-hosted application for analyzing technical SEO, content, site architecture, search rankings, SERP signals, entities, competitors, and related search-visibility evidence.
+
+### Does it analyze Google AI Overviews (AIO)?
+
+It supports provider-backed AIO visibility analysis when a compatible provider is configured and the required input data is available. It does not claim universal access to every Google AI Overview result.
+
+### What is GEO in this project?
+
+GEO means **Generative Engine Optimization**: analyzing and improving visibility or representation in generative AI and LLM-backed search experiences. GEO analysis in this project is provider-dependent rather than a promise of universal coverage across every AI system.
+
+### Is an LLM required for SEO analysis?
+
+No. The core site and SEO workflow is designed to operate without an LLM. AIO/GEO capabilities may require compatible external providers.
+
+### Is this a hosted SEO SaaS?
+
+No. This repository provides a self-hosted application. Hosting, credentials, HTTPS, backups, monitoring, and external provider accounts remain the operator's responsibility.
+
+### Can I use it for competitor SEO analysis?
+
+Yes, the application includes competitor ranking comparison and related search-intelligence capabilities when the configured providers supply the required data.
 
 ---
 
