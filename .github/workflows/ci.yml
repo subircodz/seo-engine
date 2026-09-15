@@ -106,8 +106,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Prepare CI production environment file
+        run: cp .env.production.example .env.production
+
       - name: Validate production Compose configuration
-        run: docker compose --env-file .env.production.example -f docker-compose.production.yml config --quiet
+        run: docker compose -f docker-compose.production.yml config --quiet
 
       - name: Build production image
         run: docker build --pull -t seo-intelligence-engine:ci .
