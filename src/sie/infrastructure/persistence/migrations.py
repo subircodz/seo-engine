@@ -13,7 +13,7 @@ from an installed wheel where the migration files are not present).
 import os
 from pathlib import Path
 
-from sie.logging import get_logger
+from sie.log_config import get_logger
 
 logger = get_logger(__name__)
 
