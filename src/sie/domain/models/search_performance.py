@@ -148,6 +148,58 @@ class PerformanceResult:
     performance_score: float = 0.0
     """Overall performance score (0.0-1.0, higher is better)."""
 
+    def get(self, key: str, default=None):
+        """Expose page fields through the mapping interface used by aggregators.
+
+        This keeps the result object interoperable with the dictionary-shaped
+        performance engine API without converting immutable domain objects to
+        temporary dictionaries.
+        """
+        values = {
+            "url": self.url,
+            "html_size": self.metrics.html_size_bytes,
+            "visible_text": "" * self.metrics.visible_text_length,
+            "heading_count": self.metrics.heading_count,
+            "link_count": self.metrics.link_count,
+            "image_count": self.metrics.image_count,
+            "images_without_alt": self.metrics.images_without_alt,
+            "css_count": next(
+                (m.count for m in self.metrics.resource_metrics if m.resource_type == "css"),
+                0,
+            ),
+            "css_total_bytes": next(
+                (
+                    m.total_size_bytes
+                    for m in self.metrics.resource_metrics
+                    if m.resource_type == "css"
+                ),
+                0,
+            ),
+            "js_count": next(
+                (m.count for m in self.metrics.resource_metrics if m.resource_type == "js"),
+                0,
+            ),
+            "js_total_bytes": next(
+                (
+                    m.total_size_bytes
+                    for m in self.metrics.resource_metrics
+                    if m.resource_type == "js"
+                ),
+                0,
+            ),
+            "image_total_bytes": next(
+                (
+                    m.total_size_bytes
+                    for m in self.metrics.resource_metrics
+                    if m.resource_type == "image"
+                ),
+                0,
+            ),
+            "inline_css_bytes": 0,
+            "inline_js_bytes": 0,
+        }
+        return values.get(key, default)
+
 
 @dataclass(frozen=True, slots=True)
 class PerformanceDatasetMetrics:
