@@ -91,7 +91,15 @@ class HttpxCrawlerEngine:
         self._limiter = PerHostRateLimiter(rate_limit_per_host)
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._max_workers = max_concurrency
-        self._robots = RobotsGate(fetcher, user_agent=user_agent) if respect_robots_txt else None
+        self._robots = (
+            RobotsGate(
+                fetcher,
+                user_agent=user_agent,
+                max_cache_entries=visited_cache_size,
+            )
+            if respect_robots_txt
+            else None
+        )
         self._follow_cross_origin = follow_cross_origin
         self._visited_cache_size = visited_cache_size
         self._state: _RunState | None = None
@@ -210,11 +218,16 @@ class HttpxCrawlerEngine:
 
     @staticmethod
     def _enqueue(state: _RunState, candidates: Sequence[tuple[str, int, str | None]]) -> None:
+        """Deduplicate and enqueue at most the remaining page budget."""
         assert state.visited is not None
+        remaining = max(0, state.policy.max_pages - state.discovered)
         for url, depth, parent_url in candidates:
+            if remaining == 0:
+                break
             if state.visited.add(url):
                 state.frontier.append((url, depth, parent_url))
                 state.discovered += 1
+                remaining -= 1
         state.wake.set()
 
     @staticmethod

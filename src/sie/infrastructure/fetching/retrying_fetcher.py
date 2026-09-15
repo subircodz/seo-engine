@@ -25,7 +25,7 @@ def _retry_after_seconds(page: FetchedPage) -> float:
     header_value = (page.headers.get("Retry-After") or "").strip()
     if header_value.isdigit():
         try:
-            return float(header_value)
+            return min(float(header_value), _MAX_BACKOFF)
         except ValueError:
             pass
     return 0.0

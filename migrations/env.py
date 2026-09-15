@@ -35,12 +35,25 @@ def _database_url() -> str:
     return url
 
 
+def _include_object(object_, name, type_, reflected, compare_to):
+    """Keep DB-only legacy/raw tables from being treated as removals.
+
+    Some persisted tables are intentionally managed by raw SQL or retained as
+    legacy data and therefore are not represented in the ORM metadata. They
+    must not be dropped merely because Alembic autogenerate cannot see them.
+    Any intentional destructive schema change should be represented explicitly
+    by a migration instead.
+    """
+    return not (type_ == "table" and reflected and compare_to is None)
+
+
 def _configure(connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
         render_as_batch=True,
         compare_type=True,
+        include_object=_include_object,
     )
 
 
@@ -61,6 +74,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         render_as_batch=True,
+        include_object=_include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

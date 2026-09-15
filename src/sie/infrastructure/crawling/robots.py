@@ -8,9 +8,10 @@ Behaviour per RFC guidance:
 """
 
 import time
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
 from sie.domain.errors import FetchError
@@ -18,6 +19,7 @@ from sie.domain.ports.fetching import Fetcher
 
 _FRESH_TTL_SECONDS = 3600.0
 _ERROR_TTL_SECONDS = 60.0
+_DEFAULT_MAX_CACHE_ENTRIES = 10_000
 
 
 @dataclass(slots=True)
@@ -30,7 +32,11 @@ class _RobotsEntry:
 
 
 class RobotsGate:
-    """Caches one robots.txt decision set per host for the process lifetime."""
+    """Caches one robots.txt decision set per origin for the process lifetime.
+
+    The cache is bounded because a cross-origin crawl can otherwise accumulate
+    one entry for every visited host across repeated runs.
+    """
 
     def __init__(
         self,
@@ -38,11 +44,15 @@ class RobotsGate:
         *,
         user_agent: str,
         clock: Callable[[], float] = time.monotonic,
+        max_cache_entries: int = _DEFAULT_MAX_CACHE_ENTRIES,
     ) -> None:
+        if max_cache_entries < 1:
+            raise ValueError("max_cache_entries must be positive")
         self._fetcher = fetcher
         self._user_agent = user_agent
         self._clock = clock
-        self._entries: dict[str, _RobotsEntry] = {}
+        self._max_cache_entries = max_cache_entries
+        self._entries: OrderedDict[str, _RobotsEntry] = OrderedDict()
 
     async def allowed(self, url: str) -> bool:
         entry = await self._entry_for(url)
@@ -58,14 +68,20 @@ class RobotsGate:
         return entry.crawl_delay
 
     async def _entry_for(self, url: str) -> _RobotsEntry:
-        host = (urlsplit(url).hostname or "").lower()
-        scheme = urlsplit(url).scheme or "https"
-        cached = self._entries.get(host)
+        parts = urlsplit(url)
+        scheme = parts.scheme or "https"
+        netloc = parts.netloc.lower()
+        cache_key = f"{scheme}://{netloc}"
+        cached = self._entries.get(cache_key)
         now = self._clock()
         if cached is not None and cached.expires_at > now:
+            self._entries.move_to_end(cache_key)
             return cached
-        entry = await self._fetch_entry(f"{scheme}://{host}/robots.txt")
-        self._entries[host] = entry
+        entry = await self._fetch_entry(urlunsplit((scheme, netloc, "/robots.txt", "", "")))
+        self._entries[cache_key] = entry
+        self._entries.move_to_end(cache_key)
+        while len(self._entries) > self._max_cache_entries:
+            self._entries.popitem(last=False)
         return entry
 
     async def _fetch_entry(self, robots_url: str) -> _RobotsEntry:
