@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import re
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -48,13 +49,15 @@ from sie.infrastructure.persistence.repositories import SqlAlchemyCrawlRunReposi
 from sie.logging import get_logger, set_request_id, setup_logging
 
 logger = get_logger(__name__)
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Middleware to generate and track request IDs for correlation."""
+    """Generate and track bounded, log-safe request IDs for correlation."""
 
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        candidate = request.headers.get("X-Request-ID")
+        request_id = candidate if candidate and _REQUEST_ID_PATTERN.fullmatch(candidate) else str(uuid.uuid4())
         set_request_id(request_id)
         request.state.request_id = request_id
         try:
@@ -63,6 +66,21 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             set_request_id(None)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Apply security headers at the application boundary."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers.pop("Server", None)
+        if request.app.state.settings.is_production:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
 
 
 def _log_event_factory():
@@ -256,6 +274,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
     )
+    app.state.settings = settings
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
