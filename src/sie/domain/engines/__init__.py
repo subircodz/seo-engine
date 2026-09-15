@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import sie.domain.engines.search_entity as _search_entity
 from sie.domain.engines.content_comparison import compare_content, find_duplicate_groups
 from sie.domain.engines.content_intelligence import analyze_content, analyze_content_batch
 from sie.domain.engines.diagnosis import run_diagnosis
@@ -57,7 +58,6 @@ from sie.domain.engines.technical_seo import run_technical_audit
 # Backward-compatible adapter for the site-analysis orchestration layer.
 # The canonical entity engine exposes ``extract_entities_from_content`` and
 # EntitySignal fields; site analysis historically consumed a richer shape.
-from sie.domain.engines import search_entity as _search_entity
 
 
 def _extract_entities_compat(text: str):
