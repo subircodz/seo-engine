@@ -1,5 +1,7 @@
 """Analysis engines (deterministic, no I/O)."""
 
+from types import SimpleNamespace
+
 from sie.domain.engines.content_comparison import compare_content, find_duplicate_groups
 from sie.domain.engines.content_intelligence import analyze_content, analyze_content_batch
 from sie.domain.engines.diagnosis import run_diagnosis
@@ -52,12 +54,25 @@ from sie.domain.engines.search_performance import (
 from sie.domain.engines.search_report import generate_intelligence_report
 from sie.domain.engines.technical_seo import run_technical_audit
 
-# Backward-compatible name used by the site-analysis orchestration layer.
-# Keep the canonical implementation named ``extract_entities_from_content``.
+# Backward-compatible adapter for the site-analysis orchestration layer.
+# The canonical entity engine exposes ``extract_entities_from_content`` and
+# EntitySignal fields; site analysis historically consumed a richer shape.
 from sie.domain.engines import search_entity as _search_entity
 
-if not hasattr(_search_entity, "extract_entities"):
-    _search_entity.extract_entities = extract_entities_from_content
+
+def _extract_entities_compat(text: str):
+    return [
+        SimpleNamespace(
+            name=entity.text,
+            category=entity.category,
+            wikipedia_url=None,
+            wikidata_id=None,
+        )
+        for entity in extract_entities_from_content(text)
+    ]
+
+
+_search_entity.extract_entities = _extract_entities_compat
 
 __all__ = [
     "analyze_casino_content",
