@@ -2,34 +2,40 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python: 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-[![Status: Deployment Ready](https://img.shields.io/badge/Status-Deployment_Ready-green.svg)]()
+[![Status: Validated](https://img.shields.io/badge/Status-Validated-green.svg)]()
 
 ---
 
-## 🌟 What Is This?
+## What Is This?
 
-**SEO Intelligence Engine** is a self-hosted platform for technical SEO, search-ranking intelligence, AI Overview (AIO), and Generative Engine Optimization (GEO) analysis.
+**SEO Intelligence Engine** is a self-hosted application for technical SEO, search-ranking intelligence, AI Overview (AIO), and Generative Engine Optimization (GEO) analysis.
 
-It collects search and site data, stores evidence, runs deterministic analysis, and presents findings through a web UI and professional PDF reports. LLM-based enhancement is optional; core analysis does not require an LLM.
+It collects site and search data, stores evidence, runs analysis engines, and presents findings through a web UI, API, and PDF reports. LLM-based analysis is optional for the core SEO workflow; AIO/GEO provider-backed analysis requires the corresponding provider configuration.
 
-### Core capabilities
+### Current capabilities
 
-- Live search and ranking collection through configurable providers
-- Technical SEO and site analysis
-- Content-quality and site-architecture analysis
-- Cannibalization, volatility, opportunity, and SERP-feature analysis
-- AIO/GEO visibility analysis
+- Site crawling with request, redirect, response-size, robots, and SSRF guardrails
+- Technical SEO analysis
+- Content-quality analysis
+- Site-architecture and link analysis
+- Keyword and search-ranking collection through configurable providers
+- Search-intelligence analysis including cannibalization, volatility, opportunities, and SERP features
+- Entity analysis
 - Country-wise ranking analysis
+- Competitor ranking comparison
 - Industry-specific intelligence
+- AIO visibility analysis when a compatible provider is configured
+- GEO visibility analysis when a compatible LLM/provider is configured
 - Evidence-backed findings and prioritized recommendations
-- Web UI and PDF reporting
+- Web UI, HTTP API, and PDF reporting
 - SQLite for development and PostgreSQL for production
-- Durable background jobs with database-backed ownership/leases
-- SSRF, redirect, DNS, response-size, and request-limit guardrails
+- Durable database-backed background jobs with at-least-once execution semantics
+
+The application is designed to produce analysis from real site/search inputs. Provider-dependent features require valid provider configuration and suitable input data; this repository does not claim universal coverage of every search engine, AI answer surface, or external data source.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
                          ┌─────────────────────┐
@@ -52,18 +58,18 @@ It collects search and site data, stores evidence, runs deterministic analysis, 
 
 1. **Domain-first** — business logic is separated from infrastructure.
 2. **Protocol-based** — external providers can be replaced without rewriting the domain layer.
-3. **Deterministic by default** — core intelligence is reproducible and does not require an LLM.
-4. **Evidence-backed** — findings retain their supporting data.
+3. **Deterministic where applicable** — core site and SEO analysis does not require an LLM.
+4. **Evidence-backed** — findings retain supporting data used by the analysis workflow.
 5. **Fail closed in production** — unsafe production configuration is rejected at startup.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Python 3.12+
-- A search-provider API key for real search data
+- A search-provider API key when real search data is required
 - WeasyPrint system dependencies if PDF generation is required
 
 ### Install
@@ -77,7 +83,7 @@ pip install -e '.[dev,weasyprint]'
 cp .env.example .env
 ```
 
-Configure the provider in `.env`, then run:
+Configure the required providers in `.env`, then run:
 
 ```bash
 python -m sie
@@ -87,7 +93,7 @@ Open `http://127.0.0.1:8000`.
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 All runtime configuration uses the `SIE_` prefix. Nested settings use `__`.
 
@@ -112,9 +118,11 @@ Production enforces these guardrails:
 
 ---
 
-## 🐳 Production Deployment
+## Production Deployment
 
-The repository includes a production Dockerfile and Compose deployment.
+The repository includes a production Dockerfile and Compose deployment configuration.
+
+A deployment is **not** provided as a hosted service by this repository. Operators are responsible for hosting, secrets, HTTPS termination, backups, monitoring, and database operations.
 
 ### Production checklist
 
@@ -154,7 +162,7 @@ For the complete deployment procedure, backups, HTTPS requirements, update proce
 
 ---
 
-## 🔧 Development
+## Development
 
 ### Project structure
 
@@ -176,11 +184,11 @@ alembic upgrade head
 alembic check
 ```
 
-CI validates Python 3.12 and 3.13, compilation, Ruff, tests, Alembic migrations, production Compose configuration, and the production container build.
+CI validates Python 3.12 and 3.13, compilation, Ruff, the test suite, Alembic migrations, production Compose configuration, and the production container build.
 
 ---
 
-## 🔐 Security Notes
+## Security
 
 The crawler applies SSRF and redirect protections, robots-policy handling, request limits, and a hard response-size ceiling. Production configuration also fails fast on unsafe local defaults.
 
@@ -188,34 +196,38 @@ DNS validation is performed before outbound requests, but the current HTTP clien
 
 Durable job leases prevent stale workers from overwriting active ownership, but a process crash can still result in duplicate execution after lease expiry. The queue therefore provides **at-least-once**, not exactly-once, execution semantics.
 
-Report security vulnerabilities privately rather than posting exploit details in a public issue.
+Please see [`SECURITY.md`](SECURITY.md) for private vulnerability reporting instructions. Security vulnerabilities should **not** be reported through public issues, discussions, or pull requests.
 
 ---
 
-## 📦 Dependencies
+## Contributing
+
+Contributions are welcome, especially feature development, bug fixes, tests, documentation, and engineering improvements.
+
+- Use GitHub issues and discussions for feature ideas, questions, design discussions, and general development conversations.
+- Pull requests are welcome for normal feature and development work.
+- **Do not submit security vulnerabilities as public issues, discussions, or pull requests.** Follow [`SECURITY.md`](SECURITY.md) and email `subirthecoder35@gmail.com` instead.
+- For feature development or other project discussions, opening an issue or discussion before substantial work is encouraged so the direction can be agreed on early.
+
+---
+
+## Dependencies
 
 Core runtime dependencies include FastAPI, Uvicorn, HTTPX, BeautifulSoup, lxml, Pydantic, SQLAlchemy, Alembic, Redis support, and Rich. WeasyPrint is optional for PDF generation.
 
 ---
 
-## 📜 License
+## License
 
 **Apache License 2.0**. See [`LICENSE`](LICENSE) for the complete license text.
 
 ---
 
-## 📊 Status
+## Project status
 
-| Component | Status |
-|-----------|--------|
-| Core Intelligence | ✅ Ready |
-| Web UI | ✅ Ready |
-| PDF Reports | ✅ Ready |
-| Search Provider Integration | ✅ Ready |
-| Industry Intelligence | ✅ Ready |
-| AIO/GEO Analysis | ✅ Ready |
-| Production Container | ✅ Validated by CI |
-| Production Deployment | ⏳ Requires hosting/secrets/domain setup |
+The application and its production-oriented CI checks are validated on Python 3.12 and 3.13. The repository is suitable for further development and self-hosted deployment, subject to the operator completing the production checklist and configuring the required external providers.
+
+The project is actively open to feature development, engineering discussion, and contributions.
 
 ---
 
