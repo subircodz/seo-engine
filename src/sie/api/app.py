@@ -57,7 +57,10 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         candidate = request.headers.get("X-Request-ID")
-        request_id = candidate if candidate and _REQUEST_ID_PATTERN.fullmatch(candidate) else str(uuid.uuid4())
+        if candidate and _REQUEST_ID_PATTERN.fullmatch(candidate):
+            request_id = candidate
+        else:
+            request_id = str(uuid.uuid4())
         set_request_id(request_id)
         request.state.request_id = request_id
         try:
