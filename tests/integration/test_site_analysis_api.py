@@ -2,7 +2,12 @@
 
 from sie.domain.models.page import FetchedPage
 from sie.domain.models.search_aio import AIOCitation, AIOverviewObservation, AIOverviewType
-from sie.domain.models.search_geo import EntityMention, EntityType, GEOObservation, GenerativeEngineType
+from sie.domain.models.search_geo import (
+    EntityMention,
+    EntityType,
+    GenerativeEngineType,
+    GEOObservation,
+)
 from sie.domain.models.search_result import SearchResult, SearchResultItem
 from sie.domain.services.evidence_aware_site_analysis import EvidenceAwareSiteAnalysisService
 from sie.domain.services.site_analysis import create_site_analysis_service
