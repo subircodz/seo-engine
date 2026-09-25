@@ -6,7 +6,7 @@
 
 ## 1. Product Direction
 
-SEO Intelligence Engine (SIE) is a self-hosted **SEO + AIO + GEO intelligence platform**.
+SEO Intelligence Engine (SIE) is a self-hosted **SEO + AEO + GEO intelligence platform**.
 
 The long-term direction is to make search-visibility analysis more evidence-backed, composable, historical, and actionable across traditional search and AI-search surfaces.
 
@@ -30,7 +30,7 @@ The following capabilities are implemented in the current `main` branch:
 ### Search intelligence
 
 - Search-provider abstraction.
-- Capability-based provider registry for rankings, AIO, and GEO.
+- Capability-based provider registry for rankings, AEO, and GEO.
 - Search-ranking collection and persistence.
 - SERP feature analysis.
 - Ranking volatility analysis.
@@ -39,20 +39,20 @@ The following capabilities are implemented in the current `main` branch:
 - Country-wise ranking analysis.
 - Competitor ranking comparison.
 
-### AIO and GEO
+### AEO and GEO
 
-- AIO models and deterministic analytics.
-- SerpAPI-backed AIO extraction when configured.
+- AEO models and deterministic analytics.
+- SerpAPI-backed AEO extraction when configured.
 - GEO models and deterministic analytics.
 - OpenAI-compatible LLM-backed GEO provider.
-- AIO/GEO observation persistence.
-- Historical AIO/GEO trend calculations.
-- AIO/GEO inputs available to search-intelligence and optimization workflows.
+- AEO/GEO observation persistence.
+- Historical AEO/GEO trend calculations.
+- AEO/GEO inputs available to search-intelligence and optimization workflows.
 
 ### Cross-engine recommendations
 
 - Deterministic cross-engine optimization synthesis.
-- Recommendations covering ranking, cannibalization, volatility, SERP features, opportunities, AIO, GEO, performance, and entities.
+- Recommendations covering ranking, cannibalization, volatility, SERP features, opportunities, AEO, GEO, performance, and entities.
 - Priority scoring and recommendation summaries.
 - Site Analysis integrates the optimization synthesis into the analysis result.
 
@@ -95,13 +95,13 @@ These are intentionally **not** presented as completed capabilities:
 
 ### Priority 1 — Provider and capability maturity
 
-- Add additional search/AIO/GEO providers behind the existing provider abstraction.
+- Add additional search/AEO/GEO providers behind the existing provider abstraction.
 - Improve capability discovery and provider-health reporting.
 - Make provider limitations visible in analysis results instead of silently degrading.
 
 ### Priority 2 — Historical search intelligence
 
-- Extend historical storage and comparison beyond AIO/GEO observations.
+- Extend historical storage and comparison beyond AEO/GEO observations.
 - Add time-series views for rankings, visibility, opportunities, and competitor movement.
 - Add trend and change detection to reports.
 
