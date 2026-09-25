@@ -258,6 +258,20 @@ class LimitSettings(SecretSafeModel):
     max_geo_observations: int = Field(default=1000, ge=1)
 
 
+class MigrationSettings(BaseSettings):
+    """Minimal settings used by Alembic without enforcing runtime safety rules."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="SIE_",
+        env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    database_url: str = Field(default="sqlite+aiosqlite:///./sie.db", repr=False)
+
+
 class Settings(BaseSettings):
     """Root configuration object. Construct directly (with overrides) in tests."""
 
