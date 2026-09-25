@@ -8,7 +8,7 @@
             size: A4;
             margin: 2cm 1.8cm 2.5cm 1.8cm;
             @top-left {
-                content: "SEO · AIO · GEO Intelligence Engine";
+                content: "SEO · AEO · GEO Intelligence Engine";
                 font-size: 7.5pt;
                 color: #94a3b8;
                 font-family: "Helvetica Neue", Arial, sans-serif;
@@ -389,7 +389,7 @@
      COVER PAGE
      ════════════════════════════════════════════════════════════════════════ -->
 <div class="cover">
-    <div class="cover-badge">SEO · AIO · GEO Intelligence Engine</div>
+    <div class="cover-badge">SEO · AEO · GEO Intelligence Engine</div>
     <h1>Intelligence <strong>Report</strong></h1>
     <div class="domain-display">{{ domain }}</div>
 
@@ -434,7 +434,7 @@
             ('Content Quality', content_score),
             ('Search Rankings', ranking_score),
             ('Architecture', architecture_score),
-            ('AIO', aio_score),
+            ('AEO', aio_score),
             ('GEO', geo_score),
         ] %}
         {% for label, score in score_data %}
@@ -469,7 +469,7 @@
         <p><strong>Bypass Attempted:</strong> Yes — {{ access_status.bypass_methods_used | join(', ') }}</p>
         <p><strong>Bypass Succeeded:</strong> {{ 'Yes' if access_status.bypass_succeeded else 'No' }}</p>
         {% endif %}
-        <p style="margin-top: 12px; font-style: italic;">The underlying website could not be reliably accessed. No SEO, content, ranking, AIO, or GEO conclusions were generated from the challenge/interstitial page.</p>
+        <p style="margin-top: 12px; font-style: italic;">The underlying website could not be reliably accessed. No SEO, content, ranking, AEO, or GEO conclusions were generated from the challenge/interstitial page.</p>
     </div>
     {% else %}
 
@@ -519,7 +519,7 @@
             </li>
             {% endif %}
             {% if aio %}
-            <li><strong>AIO ({{ "%.0f"|format(aio_score) }}/100):</strong>
+            <li><strong>AEO ({{ "%.0f"|format(aio_score) }}/100):</strong>
                 {{ aio.keywords_checked }} keywords checked. {{ aio.ai_overviews_present }} have AI Overviews.
                 {% if aio.target_cited_count > 0 %}Site cited {{ aio.target_cited_count }}x. {% else %}Site NOT cited. {% endif %}
             </li>
@@ -650,7 +650,7 @@
                 ('Content Quality', content_score, 'Word count, thin content, duplicates, headings, meta descriptions, readability'),
                 ('Search Rankings', ranking_score, 'Keyword visibility, top-10 presence, estimated organic traffic'),
                 ('Site Architecture', architecture_score, 'Internal linking, page depth, orphan pages, PageRank distribution'),
-                ('AI Overview (AIO)', aio_score, 'AI Overview citation rate, presence across target keywords'),
+                ('Answer Engine Optimization (AEO)', aio_score, 'AI Overview citation rate, presence across target keywords'),
                 ('Generative Engine (GEO)', geo_score, 'Mention rate in AI engines, competitor presence'),
             ] %}
             {% for name, score, description in dims %}
@@ -1018,11 +1018,11 @@
 {% endif %}
 
 <!-- ════════════════════════════════════════════════════════════════════════
-     AIO ANALYSIS — PER-QUERY DETAILS
+     AEO ANALYSIS — PER-QUERY DETAILS
      ════════════════════════════════════════════════════════════════════════ -->
 {% if aio %}
 <div class="page page-break">
-    <h2>AI Overview (AIO) — Detailed Analysis</h2>
+    <h2>Answer Engine Optimization (AEO) — Detailed Analysis</h2>
 
     <div class="evidence-box">
         <div class="label">Detection Methodology</div>
@@ -1049,7 +1049,7 @@
         </div>
     </div>
 
-    <!-- Per-Query AIO Table -->
+    <!-- Per-Query AEO Table -->
     {% if aio.query_details %}
     <h3>Per-Query AI Overview Evidence</h3>
     <table>
@@ -1207,7 +1207,7 @@
         <div class="finding-body">
             <div class="metrics-grid" style="margin: 8px 0;">
                 <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.seo_score) }}</div><div class="metric-label">SEO</div></div>
-                <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.aio_score) }}</div><div class="metric-label">AIO</div></div>
+                <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.aio_score) }}</div><div class="metric-label">AEO</div></div>
                 <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ "%.0f"|format(cr.geo_score) }}</div><div class="metric-label">GEO</div></div>
                 <div class="metric-card" style="min-width: 70px; padding: 8px;"><div class="metric-value" style="font-size: 14pt;">{{ cr.keywords_ranking }}</div><div class="metric-label">Keywords</div></div>
             </div>
@@ -1327,7 +1327,7 @@
      FOOTER / METHODOLOGY
      ════════════════════════════════════════════════════════════════════════ -->
 <div class="report-footer" style="page-break-before: auto;">
-    <p><strong>SEO · AIO · GEO Intelligence Engine</strong> — Site Analysis Report</p>
+    <p><strong>SEO · AEO · GEO Intelligence Engine</strong> — Site Analysis Report</p>
     {% if report_metadata %}
     <p><strong>Domain:</strong> {{ domain }} · <strong>Analysis Date:</strong> {{ report_metadata.analysis_date }} · <strong>Duration:</strong> {{ report_metadata.analysis_duration_seconds }}s</p>
     {% else %}
