@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "seo-intelligence-engine"
 dynamic = ["version"]
-description = "Evidence-backed SEO, AI Overview (AIO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis."
+description = "Evidence-backed SEO, Answer Engine Optimization (AEO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Subir Sutradhar" }]
