@@ -1,6 +1,6 @@
 # SEO Intelligence Engine
 
-> Self-hosted, evidence-backed SEO, AI Overview (AIO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis.
+> Self-hosted, evidence-backed SEO, Answer Engine Optimization (AEO), and Generative Engine Optimization (GEO) intelligence engine for search visibility analysis.
 
 ## Project identity
 
@@ -34,9 +34,9 @@ SEO Intelligence Engine collects site and search data, stores evidence, runs ana
 - Performance signals
 - Evidence-backed recommendations
 
-### AIO capabilities
+### AEO capabilities
 
-AIO means AI Overview / AI answer visibility. The application supports provider-backed AIO visibility analysis when a compatible provider is configured and suitable input data is available.
+AEO means AI Overview / AI answer visibility. The application supports provider-backed AEO visibility analysis when a compatible provider is configured and suitable input data is available.
 
 ### GEO capabilities
 
@@ -45,7 +45,7 @@ GEO means Generative Engine Optimization. The application supports provider/LLM-
 ## Important scope limits
 
 - Core SEO analysis does not require an LLM.
-- AIO and GEO analysis are provider-dependent.
+- AEO and GEO analysis are provider-dependent.
 - The project does not claim universal coverage of every search engine, AI answer surface, or external data source.
 - The repository is not a hosted SaaS service.
 
@@ -57,7 +57,7 @@ The system emphasizes domain separation, replaceable provider protocols, determi
 
 ## Intended use
 
-Useful for technical SEO audits, SEO crawler workflows, search-ranking intelligence, competitor SEO research, AI Overview visibility research, Generative Engine Optimization research, entity SEO analysis, site architecture analysis, and evidence-backed optimization recommendations.
+Useful for technical SEO audits, SEO crawler workflows, search-ranking intelligence, competitor SEO research, Answer Engine Optimization (AEO) visibility research, Generative Engine Optimization research, entity SEO analysis, site architecture analysis, and evidence-backed optimization recommendations.
 
 ## Key documentation
 
