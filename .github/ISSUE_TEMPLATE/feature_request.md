@@ -17,7 +17,7 @@ assignees: ''
 
 **Affected SIE area**
 - SEO
-- AIO
+- AEO
 - GEO
 - Crawling
 - SERP
