@@ -1,1 +1,87 @@
-"""Alembic env.py (synchronous migration runner).\n\nMigrations deliberately use *sync* database URLs (e.g. ``sqlite://`` instead of\n``sqlite+aiosqlite://``) so they can execute identically from the Alembic CLI\nand from inside a running asyncio event loop (auto-migrate on app startup),\nwhere spawning a nested event loop is not possible.\n"""\n\nimport os\nfrom logging.config import fileConfig\n\nfrom alembic import context\nfrom sqlalchemy import engine_from_config, pool\n\nfrom sie.config import MigrationSettings\nfrom sie.infrastructure.models import crawl_orm  # noqa: F401  (registers mappers)\nfrom sie.infrastructure.persistence.database import Base\n\nconfig = context.config\nif config.config_file_name is not None:\n    fileConfig(config.config_file_name, disable_existing_loggers=False)\n\ntarget_metadata = Base.metadata\n\n_ASYNC_TO_SYNC_DRIVERS = {\n    "sqlite+aiosqlite": "sqlite",\n    "postgresql+asyncpg": "postgresql+psycopg2",\n}\n\n\ndef _database_url() -> str:\n    url = (\n        os.environ.get("SIE_DATABASE_URL")\n        or config.get_main_option("sqlalchemy.url")\n        or MigrationSettings().database_url\n    )\n    for async_driver, sync_driver in _ASYNC_TO_SYNC_DRIVERS.items():\n        if url.startswith(f"{async_driver}:"):\n            return f"{sync_driver}:{url.split(':', 1)[1]}"\n    return url\n\n\ndef _include_object(object_, name, type_, reflected, compare_to):\n    """Keep DB-only legacy/raw tables from being treated as removals.\n\n    Some persisted tables are intentionally managed by raw SQL or retained as\n    legacy data and therefore are not represented in the ORM metadata. They\n    must not be dropped merely because Alembic autogenerate cannot see them.\n    Any intentional destructive schema change should be represented explicitly\n    by a migration instead.\n    """\n    return not (type_ == "table" and reflected and compare_to is None)\n\n\ndef _configure(connection) -> None:\n    context.configure(\n        connection=connection,\n        target_metadata=target_metadata,\n        render_as_batch=True,\n        compare_type=True,\n        include_object=_include_object,\n    )\n\n\ndef run_migrations_online() -> None:\n    section = config.get_section(config.config_ini_section, {})\n    section["sqlalchemy.url"] = _database_url()\n    connectable = engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)\n    with connectable.connect() as connection:\n        _configure(connection)\n        with connection.begin():\n            context.run_migrations()\n    connectable.dispose()\n\n\ndef run_migrations_offline() -> None:\n    context.configure(\n        url=_database_url(),\n        target_metadata=target_metadata,\n        literal_binds=True,\n        render_as_batch=True,\n        include_object=_include_object,\n    )\n    with context.begin_transaction():\n        context.run_migrations()\n\n\nif context.is_offline_mode():\n    run_migrations_offline()\nelse:\n    run_migrations_online()\n
+"""Alembic env.py (synchronous migration runner).
+
+Migrations deliberately use *sync* database URLs (e.g. ``sqlite://`` instead of
+``sqlite+aiosqlite://``) so they can execute identically from the Alembic CLI
+and from inside a running asyncio event loop (auto-migrate on app startup),
+where spawning a nested event loop is not possible.
+"""
+
+import os
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+from sie.config import MigrationSettings
+from sie.infrastructure.models import crawl_orm  # noqa: F401  (registers mappers)
+from sie.infrastructure.persistence.database import Base
+
+config = context.config
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
+
+target_metadata = Base.metadata
+
+_ASYNC_TO_SYNC_DRIVERS = {
+    "sqlite+aiosqlite": "sqlite",
+    "postgresql+asyncpg": "postgresql+psycopg2",
+}
+
+
+def _database_url() -> str:
+    url = (\n        os.environ.get("SIE_DATABASE_URL")\n        or config.get_main_option("sqlalchemy.url")\n        or MigrationSettings().database_url\n    )
+    for async_driver, sync_driver in _ASYNC_TO_SYNC_DRIVERS.items():
+        if url.startswith(f"{async_driver}:"):
+            return f"{sync_driver}:{url.split(':', 1)[1]}"
+    return url
+
+
+def _include_object(object_, name, type_, reflected, compare_to):
+    """Keep DB-only legacy/raw tables from being treated as removals.
+
+    Some persisted tables are intentionally managed by raw SQL or retained as
+    legacy data and therefore are not represented in the ORM metadata. They
+    must not be dropped merely because Alembic autogenerate cannot see them.
+    Any intentional destructive schema change should be represented explicitly
+    by a migration instead.
+    """
+    return not (type_ == "table" and reflected and compare_to is None)
+
+
+def _configure(connection) -> None:
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=True,
+        compare_type=True,
+        include_object=_include_object,
+    )
+
+
+def run_migrations_online() -> None:
+    section = config.get_section(config.config_ini_section, {})
+    section["sqlalchemy.url"] = _database_url()
+    connectable = engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool)
+    with connectable.connect() as connection:
+        _configure(connection)
+        with connection.begin():
+            context.run_migrations()
+    connectable.dispose()
+
+
+def run_migrations_offline() -> None:
+    context.configure(
+        url=_database_url(),
+        target_metadata=target_metadata,
+        literal_binds=True,
+        render_as_batch=True,
+        include_object=_include_object,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
