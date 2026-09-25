@@ -1,4 +1,4 @@
-"""Search Intelligence Engine -- unified SEO, AIO, and GEO intelligence platform."""
+"""Search Intelligence Engine -- unified SEO, AEO, and GEO intelligence platform."""
 
 from sie._version import __version__
 
