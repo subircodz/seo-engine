@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Site Analysis</h1>
-<p class="page-subtitle">Comprehensive SEO, AIO, and GEO intelligence for any website. Get actionable recommendations to dominate search results.</p>
+<p class="page-subtitle">Comprehensive SEO, AEO, and GEO intelligence for any website. Get actionable recommendations to dominate search results.</p>
 
 <div class="card glass fade-in" style="margin-bottom: 16px;">
     <h2>Analyze a Website</h2>
@@ -61,7 +61,7 @@
             <div class="grid grid-4" style="margin-top: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="input-deep-aio" name="deep_aio" checked>
-                    <label for="input-deep-aio" style="margin: 0; font-weight: 500;">Deep AI Overview (AIO) Analysis</label>
+                    <label for="input-deep-aio" style="margin: 0; font-weight: 500;">Deep Answer Engine Optimization (AEO) Analysis</label>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="input-deep-geo" name="deep_geo" checked>
@@ -107,7 +107,7 @@ function showLoadingSkeleton(domain){
         '<div class="progress-step done">Crawling</div>'+
         '<div class="progress-step active">Auditing</div>'+
         '<div class="progress-step">Rankings</div>'+
-        '<div class="progress-step">AIO/GEO</div>'+
+        '<div class="progress-step">AEO/GEO</div>'+
         '<div class="progress-step">Report</div>'+
         '</div>'+
         '<div style="padding:20px 0;text-align:center;">'+
@@ -297,7 +297,7 @@ function renderResults(data,c){
     html+=scoreRing('Content',data.content_score,getScoreColor(data.content_score),90);
     html+=scoreRing('Rankings',data.ranking_score,getScoreColor(data.ranking_score),90);
     html+=scoreRing('Architecture',data.architecture_score,getScoreColor(data.architecture_score),90);
-    html+=scoreRing('AIO',data.aio_score,getScoreColor(data.aio_score),90);
+    html+=scoreRing('AEO',data.aio_score,getScoreColor(data.aio_score),90);
     html+=scoreRing('GEO',data.geo_score,getScoreColor(data.geo_score),90);
     html+='</div></div>';
 
@@ -323,10 +323,10 @@ function renderResults(data,c){
         html+='</div>';
     }
 
-    // AIO
+    // AEO
     if(data.aio){
         var a=data.aio;
-        html+='<div class="card glass fade-in" style="border-left:4px solid #8b5cf6;"><h2>AI Overview (AIO) Analysis</h2>';
+        html+='<div class="card glass fade-in" style="border-left:4px solid #8b5cf6;"><h2>Answer Engine Optimization (AEO) Analysis</h2>';
         html+='<div class="grid grid-4" style="margin-top:12px;">';
         html+=statCard(a.keywords_checked,'Keywords Checked');
         html+=statCard(a.ai_overviews_present,'AIOs Present',a.ai_overviews_present>0?'success':'info');
@@ -335,7 +335,7 @@ function renderResults(data,c){
         html+='</div>';
         if(a.competitor_cited_count>0){html+='<p style="margin-top:12px;"><strong>Competitors Cited:</strong> '+a.competitor_cited_count+' times';if(a.competitor_domains_cited&&a.competitor_domains_cited.length>0){html+=' | <strong>Top:</strong> '+a.competitor_domains_cited.slice(0,5).join(', ');}html+='</p>';}
         if(a.top_opportunities&&a.top_opportunities.length>0){
-            html+='<h3 style="margin-top:16px;">AIO Citation Opportunities</h3>';
+            html+='<h3 style="margin-top:16px;">AEO Citation Opportunities</h3>';
             a.top_opportunities.slice(0,5).forEach(function(o){html+='<div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;padding:12px;margin-bottom:8px;"><strong>'+o.keyword+'</strong> - '+o.action;if(o.competitor_cited){html+=' <span class="badge badge-info">'+o.competitor_cited+' competitors cited</span>';}html+='</div>';});
         }
         html+='</div>';
@@ -481,7 +481,7 @@ function renderResults(data,c){
             html+='<span class="badge '+cc+'">'+cr.overall_score.toFixed(0)+'/100</span></div>';
             html+='<div class="grid grid-4" style="margin-bottom:12px;">';
             html+=statCard(cr.seo_score.toFixed(0),'SEO');
-            html+=statCard(cr.aio_score.toFixed(0),'AIO');
+            html+=statCard(cr.aio_score.toFixed(0),'AEO');
             html+=statCard(cr.geo_score.toFixed(0),'GEO');
             html+=statCard(cr.keywords_ranking,'Keywords Ranking');
             html+='</div>';
