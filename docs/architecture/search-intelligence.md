@@ -2,12 +2,12 @@
 
 ## Product boundary
 
-SIE is a **unified search intelligence platform**, not an SEO engine with AIO/GEO add-ons.
+SIE is a **unified search intelligence platform**, not an SEO engine with AEO/GEO add-ons.
 
 The three supported search-visibility surfaces are first-class:
 
 - **SEO** — traditional search visibility: rankings, SERP features, technical health, content, links, competitors, and search analytics.
-- **AIO** — AI Overview visibility: AI Overview presence, target citations, cited sources, competitors, and historical visibility.
+- **AEO** — AI Overview visibility: AI Overview presence, target citations, cited sources, competitors, and historical visibility.
 - **GEO** — generative-engine visibility: target/entity mentions, citations, competitors, answer context, and historical visibility across supported generative engines.
 
 ## Shared foundation
@@ -27,7 +27,7 @@ Web / Search / Generative observations
                 |
         Deterministic intelligence
                 |
-        SEO / AIO / GEO surfaces
+        SEO / AEO / GEO surfaces
                 |
         Cross-surface intelligence
                 |
@@ -48,7 +48,7 @@ Every surface therefore exposes an explicit status:
 - `COLLECTION_FAILED`
 - `STALE`
 
-A unified score, when requested, is calculated only from assessed surfaces. Unavailable AIO/GEO data must never reduce the SEO score or be represented as a midpoint/default.
+A unified score, when requested, is calculated only from assessed surfaces. Unavailable AEO/GEO data must never reduce the SEO score or be represented as a midpoint/default.
 
 ## Provider neutrality
 
@@ -60,18 +60,18 @@ A provider may be unavailable because credentials are absent, quota is exhausted
 
 The platform should be able to identify relationships such as:
 
-- ranking well in SEO but receiving poor AIO citation coverage;
+- ranking well in SEO but receiving poor AEO citation coverage;
 - ranking well in SEO but receiving poor GEO mention coverage;
-- competitors winning both AIO citations and GEO mentions;
+- competitors winning both AEO citations and GEO mentions;
 - queries where the target is absent from both AI Overviews and generative answers;
 - content/entity gaps that affect multiple search surfaces.
 
-These are cross-surface insights, not separate SEO/AIO/GEO products.
+These are cross-surface insights, not separate SEO/AEO/GEO products.
 
 ## Implementation boundary
 
 `SearchIntelligenceService` remains the existing deterministic search-analysis service for ranking/SERP intelligence and recommendation generation.
 
-`UnifiedSearchIntelligenceService` is the product-level facade that converts SEO, AIO, and GEO results into a common `UnifiedSearchVisibility` envelope. It performs no network I/O and never invents unavailable data.
+`UnifiedSearchIntelligenceService` is the product-level facade that converts SEO, AEO, and GEO results into a common `UnifiedSearchVisibility` envelope. It performs no network I/O and never invents unavailable data.
 
 The architecture deliberately keeps provider integrations optional so the platform can be developed and tested without every external API credential. Real credentials activate additional evidence; they do not change the domain model.
