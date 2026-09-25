@@ -12,6 +12,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from sie.config import Settings
 from sie.infrastructure.models import crawl_orm  # noqa: F401  (registers mappers)
 from sie.infrastructure.persistence.database import Base
 
@@ -28,7 +29,9 @@ _ASYNC_TO_SYNC_DRIVERS = {
 
 
 def _database_url() -> str:
-    url = os.environ.get("SIE_DATABASE_URL") or config.get_main_option("sqlalchemy.url") or ""
+    url = os.environ.get("SIE_DATABASE_URL") or Settings().database_url
+    if not url:
+        url = config.get_main_option("sqlalchemy.url") or ""
     for async_driver, sync_driver in _ASYNC_TO_SYNC_DRIVERS.items():
         if url.startswith(f"{async_driver}:"):
             return f"{sync_driver}:{url.split(':', 1)[1]}"
