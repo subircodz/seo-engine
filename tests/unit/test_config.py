@@ -208,3 +208,12 @@ def test_database_url_not_in_root_repr() -> None:
     settings = Settings(_env_file=None, database_url=database_url)
 
     assert database_url not in repr(settings)
+
+
+def test_settings_loads_database_url_from_env_file(tmp_path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("SIE_DATABASE_URL=sqlite+aiosqlite:///./from-env.db\n", encoding="utf-8")
+
+    settings = Settings(_env_file=env_file)
+
+    assert settings.database_url == "sqlite+aiosqlite:///./from-env.db"
