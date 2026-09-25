@@ -29,7 +29,11 @@ _ASYNC_TO_SYNC_DRIVERS = {
 
 
 def _database_url() -> str:
-    url = (\n        os.environ.get("SIE_DATABASE_URL")\n        or config.get_main_option("sqlalchemy.url")\n        or MigrationSettings().database_url\n    )
+    url = (
+        os.environ.get("SIE_DATABASE_URL")
+        or config.get_main_option("sqlalchemy.url")
+        or MigrationSettings().database_url
+    )
     for async_driver, sync_driver in _ASYNC_TO_SYNC_DRIVERS.items():
         if url.startswith(f"{async_driver}:"):
             return f"{sync_driver}:{url.split(':', 1)[1]}"
